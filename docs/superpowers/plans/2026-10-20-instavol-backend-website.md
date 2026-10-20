@@ -100,20 +100,24 @@ git commit -m "chore: scaffold Next.js project"
 
 **Files:**
 - Create: `lib/schema.ts`, `lib/db.ts`, `drizzle.config.ts`, `tests/setup.ts`, `tests/db.test.ts`
-- Modify: `vitest.config.ts` (add `setupFiles: ['tests/setup.ts']`)
+- Modify: `vitest.config.ts` (add `setupFiles: ['tests/setup.ts']`), `.env.example` (drop the unused `DATABASE_URL_TEST` placeholder — see Controller Ruling below)
+
+**Controller ruling (recorded in the SDD ledger):** this machine has no local Postgres and no Docker available, so the originally-planned "external scratch Postgres for `DATABASE_URL_TEST`" prerequisite is not viable here. Tests instead run against an in-memory **PGlite** instance (`@electric-sql/pglite`, via `drizzle-orm/pglite`) — no external database, service, or account needed. Production is unaffected: it still connects to real Neon Postgres via `DATABASE_URL`. Both are plain Drizzle instances exposing the same query builder, so every other task's code (which only imports `db`/`links` from these two files) is unaffected by this change.
 
 **Interfaces:**
 - Produces (used by every later task): Drizzle table `links` in `lib/schema.ts` with columns `id` (uuid, primary key, default random), `url` (text, not null), `title` (text, nullable), `status` (text, not null, default `'pending'`), `summary` (text, nullable), `category` (text, nullable), `errorMessage` (text, nullable), `createdAt` (timestamp, not null, default now), `updatedAt` (timestamp, not null, default now).
 - Produces: `export type LinkRow = typeof links.$inferSelect;` in `lib/schema.ts`.
-- Produces: `db` exported from `lib/db.ts`, a Drizzle instance connected to `process.env.DATABASE_URL_TEST` when `NODE_ENV === 'test'`, otherwise `process.env.DATABASE_URL`.
+- Produces: `db` exported from `lib/db.ts` — when `NODE_ENV === 'test'`, a Drizzle instance over an in-memory `PGlite` database with the schema already migrated onto it; otherwise a Drizzle instance over `neon(process.env.DATABASE_URL)`.
 
-**Prerequisite:** a scratch Postgres database reachable via `DATABASE_URL_TEST` (a local Postgres database, or a second free Neon database) must exist before running tests from this task onward.
+- [ ] **Step 1: Install the PGlite test dependency**
 
-- [ ] **Step 1: Write `tests/setup.ts` to load `.env.test`**
+Run: `npm install -D @electric-sql/pglite`
 
-Uses `dotenv/config` pointed at `.env.test`; also exports a `truncateLinks()` helper that `DELETE FROM links` between tests.
+- [ ] **Step 2: Write `tests/setup.ts`**
 
-- [ ] **Step 2: Write the failing test**
+Exports a `truncateLinks()` helper that `DELETE FROM links` between tests. (No `.env.test`/`DATABASE_URL_TEST` loading needed — the test database is in-memory, created fresh by `lib/db.ts` itself.)
+
+- [ ] **Step 3: Write the failing test**
 
 ```ts
 // tests/db.test.ts
@@ -129,32 +133,36 @@ test('inserting a link applies defaults', async () => {
 });
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [ ] **Step 4: Run test to verify it fails**
 
 Run: `npx vitest run tests/db.test.ts`
 Expected: FAIL — `lib/schema` / `lib/db` not found.
 
-- [ ] **Step 4: Implement `lib/schema.ts`**
+- [ ] **Step 5: Implement `lib/schema.ts`**
 
 Define the `links` pgTable exactly as specified in Interfaces above, plus the `LinkRow` type export.
 
-- [ ] **Step 5: Implement `lib/db.ts`**
+- [ ] **Step 6: Create `drizzle.config.ts` and generate the migration**
 
-Export `db = drizzle(neon(connectionString))`, selecting `DATABASE_URL_TEST` vs `DATABASE_URL` by `NODE_ENV`.
+`drizzle.config.ts` points at `lib/schema.ts` (dialect `postgresql`). Run: `npx drizzle-kit generate` — this reads the schema and writes a SQL migration file under `drizzle/` without needing any live database connection.
 
-- [ ] **Step 6: Create `drizzle.config.ts` and push the schema**
+- [ ] **Step 7: Implement `lib/db.ts`**
 
-Run: `npx drizzle-kit push` (against `DATABASE_URL_TEST`) to create the `links` table.
+When `NODE_ENV === 'test'`: create a `PGlite` instance (`new PGlite()`, in-memory, no path argument), wrap it with `drizzle(client, { schema })` from `drizzle-orm/pglite`, then apply the migration folder with `migrate(db, { migrationsFolder: './drizzle' })` from `drizzle-orm/pglite/migrator` before exporting `db` (top-level `await` is fine here). Otherwise: `drizzle(neon(process.env.DATABASE_URL), { schema })` from `drizzle-orm/neon-http`, with no migration step (Task 11 applies migrations to the real database separately via `drizzle-kit migrate`).
 
-- [ ] **Step 7: Run test to verify it passes**
+- [ ] **Step 8: Run test to verify it passes**
 
 Run: `npx vitest run tests/db.test.ts`
 Expected: PASS
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 8b: Remove the unused `DATABASE_URL_TEST` line from `.env.example`**
+
+It was added speculatively in Task 1 for an external test database that this task no longer uses (see Controller Ruling above).
+
+- [ ] **Step 9: Commit**
 
 ```bash
-git add lib/schema.ts lib/db.ts drizzle.config.ts tests/setup.ts tests/db.test.ts vitest.config.ts
+git add lib/schema.ts lib/db.ts drizzle.config.ts drizzle/ tests/setup.ts tests/db.test.ts vitest.config.ts package.json package-lock.json .env.example
 git commit -m "feat: add links table and db connection"
 ```
 
@@ -947,7 +955,7 @@ List `DATABASE_URL`, `API_TOKEN`, `SITE_USERNAME`, `SITE_PASSWORD`, `GEMINI_API_
 
 - [ ] **Step 2: Create the production database**
 
-Manual: create a Neon Postgres database; set `DATABASE_URL`; run `npx drizzle-kit push` against it.
+Manual: create a Neon Postgres database; set `DATABASE_URL`; run `npx drizzle-kit migrate` against it to apply the migration(s) generated in Task 2.
 
 - [ ] **Step 3: Get a Gemini API key**
 
