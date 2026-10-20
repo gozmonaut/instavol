@@ -48,7 +48,7 @@ Run: `npx create-next-app@latest . --typescript --app --eslint --no-tailwind --n
 Run:
 ```bash
 npm install drizzle-orm @neondatabase/serverless jsdom @mozilla/readability
-npm install -D vitest @vitejs/plugin-react @testing-library/react @testing-library/jest-dom drizzle-kit @types/jsdom dotenv
+npm install -D vitest @vitejs/plugin-react @testing-library/react @testing-library/jest-dom @testing-library/user-event drizzle-kit @types/jsdom dotenv
 ```
 
 - [ ] **Step 3: Configure Vitest**
