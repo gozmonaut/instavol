@@ -38,8 +38,8 @@ test('throws PageFetchError when the extracted text is only short boilerplate', 
   await expect(fetchPageText('https://example.com/boilerplate')).rejects.toThrow('Geen leesbare inhoud gevonden');
 });
 
-test.each(['127.0.0.1', '10.1.2.3', '172.16.0.1', '192.168.1.1', '169.254.169.254', '::1', 'fd00::1', 'fe80::1'])(
-  'isDisallowedHost blocks private, loopback and link-local address %s',
+test.each(['0.0.0.0', '127.0.0.1', '10.1.2.3', '172.16.0.1', '192.168.1.1', '169.254.169.254', '::', '::1', 'fd00::1', 'fe80::1'])(
+  'isDisallowedHost blocks unspecified, private, loopback and link-local address %s',
   async (address) => {
     lookupMock.mockResolvedValueOnce([{ address, family: address.includes(':') ? 6 : 4 }]);
     await expect(isDisallowedHost('internal.example')).resolves.toBe(true);

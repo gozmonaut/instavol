@@ -6,11 +6,13 @@ import { BlockList } from 'node:net';
 const MIN_ARTICLE_TEXT_LENGTH = 200;
 
 const blockedAddresses = new BlockList();
+blockedAddresses.addSubnet('0.0.0.0', 8, 'ipv4');
 blockedAddresses.addSubnet('127.0.0.0', 8, 'ipv4');
 blockedAddresses.addSubnet('10.0.0.0', 8, 'ipv4');
 blockedAddresses.addSubnet('172.16.0.0', 12, 'ipv4');
 blockedAddresses.addSubnet('192.168.0.0', 16, 'ipv4');
 blockedAddresses.addSubnet('169.254.0.0', 16, 'ipv4');
+blockedAddresses.addAddress('::', 'ipv6');
 blockedAddresses.addAddress('::1', 'ipv6');
 blockedAddresses.addSubnet('fc00::', 7, 'ipv6');
 blockedAddresses.addSubnet('fe80::', 10, 'ipv6');
