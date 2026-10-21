@@ -464,13 +464,15 @@ git commit -m "feat: add processLink orchestration"
 
 ## Task 6: Auth helpers and website middleware
 
+**Controller ruling (recorded in the SDD ledger):** the plan originally specified `middleware.ts` with a default-exported `middleware` function, per general knowledge of Next.js's API at plan-writing time. The installed Next.js 16.4.2's own bundled docs mark that convention deprecated in favor of `proxy.ts` with a default-exported `proxy` function (same signature, same matcher semantics). Using `proxy.ts` throughout this task instead.
+
 **Files:**
-- Create: `lib/auth.ts`, `middleware.ts`, `tests/auth.test.ts`
+- Create: `lib/auth.ts`, `proxy.ts` (Next.js 16 renamed the middleware convention; see Controller Ruling above), `tests/auth.test.ts`
 
 **Interfaces:**
 - Produces: `isValidApiToken(request: Request): boolean` in `lib/auth.ts` — checks header `Authorization: Bearer <token>` against `process.env.API_TOKEN`. Consumed by Task 7.
-- Produces: `isValidBasicAuth(request: Request): boolean` in `lib/auth.ts` — checks header `Authorization: Basic <base64(user:pass)>` against `process.env.SITE_USERNAME`/`process.env.SITE_PASSWORD`. Consumed by `middleware.ts`.
-- Produces: default-exported `middleware` in `middleware.ts`, matcher excluding `/api/share` and Next.js internals, returning `401` with a `WWW-Authenticate: Basic` header when `isValidBasicAuth` fails.
+- Produces: `isValidBasicAuth(request: Request): boolean` in `lib/auth.ts` — checks header `Authorization: Basic <base64(user:pass)>` against `process.env.SITE_USERNAME`/`process.env.SITE_PASSWORD`. Consumed by `proxy.ts`.
+- Produces: default-exported `proxy` function in `proxy.ts`, matcher excluding `/api/share` and Next.js internals, returning `401` with a `WWW-Authenticate: Basic` header when `isValidBasicAuth` fails.
 
 - [ ] **Step 1: Write the failing test for `isValidApiToken`**
 
@@ -533,7 +535,7 @@ git add lib/auth.ts tests/auth.test.ts
 git commit -m "feat: add API token and basic auth helpers"
 ```
 
-- [ ] **Step 8: Implement `middleware.ts`**
+- [ ] **Step 8: Implement `proxy.ts` (not `middleware.ts` — see Controller Ruling)**
 
 Use `isValidBasicAuth`; `matcher: ['/((?!api/share|_next|favicon.ico).*)']`; on failure return a `401` Response with header `WWW-Authenticate: 'Basic realm="Instavol"'`.
 
@@ -550,7 +552,7 @@ Expected: first call `401` with `WWW-Authenticate: Basic`; second call `200`; th
 - [ ] **Step 10: Commit**
 
 ```bash
-git add middleware.ts
+git add proxy.ts
 git commit -m "feat: protect website with basic auth middleware"
 ```
 
