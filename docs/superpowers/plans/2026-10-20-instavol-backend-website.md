@@ -763,7 +763,7 @@ git commit -m "feat: add getLinks query and GET /api/links endpoint"
 
 **Interfaces:**
 - Consumes: `processLink` (Task 5), `db`, `links` (Task 2).
-- Produces: exported `POST(request: Request, { params }: { params: { id: string } }): Promise<Response>`. Awaits `processLink(id)` directly (not backgrounded — this is an explicit, infrequent manual retry). Returns `200` with the updated `LinkRow` on success, `404` if `id` doesn't exist.
+- Produces: exported `POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response>` (Next.js 16 made dynamic route `params` a Promise — see Controller Ruling below). Awaits `processLink(id)` directly (not backgrounded — this is an explicit, infrequent manual retry). Returns `200` with the updated `LinkRow` on success, `404` if `id` doesn't exist.
 
 - [ ] **Step 1: Write the failing happy-path test**
 
