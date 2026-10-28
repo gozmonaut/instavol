@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { LinkRow } from '@/lib/schema';
 import { parseShareUrl } from '@/lib/shareUrl';
+import styles from './LinksBrowser.module.css';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const POLL_INTERVAL_MS = 3000;
@@ -119,82 +120,101 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   }
 
   const categories = distinctCategories(links);
+  const isFiltering = Boolean(q || category);
 
   return (
-    <main style={{ maxWidth: 720, margin: '0 auto', padding: '2rem 1rem' }}>
-      <h1 style={{ marginBottom: '1rem' }}>Instavol</h1>
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
-        <input
-          type="search"
-          placeholder="Zoeken..."
-          value={q}
-          onChange={(event) => setQ(event.target.value)}
-          onKeyDown={(event) => {
-            const url = parseShareUrl(q);
-            if (event.key === 'Enter' && url && !saving) handleSave(url);
-          }}
-          style={{ flex: 1, padding: '0.5rem' }}
-        />
-        <select
-          value={category}
-          onChange={(event) => setCategory(event.target.value)}
-          style={{ padding: '0.5rem' }}
-        >
-          <option value="">Alle categorieën</option>
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-      </div>
-      <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {links.map((link) => (
-          <li
-            key={link.id}
-            style={{ border: '1px solid #ddd', borderRadius: 8, padding: '1rem' }}
+    <main className={styles.page}>
+      <header className={styles.header}>
+        <h1 className={styles.title}>Instavol</h1>
+        <div className={styles.controls}>
+          <input
+            type="search"
+            enterKeyHint="go"
+            autoCapitalize="none"
+            autoCorrect="off"
+            aria-label="Zoek of plak een link"
+            placeholder="Zoek of plak een link"
+            className={styles.search}
+            value={q}
+            onChange={(event) => setQ(event.target.value)}
+            onKeyDown={(event) => {
+              const url = parseShareUrl(q);
+              if (event.key === 'Enter' && url && !saving) handleSave(url);
+            }}
+          />
+          <select
+            aria-label="Categorie"
+            className={styles.select}
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
-              <a href={link.url} target="_blank" rel="noreferrer" style={{ fontWeight: 'bold' }}>
+            <option value="">Alles</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+        {parseShareUrl(q) && <p className={styles.hint}>Druk op Enter om deze link te bewaren</p>}
+      </header>
+
+      {links.length === 0 ? (
+        <div className={styles.empty}>
+          {isFiltering ? (
+            <p className={styles.emptyTitle}>Geen resultaten</p>
+          ) : (
+            <>
+              <p className={styles.emptyTitle}>Nog niets bewaard</p>
+              <p>Plak hierboven een link, of deel een pagina vanuit Safari met &ldquo;Bewaar in Instavol&rdquo;.</p>
+            </>
+          )}
+        </div>
+      ) : (
+        <ul className={styles.list}>
+          {links.map((link) => (
+            <li key={link.id} className={styles.card}>
+              <a href={link.url} target="_blank" rel="noreferrer" className={styles.cardTitle}>
                 {link.title ?? link.url}
               </a>
-              {link.category && (
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    background: '#eee',
-                    borderRadius: 4,
-                    padding: '0.1rem 0.5rem',
-                    whiteSpace: 'nowrap',
-                  }}
+              <div className={styles.meta}>
+                <span>{domainFromUrl(link.url)}</span>
+                <span aria-hidden="true">·</span>
+                <span>{formatDate(link.createdAt)}</span>
+                {link.category && <span className={styles.chip}>{link.category}</span>}
+              </div>
+              {link.status === 'done' && link.summary && <p className={styles.summary}>{link.summary}</p>}
+              {link.status === 'pending' && (
+                <p className={styles.status}>
+                  <span className={styles.spinner} aria-hidden="true" />
+                  Wordt verwerkt...
+                </p>
+              )}
+              {link.status === 'failed' && (
+                <p className={`${styles.status} ${styles.failed}`}>Mislukt: {link.errorMessage}</p>
+              )}
+              <div className={styles.actions}>
+                {link.status !== 'done' && (
+                  <button
+                    className={styles.action}
+                    onClick={() => handleRetry(link.id)}
+                    disabled={retryingId === link.id}
+                  >
+                    Opnieuw verwerken
+                  </button>
+                )}
+                <button
+                  className={`${styles.action} ${styles.danger}`}
+                  onClick={() => handleDelete(link.id)}
+                  disabled={deletingId === link.id}
                 >
-                  {link.category}
-                </span>
-              )}
-            </div>
-            <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.25rem' }}>
-              {domainFromUrl(link.url)} · {formatDate(link.createdAt)}
-            </div>
-            {link.status === 'done' && link.summary && (
-              <p style={{ marginTop: '0.5rem' }}>{link.summary}</p>
-            )}
-            {link.status === 'pending' && <p style={{ marginTop: '0.5rem' }}>Wordt verwerkt...</p>}
-            {link.status === 'failed' && (
-              <p style={{ marginTop: '0.5rem' }}>Mislukt: {link.errorMessage}</p>
-            )}
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-              {link.status !== 'done' && (
-                <button onClick={() => handleRetry(link.id)} disabled={retryingId === link.id}>
-                  Opnieuw verwerken
+                  Verwijderen
                 </button>
-              )}
-              <button onClick={() => handleDelete(link.id)} disabled={deletingId === link.id}>
-                Verwijderen
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </main>
   );
 }
