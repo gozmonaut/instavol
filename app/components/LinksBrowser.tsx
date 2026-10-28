@@ -31,6 +31,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [q, setQ] = useState('');
   const [category, setCategory] = useState('');
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const isFirstRender = useRef(true);
 
   useEffect(() => {
@@ -59,6 +60,17 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
       setLinks((prev) => prev.map((link) => (link.id === id ? updated : link)));
     } finally {
       setRetryingId(null);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!window.confirm('Weet je zeker dat je dit item wilt verwijderen?')) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/links/${id}`, { method: 'DELETE' });
+      if (res.ok) setLinks((prev) => prev.filter((link) => link.id !== id));
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -122,15 +134,16 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             {link.status === 'failed' && (
               <p style={{ marginTop: '0.5rem' }}>Mislukt: {link.errorMessage}</p>
             )}
-            {link.status !== 'done' && (
-              <button
-                onClick={() => handleRetry(link.id)}
-                disabled={retryingId === link.id}
-                style={{ marginTop: '0.5rem' }}
-              >
-                Opnieuw verwerken
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              {link.status !== 'done' && (
+                <button onClick={() => handleRetry(link.id)} disabled={retryingId === link.id}>
+                  Opnieuw verwerken
+                </button>
+              )}
+              <button onClick={() => handleDelete(link.id)} disabled={deletingId === link.id}>
+                Verwijderen
               </button>
-            )}
+            </div>
           </li>
         ))}
       </ul>

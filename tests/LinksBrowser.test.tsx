@@ -63,3 +63,24 @@ test('clicking retry calls the reprocess endpoint and updates the item', async (
   expect(fetchMock).toHaveBeenCalledWith('/api/links/2/reprocess', expect.objectContaining({ method: 'POST' }));
   await screen.findByText('Nu wel gelukt');
 });
+
+test('clicking delete and confirming calls the delete endpoint and removes the item', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+  vi.stubGlobal('fetch', fetchMock);
+  vi.spyOn(window, 'confirm').mockReturnValue(true);
+  render(<LinksBrowser initialLinks={fixture} />);
+  await userEvent.click(screen.getAllByText('Verwijderen')[0]);
+  expect(fetchMock).toHaveBeenCalledWith('/api/links/1', expect.objectContaining({ method: 'DELETE' }));
+  await waitFor(() => expect(screen.queryByText('Artikel A')).not.toBeInTheDocument());
+  expect(screen.getByText('Artikel B')).toBeInTheDocument();
+});
+
+test('cancelling the delete confirmation keeps the item and does not call the endpoint', async () => {
+  const fetchMock = vi.fn();
+  vi.stubGlobal('fetch', fetchMock);
+  vi.spyOn(window, 'confirm').mockReturnValue(false);
+  render(<LinksBrowser initialLinks={fixture} />);
+  await userEvent.click(screen.getAllByText('Verwijderen')[0]);
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(screen.getByText('Artikel A')).toBeInTheDocument();
+});
