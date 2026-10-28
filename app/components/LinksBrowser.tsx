@@ -125,7 +125,12 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <h1 className={styles.title}>Instavol</h1>
+        <h1 className={styles.title}>
+          <picture>
+            <source srcSet="/instavol-logo-dark.svg" media="(prefers-color-scheme: dark)" />
+            <img src="/instavol-logo-light.svg" alt="Instavol" className={styles.logo} />
+          </picture>
+        </h1>
         <div className={styles.controls}>
           <input
             type="search"
