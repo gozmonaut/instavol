@@ -32,6 +32,23 @@ function buildShareText(link: LinkRow): string {
   return [link.title, meta, summary, link.url].filter(Boolean).join('\n');
 }
 
+const ACTION_ICON_PATHS = {
+  share: ['M12 15V4', 'M8 8l4-4 4 4', 'M7 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1'],
+  research: ['M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z', 'M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z'],
+  retry: ['M20 12a8 8 0 1 1-2.34-5.66', 'M20 4v4h-4'],
+  delete: ['M4 7h16', 'M10 11v6', 'M14 11v6', 'M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12', 'M9 7V4h6v3'],
+} as const;
+
+function ActionIcon({ name }: { name: keyof typeof ACTION_ICON_PATHS }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ACTION_ICON_PATHS[name].map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  );
+}
+
 function distinctCategories(items: LinkRow[]): string[] {
   const categories = new Set<string>();
   for (const item of items) {
@@ -250,14 +267,16 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
         <ul className={styles.list}>
           {links.map((link) => (
             <li key={link.id} className={styles.card}>
-              <a href={link.url} target="_blank" rel="noreferrer" className={styles.cardTitle}>
-                {link.title ?? link.url}
-              </a>
+              <div className={styles.cardHeader}>
+                <a href={link.url} target="_blank" rel="noreferrer" className={styles.cardTitle}>
+                  {link.title ?? link.url}
+                </a>
+                {link.category && <span className={styles.chip}>{link.category}</span>}
+              </div>
               <div className={styles.meta}>
                 <span>{domainFromUrl(link.url)}</span>
                 <span aria-hidden="true">·</span>
                 <span>{formatDate(link.createdAt)}</span>
-                {link.category && <span className={styles.chip}>{link.category}</span>}
               </div>
               {link.status === 'done' && link.summary && <p className={styles.summary}>{link.summary}</p>}
               {link.status === 'pending' && (
@@ -271,18 +290,22 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
               )}
               <div className={styles.actions}>
                 <button className={styles.action} onClick={() => handleShare(link)}>
+                  <ActionIcon name="share" />
                   {copiedId === link.id ? 'Gekopieerd' : 'Delen'}
                 </button>
                 <button className={styles.action} onClick={() => setResearchLink(link)}>
-                  {promptCopiedId === link.id ? 'Prompt gekopieerd' : 'Onderzoek'}
+                  <ActionIcon name="research" />
+                  {promptCopiedId === link.id ? 'Gekopieerd' : 'Onderzoek'}
                 </button>
                 {link.status !== 'done' && (
                   <button
                     className={styles.action}
                     onClick={() => handleRetry(link.id)}
                     disabled={retryingId === link.id}
+                    aria-label="Opnieuw verwerken"
                   >
-                    Opnieuw verwerken
+                    <ActionIcon name="retry" />
+                    Opnieuw
                   </button>
                 )}
                 <button
@@ -290,6 +313,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                   onClick={() => handleDelete(link.id)}
                   disabled={deletingId === link.id}
                 >
+                  <ActionIcon name="delete" />
                   Verwijderen
                 </button>
               </div>

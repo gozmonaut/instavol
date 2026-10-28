@@ -37,7 +37,7 @@ test('renders links, and only shows retry for non-done items', () => {
   render(<LinksBrowser initialLinks={fixture} />);
   expect(screen.getByText('Artikel A')).toBeInTheDocument();
   expect(screen.getByText('Samenvatting A')).toBeInTheDocument();
-  expect(screen.getAllByText('Opnieuw verwerken')).toHaveLength(1);
+  expect(screen.getAllByRole('button', { name: 'Opnieuw verwerken' })).toHaveLength(1);
 });
 
 test('typing in search fetches /api/links?q=... and replaces the list', async () => {
@@ -62,7 +62,7 @@ test('clicking retry calls the reprocess endpoint and updates the item', async (
   });
   vi.stubGlobal('fetch', fetchMock);
   render(<LinksBrowser initialLinks={fixture} />);
-  await userEvent.click(screen.getByText('Opnieuw verwerken'));
+  await userEvent.click(screen.getByRole('button', { name: 'Opnieuw verwerken' }));
   expect(fetchMock).toHaveBeenCalledWith('/api/links/2/reprocess', expect.objectContaining({ method: 'POST' }));
   await screen.findByText('Nu wel gelukt');
 });
@@ -143,7 +143,7 @@ describe('research with Claude', () => {
     await userEvent.click(screen.getAllByText('Onderzoek')[0]);
     await userEvent.click(screen.getByRole('button', { name: 'Alles' }));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Ik wil dit artikel verder onderzoeken.'));
-    await screen.findByText('Prompt gekopieerd');
+    await screen.findByRole('button', { name: 'Gekopieerd' });
   });
 });
 

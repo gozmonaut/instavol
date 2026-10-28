@@ -151,13 +151,23 @@
 }
 
 .card {
+  overflow: hidden;
   background: var(--surface);
   border-radius: 16px;
   padding: 16px;
   box-shadow: var(--card-shadow);
 }
 
+/* Title on the left, category always pinned top-right */
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .cardTitle {
+  flex: 1;
+  min-width: 0;
   display: block;
   font-size: 17px;
   font-weight: 600;
@@ -177,6 +187,11 @@
 }
 
 .chip {
+  flex-shrink: 0;
+  max-width: 40%;
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 12px;
   font-weight: 500;
   color: var(--accent);
@@ -221,24 +236,38 @@
   }
 }
 
+/* Edge-to-edge bar of equal-width buttons along the bottom of the card */
 .actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin: 8px -10px -8px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  margin: 14px -16px -16px;
+  border-top: 0.5px solid var(--separator);
 }
 
-/* 44px tall tap targets, styled as iOS text buttons */
+/* Icon above a short label, like an iOS tab bar; 52px tall tap targets */
 .action {
-  min-height: 44px;
-  padding: 0 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  height: 52px;
+  padding: 0 4px;
   font: inherit;
-  font-size: 15px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
   color: var(--accent);
   background: none;
   border: none;
-  border-radius: 10px;
   cursor: pointer;
+  transition: background-color 120ms;
+}
+
+.action + .action {
+  border-left: 0.5px solid var(--separator);
 }
 
 .action:active {
