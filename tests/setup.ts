@@ -1,11 +1,16 @@
 import { afterEach } from 'vitest';
-import { db } from '@/lib/db';
-import { links } from '@/lib/schema';
+
+// jsdom-environment tests don't use the database, and PGlite can't load under jsdom's Blob.
+const isJsdom = typeof window !== 'undefined';
 
 export async function truncateLinks() {
+  const { db } = await import('@/lib/db');
+  const { links } = await import('@/lib/schema');
   await db.delete(links);
 }
 
-afterEach(async () => {
-  await truncateLinks();
-});
+if (!isJsdom) {
+  afterEach(async () => {
+    await truncateLinks();
+  });
+}
