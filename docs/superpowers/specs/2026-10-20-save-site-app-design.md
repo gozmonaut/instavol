@@ -82,6 +82,11 @@ te verwateren in tientallen bijna-identieke varianten.
 - **Opslaan:** via een native Safari Share Extension, zowel voor iOS als
   macOS (dit vereist een Xcode-project met Swift/SwiftUI — geen
   webtechniek kan het systeem-deelmenu van Safari uitbreiden).
+  *Update 2026-10-28:* voorlopig gekozen voor een Apple Opdrachten-
+  (Shortcuts-)opdracht "Bewaar in Instavol" in plaats van de native
+  extensie. Die verschijnt ook in Safari's deelmenu op iPhone en Mac,
+  vereist geen Xcode en verloopt niet na 7 dagen. De native extensie
+  blijft een optie voor later; de server-API blijft hetzelfde.
 - **Samenvatting:** volledig automatisch, Volkan typt niets zelf in.
 - **Categorisering:** volledig automatisch; geen vaste lijst vooraf. De
   app mag zelf nieuwe categorieën aanmaken naarmate er meer wordt
