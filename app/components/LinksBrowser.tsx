@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { LinkRow } from '@/lib/schema';
+import { parseShareUrl } from '@/lib/shareUrl';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -32,6 +33,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [category, setCategory] = useState('');
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const isFirstRender = useRef(true);
 
   useEffect(() => {
@@ -63,6 +65,24 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     }
   }
 
+  async function handleSave(url: string) {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      if (res.ok) {
+        const created: LinkRow = await res.json();
+        setLinks((prev) => [created, ...prev]);
+        setQ('');
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleDelete(id: string) {
     if (!window.confirm('Weet je zeker dat je dit item wilt verwijderen?')) return;
     setDeletingId(id);
@@ -75,6 +95,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   }
 
   const categories = distinctCategories(links);
+  const pastedUrl = parseShareUrl(q);
 
   return (
     <main style={{ maxWidth: 720, margin: '0 auto', padding: '2rem 1rem' }}>
@@ -99,6 +120,11 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             </option>
           ))}
         </select>
+        {pastedUrl && (
+          <button onClick={() => handleSave(pastedUrl)} disabled={saving}>
+            Bewaar deze link
+          </button>
+        )}
       </div>
       <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {links.map((link) => (
