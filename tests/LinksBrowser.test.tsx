@@ -56,15 +56,64 @@ test('selecting a category fetches /api/links?category=...', async () => {
   await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('category=Tech')));
 });
 
-test('tapping an item\'s category filters on it, and tapping it again clears the filter', async () => {
-  const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ links: [fixture[0]] }) });
-  vi.stubGlobal('fetch', fetchMock);
-  render(<LinksBrowser initialLinks={fixture} />);
-  await userEvent.click(screen.getByRole('button', { name: 'Filter op Tech' }));
-  expect(screen.getByRole('combobox')).toHaveValue('Tech');
-  await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('category=Tech')));
-  await userEvent.click(screen.getByRole('button', { name: 'Filter op Tech' }));
-  expect(screen.getByRole('combobox')).toHaveValue('');
+describe('the category menu', () => {
+  test('"Filter op" filters on the category, and the same menu can turn the filter off again', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ links: [fixture[0]] }) });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Categorie Tech' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Filter op Tech' }));
+    expect(screen.getByRole('combobox')).toHaveValue('Tech');
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('category=Tech')));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Categorie Tech' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Toon alle categorieën' }));
+    expect(screen.getByRole('combobox')).toHaveValue('');
+  });
+
+  test('"Categorie wijzigen" lists existing categories; picking one saves it on the item', async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) =>
+      Promise.resolve(
+        url === '/api/categories'
+          ? { ok: true, json: async () => ({ categories: ['Tech', 'Politiek', 'Koken'] }) }
+          : { ok: true, json: async () => ({ ...fixture[0], category: JSON.parse(String(init?.body)).category }) },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Categorie Tech' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Categorie wijzigen' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Politiek' }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/links/1',
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ category: 'Politiek' }) }),
+    );
+    expect(await screen.findByRole('button', { name: 'Categorie Politiek' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  test('a new category can be typed and saved with Enter', async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) =>
+      Promise.resolve(
+        url === '/api/categories'
+          ? { ok: true, json: async () => ({ categories: ['Tech'] }) }
+          : { ok: true, json: async () => ({ ...fixture[0], category: JSON.parse(String(init?.body)).category }) },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Categorie Tech' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Categorie wijzigen' }));
+    const input = screen.getByLabelText('Nieuwe categorie');
+    expect(input).toHaveValue('Tech');
+    await userEvent.clear(input);
+    await userEvent.type(input, 'Wetenschap{Enter}');
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/links/1',
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ category: 'Wetenschap' }) }),
+    );
+    expect(await screen.findByRole('button', { name: 'Categorie Wetenschap' })).toBeInTheDocument();
+  });
 });
 
 test('clicking retry calls the reprocess endpoint and updates the item', async () => {
@@ -122,6 +171,36 @@ test('items are grouped under date headings, newest group first', () => {
   render(<LinksBrowser initialLinks={[fixture[0], older]} />);
   const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
   expect(headings).toEqual(['Vandaag', 'Vorige week']);
+});
+
+describe('jumping between date groups', () => {
+  const older = { ...fixture[1], createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) };
+  let scrollIntoView: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView as unknown as Element['scrollIntoView'];
+  });
+
+  test('tapping a heading lists all groups with their counts, and choosing one scrolls to it', async () => {
+    const { container } = render(<LinksBrowser initialLinks={[fixture[0], older]} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Vandaag, kies een periode' }));
+    const dialog = screen.getByRole('dialog', { name: 'Ga naar' });
+    expect(dialog).toHaveTextContent('Vandaag');
+    expect(dialog).toHaveTextContent('Vorige week');
+    await userEvent.click(screen.getByRole('button', { name: 'Vorige week (1)' }));
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.contexts[0]).toBe(container.querySelector('section[data-group="Vorige week"]'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  test('Annuleren closes the list without scrolling', async () => {
+    render(<LinksBrowser initialLinks={[fixture[0], older]} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Vandaag, kies een periode' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Annuleren' }));
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 });
 
 describe('research with Claude', () => {

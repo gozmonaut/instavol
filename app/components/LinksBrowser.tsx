@@ -68,6 +68,12 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [saving, setSaving] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [researchLink, setResearchLink] = useState<LinkRow | null>(null);
+  const [groupPickerOpen, setGroupPickerOpen] = useState(false);
+  const [categoryMenuLink, setCategoryMenuLink] = useState<LinkRow | null>(null);
+  const [editingLink, setEditingLink] = useState<LinkRow | null>(null);
+  const [categoryDraft, setCategoryDraft] = useState('');
+  const [allCategories, setAllCategories] = useState<string[]>([]);
+  const [savingCategory, setSavingCategory] = useState(false);
   const [promptCopiedId, setPromptCopiedId] = useState<string | null>(null);
   const [compact, setCompact] = useState(false);
   const topSentinel = useRef<HTMLDivElement>(null);
@@ -195,6 +201,48 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     return shareOrCopy(buildResearchPrompt(link, focus, formatDate(link.createdAt)), link.id, setPromptCopiedId);
   }
 
+  function toggleCategoryFilter(link: LinkRow) {
+    setCategoryMenuLink(null);
+    setCategory((current) => (current === link.category ? '' : (link.category ?? '')));
+  }
+
+  function startEditingCategory(link: LinkRow) {
+    setCategoryMenuLink(null);
+    setEditingLink(link);
+    setCategoryDraft(link.category ?? '');
+    // The filtered list may not contain every category, so ask the server for all of them.
+    fetch('/api/categories')
+      .then((res) => res.json())
+      .then((data) => setAllCategories(data.categories))
+      .catch(() => setAllCategories(distinctCategories(links)));
+  }
+
+  async function saveCategory(value: string) {
+    if (!editingLink || !value.trim() || savingCategory) return;
+    setSavingCategory(true);
+    try {
+      const res = await fetch(`/api/links/${editingLink.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: value.trim() }),
+      });
+      if (res.ok) {
+        const updated: LinkRow = await res.json();
+        setLinks((prev) => prev.map((link) => (link.id === updated.id ? updated : link)));
+        setEditingLink(null);
+      }
+    } finally {
+      setSavingCategory(false);
+    }
+  }
+
+  function jumpToGroup(label: string) {
+    setGroupPickerOpen(false);
+    const section = pageRef.current?.querySelector<HTMLElement>(`section[data-group="${CSS.escape(label)}"]`);
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    section?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  }
+
   async function handleLogout() {
     if (!window.confirm('Weet je zeker dat je wilt uitloggen?')) return;
     await fetch('/api/logout', { method: 'POST' });
@@ -281,8 +329,20 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
         </div>
       ) : (
         groups.map((group) => (
-          <section key={group.label} className={styles.group}>
-            <h2 className={styles.groupHeading}>{group.label}</h2>
+          <section key={group.label} className={styles.group} data-group={group.label}>
+            <h2 className={styles.groupHeading}>
+              <button
+                className={styles.groupButton}
+                aria-label={`${group.label}, kies een periode`}
+                aria-haspopup="dialog"
+                onClick={() => setGroupPickerOpen(true)}
+              >
+                {group.label}
+                <svg width="10" height="10" viewBox="0 0 12 8" aria-hidden="true">
+                  <path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </h2>
             <ul className={styles.list}>
               {group.items.map((link) => (
                 <li key={link.id} className={styles.card}>
@@ -293,9 +353,10 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                     {link.category && (
                       <button
                         className={styles.chip}
-                        aria-label={`Filter op ${link.category}`}
+                        aria-label={`Categorie ${link.category}`}
+                        aria-haspopup="dialog"
                         aria-pressed={category === link.category}
-                        onClick={() => setCategory((current) => (current === link.category ? '' : link.category!))}
+                        onClick={() => setCategoryMenuLink(link)}
                       >
                         {link.category}
                       </button>
@@ -350,6 +411,120 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             </ul>
           </section>
         ))
+      )}
+
+      {categoryMenuLink && (
+        <div className={styles.sheetBackdrop} onClick={() => setCategoryMenuLink(null)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="category-menu-title"
+            className={styles.sheet}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={styles.sheetGroup}>
+              <div className={styles.sheetHeader}>
+                <p id="category-menu-title" className={styles.sheetTitle}>
+                  {categoryMenuLink.category}
+                </p>
+              </div>
+              <button className={styles.sheetOption} onClick={() => toggleCategoryFilter(categoryMenuLink)}>
+                {category === categoryMenuLink.category ? 'Toon alle categorieën' : `Filter op ${categoryMenuLink.category}`}
+              </button>
+              <button className={styles.sheetOption} onClick={() => startEditingCategory(categoryMenuLink)}>
+                Categorie wijzigen
+              </button>
+            </div>
+            <button className={styles.sheetCancel} onClick={() => setCategoryMenuLink(null)}>
+              Annuleren
+            </button>
+          </div>
+        </div>
+      )}
+
+      {editingLink && (
+        <div className={styles.sheetBackdrop} onClick={() => setEditingLink(null)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="category-edit-title"
+            className={styles.sheet}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={`${styles.sheetGroup} ${styles.sheetScroll}`}>
+              <div className={styles.sheetHeader}>
+                <p id="category-edit-title" className={styles.sheetTitle}>
+                  Categorie wijzigen
+                </p>
+                <p className={styles.sheetSubtitle}>{editingLink.title ?? domainFromUrl(editingLink.url)}</p>
+              </div>
+              <form
+                className={styles.sheetForm}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  saveCategory(categoryDraft);
+                }}
+              >
+                <input
+                  className={styles.sheetInput}
+                  aria-label="Nieuwe categorie"
+                  placeholder="Nieuwe categorie"
+                  enterKeyHint="done"
+                  autoCapitalize="sentences"
+                  value={categoryDraft}
+                  onChange={(event) => setCategoryDraft(event.target.value)}
+                />
+                <button type="submit" className={styles.sheetSave} disabled={!categoryDraft.trim() || savingCategory}>
+                  Bewaar
+                </button>
+              </form>
+              {allCategories
+                .filter((c) => c !== editingLink.category)
+                .map((c) => (
+                  <button key={c} className={styles.sheetOption} disabled={savingCategory} onClick={() => saveCategory(c)}>
+                    {c}
+                  </button>
+                ))}
+            </div>
+            <button className={styles.sheetCancel} onClick={() => setEditingLink(null)}>
+              Annuleren
+            </button>
+          </div>
+        </div>
+      )}
+
+      {groupPickerOpen && (
+        <div className={styles.sheetBackdrop} onClick={() => setGroupPickerOpen(false)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="group-picker-title"
+            className={styles.sheet}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={`${styles.sheetGroup} ${styles.sheetScroll}`}>
+              <div className={styles.sheetHeader}>
+                <p id="group-picker-title" className={styles.sheetTitle}>
+                  Ga naar
+                </p>
+              </div>
+              {groups.map((group) => (
+                <button
+                  key={group.label}
+                  className={styles.sheetOption}
+                  aria-label={`${group.label} (${group.items.length})`}
+                  onClick={() => jumpToGroup(group.label)}
+                >
+                  {group.label}
+                  <span className={styles.sheetCount}>{group.items.length}</span>
+                </button>
+              ))}
+            </div>
+            <button className={styles.sheetCancel} onClick={() => setGroupPickerOpen(false)}>
+              Annuleren
+            </button>
+          </div>
+        </div>
       )}
 
       {researchLink && (

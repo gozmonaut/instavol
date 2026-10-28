@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, isNotNull, or } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { links, type LinkRow } from '@/lib/schema';
 
@@ -21,4 +21,15 @@ export async function getLinks(filters: { q?: string; category?: string }): Prom
       ),
     )
     .orderBy(desc(links.createdAt));
+}
+
+// All categories in use, most used first (ties alphabetically, so the order is stable).
+export async function getCategoriesByUsage(): Promise<string[]> {
+  const rows = await db
+    .select({ category: links.category, uses: count() })
+    .from(links)
+    .where(isNotNull(links.category))
+    .groupBy(links.category)
+    .orderBy(desc(count()), links.category);
+  return rows.map((row) => row.category).filter((category): category is string => category !== null);
 }

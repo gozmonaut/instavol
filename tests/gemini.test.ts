@@ -1,4 +1,4 @@
-import { summarizeAndCategorize, GeminiError } from '@/lib/gemini';
+import { summarizeAndCategorize, categorize, GeminiError } from '@/lib/gemini';
 
 test('returns summary and category, and includes existing categories in the prompt', async () => {
   const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
@@ -48,4 +48,38 @@ test('throws GeminiError when the response is not valid JSON', async () => {
     candidates: [{ content: { parts: [{ text: 'not json' }] } }],
   }), { status: 200 })));
   await expect(summarizeAndCategorize('tekst', [])).rejects.toBeInstanceOf(GeminiError);
+});
+
+test('the prompt asks for broad, short, Dutch categories and to reuse existing ones', async () => {
+  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+    candidates: [{ content: { parts: [{ text: '{"summary": "S.", "category": "Tech"}' }] } }],
+  }), { status: 200 }));
+  vi.stubGlobal('fetch', fetchMock);
+  await summarizeAndCategorize('tekst', ['Politiek', 'Tech']);
+  const prompt = JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts[0].text as string;
+  expect(prompt).toContain('één of twee woorden');
+  expect(prompt).toContain('in het Nederlands');
+  expect(prompt).toContain('breed onderwerp');
+  expect(prompt).toMatch(/- Politiek\n- Tech/);
+});
+
+describe('categorize (category only, from title and summary)', () => {
+  test('returns the category and sends title, summary and existing categories', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: '{"category": "Politiek"}' }] } }],
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(categorize('Frontex wordt deportatiebureau', 'De EU wil Frontex versterken.', ['Politiek'])).resolves.toBe('Politiek');
+    const prompt = JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts[0].text as string;
+    expect(prompt).toContain('Frontex wordt deportatiebureau');
+    expect(prompt).toContain('De EU wil Frontex versterken.');
+    expect(prompt).toContain('- Politiek');
+  });
+
+  test('throws GeminiError when the answer has no category', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: '{"summary": "x"}' }] } }],
+    }), { status: 200 })));
+    await expect(categorize('T', 'S', [])).rejects.toBeInstanceOf(GeminiError);
+  });
 });

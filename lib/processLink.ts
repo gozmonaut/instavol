@@ -1,8 +1,10 @@
 import { db } from '@/lib/db';
 import { links } from '@/lib/schema';
-import { eq, isNotNull } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
+import { normalizeCategory } from '@/lib/categories';
 import { fetchPageText } from '@/lib/extractPage';
 import { summarizeAndCategorize } from '@/lib/gemini';
+import { getCategoriesByUsage } from '@/lib/links';
 
 export async function processLink(id: string): Promise<void> {
   try {
@@ -13,19 +15,14 @@ export async function processLink(id: string): Promise<void> {
       await db.update(links).set({ title }).where(eq(links.id, id));
     }
 
-    const existingCategoryRows = await db
-      .selectDistinct({ category: links.category })
-      .from(links)
-      .where(isNotNull(links.category));
-    const existingCategories = existingCategoryRows
-      .map((r) => r.category)
-      .filter((category): category is string => category !== null);
+    const existingCategories = await getCategoriesByUsage();
 
-    const { summary, category } = await summarizeAndCategorize(text, existingCategories);
+    const result = await summarizeAndCategorize(text, existingCategories);
+    const category = normalizeCategory(result.category, existingCategories);
 
     await db
       .update(links)
-      .set({ summary, category, status: 'done', updatedAt: new Date() })
+      .set({ summary: result.summary, category, status: 'done', updatedAt: new Date() })
       .where(eq(links.id, id));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

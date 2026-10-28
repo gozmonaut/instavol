@@ -72,3 +72,34 @@ test('Gemini failure marks the link failed but keeps the extracted title', async
   expect(updated.errorMessage).toContain('rate limited');
   expect(updated.title).toBe('Geextraheerde titel');
 });
+
+test('cleans up the AI category and reuses the spelling of an existing one', async () => {
+  const { fetchPageText } = await import('@/lib/extractPage');
+  const { summarizeAndCategorize } = await import('@/lib/gemini');
+  vi.mocked(fetchPageText).mockResolvedValue({ title: 'T', text: 'content' });
+  vi.mocked(summarizeAndCategorize).mockResolvedValue({ summary: 'x', category: ' politiek. ' });
+
+  await db.insert(links).values({ url: 'https://a.example', category: 'Politiek', status: 'done' });
+  const [row] = await db.insert(links).values({ url: 'https://b.example' }).returning();
+  await processLink(row.id);
+
+  const [updated] = await db.select().from(links).where(eq(links.id, row.id));
+  expect(updated.category).toBe('Politiek');
+});
+
+test('offers existing categories most-used first', async () => {
+  const { fetchPageText } = await import('@/lib/extractPage');
+  const { summarizeAndCategorize } = await import('@/lib/gemini');
+  vi.mocked(fetchPageText).mockResolvedValue({ title: 'T', text: 'content' });
+  vi.mocked(summarizeAndCategorize).mockResolvedValue({ summary: 'x', category: 'Tech' });
+
+  await db.insert(links).values([
+    { url: 'https://a.example', category: 'Koken', status: 'done' },
+    { url: 'https://b.example', category: 'Tech', status: 'done' },
+    { url: 'https://c.example', category: 'Tech', status: 'done' },
+  ]);
+  const [row] = await db.insert(links).values({ url: 'https://d.example' }).returning();
+  await processLink(row.id);
+
+  expect(vi.mocked(summarizeAndCategorize).mock.lastCall?.[1]).toEqual(['Tech', 'Koken']);
+});
