@@ -223,6 +223,7 @@
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   margin: 8px -10px -8px;
 }
@@ -267,6 +268,94 @@
   margin-bottom: 4px;
 }
 
+/* iOS action sheet: grouped options sliding up from the bottom, separate cancel button */
+.sheetBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 8px calc(8px + env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.35);
+  animation: fadeIn 200ms var(--snappy);
+}
+
+.sheet {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: slideUp 260ms var(--snappy);
+}
+
+.sheetGroup {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.sheetHeader {
+  padding: 14px 16px 12px;
+  text-align: center;
+  border-bottom: 0.5px solid var(--separator);
+}
+
+.sheetTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.sheetSubtitle {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheetOption,
+.sheetCancel {
+  height: 56px;
+  font: inherit;
+  font-size: 19px;
+  color: var(--accent);
+  background: var(--surface);
+  border: none;
+  cursor: pointer;
+}
+
+.sheetOption + .sheetOption {
+  border-top: 0.5px solid var(--separator);
+}
+
+.sheetOption:active,
+.sheetCancel:active {
+  background: var(--fill);
+}
+
+.sheetCancel {
+  font-weight: 600;
+  border-radius: 14px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .spinner {
     animation: none;
@@ -275,5 +364,10 @@
   .brand,
   .header {
     transition: none;
+  }
+
+  .sheetBackdrop,
+  .sheet {
+    animation: none;
   }
 }

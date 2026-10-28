@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import type { LinkRow } from '@/lib/schema';
+import { RESEARCH_FOCUSES, buildResearchPrompt, type ResearchFocus } from '@/lib/researchPrompt';
 import { parseShareUrl } from '@/lib/shareUrl';
 import styles from './LinksBrowser.module.css';
 
@@ -48,6 +49,8 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [researchLink, setResearchLink] = useState<LinkRow | null>(null);
+  const [promptCopiedId, setPromptCopiedId] = useState<string | null>(null);
   const [compact, setCompact] = useState(false);
   const topSentinel = useRef<HTMLDivElement>(null);
 
@@ -130,8 +133,12 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     }
   }
 
-  async function handleShare(link: LinkRow) {
-    const text = buildShareText(link);
+  // Opens the native share sheet, or copies the text where sharing isn't supported.
+  async function shareOrCopy(
+    text: string,
+    id: string,
+    setFeedbackId: (update: (current: string | null) => string | null) => void,
+  ) {
     if (navigator.share) {
       try {
         await navigator.share({ text });
@@ -141,8 +148,19 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
       return;
     }
     await navigator.clipboard.writeText(text);
-    setCopiedId(link.id);
-    setTimeout(() => setCopiedId((current) => (current === link.id ? null : current)), COPIED_FEEDBACK_MS);
+    setFeedbackId(() => id);
+    setTimeout(() => setFeedbackId((current) => (current === id ? null : current)), COPIED_FEEDBACK_MS);
+  }
+
+  function handleShare(link: LinkRow) {
+    return shareOrCopy(buildShareText(link), link.id, setCopiedId);
+  }
+
+  function handleResearch(focus: ResearchFocus) {
+    if (!researchLink) return;
+    const link = researchLink;
+    setResearchLink(null);
+    return shareOrCopy(buildResearchPrompt(link, focus, formatDate(link.createdAt)), link.id, setPromptCopiedId);
   }
 
   async function handleLogout() {
@@ -255,6 +273,9 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                 <button className={styles.action} onClick={() => handleShare(link)}>
                   {copiedId === link.id ? 'Gekopieerd' : 'Delen'}
                 </button>
+                <button className={styles.action} onClick={() => setResearchLink(link)}>
+                  {promptCopiedId === link.id ? 'Prompt gekopieerd' : 'Onderzoek'}
+                </button>
                 {link.status !== 'done' && (
                   <button
                     className={styles.action}
@@ -275,6 +296,35 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             </li>
           ))}
         </ul>
+      )}
+
+      {researchLink && (
+        <div className={styles.sheetBackdrop} onClick={() => setResearchLink(null)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="research-title"
+            className={styles.sheet}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={styles.sheetGroup}>
+              <div className={styles.sheetHeader}>
+                <p id="research-title" className={styles.sheetTitle}>
+                  Onderzoek met Claude
+                </p>
+                <p className={styles.sheetSubtitle}>{researchLink.title ?? domainFromUrl(researchLink.url)}</p>
+              </div>
+              {RESEARCH_FOCUSES.map((focus) => (
+                <button key={focus.id} className={styles.sheetOption} onClick={() => handleResearch(focus.id)}>
+                  {focus.label}
+                </button>
+              ))}
+            </div>
+            <button className={styles.sheetCancel} onClick={() => setResearchLink(null)}>
+              Annuleren
+            </button>
+          </div>
+        </div>
       )}
     </main>
   );

@@ -106,6 +106,47 @@ test('pressing Enter with normal search text does not save anything', async () =
   expect(fetchMock).not.toHaveBeenCalledWith('/api/links', expect.objectContaining({ method: 'POST' }));
 });
 
+describe('research with Claude', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'share');
+    Reflect.deleteProperty(navigator, 'clipboard');
+  });
+
+  test('opens a menu, and the chosen focus shares a matching prompt', async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(screen.getAllByText('Onderzoek')[0]);
+    expect(screen.getByRole('dialog', { name: 'Onderzoek met Claude' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Factcheck' }));
+    const { text } = share.mock.calls[0][0];
+    expect(text).toContain('Titel: Artikel A');
+    expect(text).toContain('Betrouwbaarheid:');
+    expect(text).not.toContain('Context:');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  test('Annuleren closes the menu without sharing', async () => {
+    const share = vi.fn();
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(screen.getAllByText('Onderzoek')[0]);
+    await userEvent.click(screen.getByRole('button', { name: 'Annuleren' }));
+    expect(share).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  test('without share support the prompt is copied', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(screen.getAllByText('Onderzoek')[0]);
+    await userEvent.click(screen.getByRole('button', { name: 'Alles' }));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Ik wil dit artikel verder onderzoeken.'));
+    await screen.findByText('Prompt gekopieerd');
+  });
+});
+
 describe('logging out', () => {
   test('asks for confirmation and then calls the logout endpoint', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
