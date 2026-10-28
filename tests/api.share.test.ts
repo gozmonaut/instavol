@@ -42,6 +42,21 @@ test('invalid url returns 400 and inserts nothing', async () => {
   expect((await db.select().from(links)).length).toBe(before);
 });
 
+test('url containing whitespace (e.g. two urls joined by a newline) returns 400 and inserts nothing', async () => {
+  const before = (await db.select().from(links)).length;
+  const res = await POST(req({ url: 'https://example.com/a\nhttps://example.com/a' }));
+  expect(res.status).toBe(400);
+  expect((await db.select().from(links)).length).toBe(before);
+});
+
+test('surrounding whitespace is trimmed before saving', async () => {
+  const res = await POST(req({ url: '  https://example.com/trim\n' }));
+  expect(res.status).toBe(201);
+  const body = await res.json();
+  const [row] = await db.select().from(links).where(eq(links.id, body.id));
+  expect(row.url).toBe('https://example.com/trim');
+});
+
 test('missing or wrong token returns 401 and inserts nothing', async () => {
   const before = (await db.select().from(links)).length;
   const res = await POST(req({ url: 'https://example.com/b' }, 'wrong-token'));

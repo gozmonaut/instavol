@@ -16,11 +16,17 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const url = (body as { url?: unknown } | null)?.url;
+  const rawUrl = (body as { url?: unknown } | null)?.url;
   const title = (body as { title?: unknown } | null)?.title;
 
-  if (typeof url !== 'string') {
+  if (typeof rawUrl !== 'string') {
     return NextResponse.json({ error: 'url is required' }, { status: 400 });
+  }
+
+  // new URL() silently strips inner newlines, so "url\nurl" (a list joined by Shortcuts) would parse.
+  const url = rawUrl.trim();
+  if (/\s/.test(url)) {
+    return NextResponse.json({ error: 'Invalid url' }, { status: 400 });
   }
 
   let parsed: URL;
