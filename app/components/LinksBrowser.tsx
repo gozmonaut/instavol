@@ -8,6 +8,7 @@ import styles from './LinksBrowser.module.css';
 const SEARCH_DEBOUNCE_MS = 300;
 const POLL_INTERVAL_MS = 3000;
 const POLL_TIMEOUT_MS = 2 * 60 * 1000;
+const COPIED_FEEDBACK_MS = 2000;
 
 function domainFromUrl(url: string): string {
   try {
@@ -20,6 +21,14 @@ function domainFromUrl(url: string): string {
 function formatDate(value: Date | string): string {
   const date = typeof value === 'string' ? new Date(value) : value;
   return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+}
+
+// The URL goes inside the text: some apps keep only the text or only the url when both are passed.
+function buildShareText(link: LinkRow): string {
+  const meta = [formatDate(link.createdAt), link.category].filter(Boolean).join(' · ');
+  const heading = link.title ? `${link.title}. ${meta}` : meta;
+  const summary = link.status === 'done' && link.summary ? link.summary : null;
+  return [link.url, heading, ...(summary ? ['', summary] : [])].join('\n');
 }
 
 function distinctCategories(items: LinkRow[]): string[] {
@@ -37,6 +46,18 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [compact, setCompact] = useState(false);
+  const topSentinel = useRef<HTMLDivElement>(null);
+
+  // Compact header (logo hidden) once the top of the page has scrolled out of view.
+  useEffect(() => {
+    const sentinel = topSentinel.current;
+    if (!sentinel || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => setCompact(!entry.isIntersecting));
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
   const isFirstRender = useRef(true);
 
   useEffect(() => {
@@ -108,6 +129,21 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     }
   }
 
+  async function handleShare(link: LinkRow) {
+    const text = buildShareText(link);
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+      } catch {
+        // User closed the share sheet; nothing to do.
+      }
+      return;
+    }
+    await navigator.clipboard.writeText(text);
+    setCopiedId(link.id);
+    setTimeout(() => setCopiedId((current) => (current === link.id ? null : current)), COPIED_FEEDBACK_MS);
+  }
+
   async function handleDelete(id: string) {
     if (!window.confirm('Weet je zeker dat je dit item wilt verwijderen?')) return;
     setDeletingId(id);
@@ -123,14 +159,15 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const isFiltering = Boolean(q || category);
 
   return (
-    <main className={styles.page}>
+    <main className={styles.page} data-compact={compact}>
+      <div ref={topSentinel} className={styles.sentinel} aria-hidden="true" />
+      <h1 className={styles.brand}>
+        <picture>
+          <source srcSet="/instavol-logo-dark.svg" media="(prefers-color-scheme: dark)" />
+          <img src="/instavol-logo-light.svg" alt="Instavol" className={styles.logo} />
+        </picture>
+      </h1>
       <header className={styles.header}>
-        <h1 className={styles.title}>
-          <picture>
-            <source srcSet="/instavol-logo-dark.svg" media="(prefers-color-scheme: dark)" />
-            <img src="/instavol-logo-light.svg" alt="Instavol" className={styles.logo} />
-          </picture>
-        </h1>
         <div className={styles.controls}>
           <input
             type="search"
@@ -199,6 +236,9 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                 <p className={`${styles.status} ${styles.failed}`}>Mislukt: {link.errorMessage}</p>
               )}
               <div className={styles.actions}>
+                <button className={styles.action} onClick={() => handleShare(link)}>
+                  {copiedId === link.id ? 'Gekopieerd' : 'Delen'}
+                </button>
                 {link.status !== 'done' && (
                   <button
                     className={styles.action}

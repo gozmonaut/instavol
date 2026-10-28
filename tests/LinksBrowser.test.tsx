@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import LinksBrowser from '@/app/components/LinksBrowser';
 import type { LinkRow } from '@/lib/schema';
@@ -101,6 +101,80 @@ test('pressing Enter with normal search text does not save anything', async () =
   render(<LinksBrowser initialLinks={fixture} />);
   await userEvent.type(screen.getByRole('searchbox'), 'gewone zoekterm{Enter}');
   expect(fetchMock).not.toHaveBeenCalledWith('/api/links', expect.objectContaining({ method: 'POST' }));
+});
+
+describe('compact header on scroll', () => {
+  let observerCallback: (entries: Partial<IntersectionObserverEntry>[]) => void;
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback: typeof observerCallback) {
+          observerCallback = callback;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+  });
+
+  test('turns compact once the top of the page scrolls out of view, and back again', async () => {
+    const { container } = render(<LinksBrowser initialLinks={fixture} />);
+    const page = container.querySelector('main')!;
+    expect(page).toHaveAttribute('data-compact', 'false');
+    act(() => observerCallback([{ isIntersecting: false }]));
+    expect(page).toHaveAttribute('data-compact', 'true');
+    act(() => observerCallback([{ isIntersecting: true }]));
+    expect(page).toHaveAttribute('data-compact', 'false');
+  });
+
+  test('renders fine without IntersectionObserver support', () => {
+    vi.stubGlobal('IntersectionObserver', undefined);
+    render(<LinksBrowser initialLinks={fixture} />);
+    expect(screen.getByText('Artikel A')).toBeInTheDocument();
+  });
+});
+
+describe('sharing an item', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'share');
+    Reflect.deleteProperty(navigator, 'clipboard');
+  });
+
+  test('opens the share sheet with title, date, category, summary and url in one text', async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(screen.getAllByText('Delen')[0]);
+    expect(share).toHaveBeenCalledTimes(1);
+    const { text, url } = share.mock.calls[0][0];
+    expect(url).toBeUndefined();
+    const lines = text.split('\n');
+    expect(lines[0]).toBe('https://a.example');
+    expect(lines[1]).toMatch(/^Artikel A\. .+ · Tech$/);
+    expect(lines[2]).toBe('');
+    expect(lines[3]).toBe('Samenvatting A');
+    expect(lines).toHaveLength(4);
+  });
+
+  test('cancelling the share sheet is silently ignored', async () => {
+    const share = vi.fn().mockRejectedValue(new DOMException('cancelled', 'AbortError'));
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(screen.getAllByText('Delen')[0]);
+    expect(screen.queryByText('Gekopieerd')).not.toBeInTheDocument();
+  });
+
+  test('without share support it copies the text and shows "Gekopieerd"', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(screen.getAllByText('Delen')[1]);
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Artikel B'));
+    expect(writeText.mock.calls[0][0]).not.toContain('Kon pagina niet ophalen');
+    await screen.findByText('Gekopieerd');
+  });
 });
 
 describe('auto-refresh while items are pending', () => {

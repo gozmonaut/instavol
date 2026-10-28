@@ -1,4 +1,6 @@
 .page {
+  --snappy: 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  position: relative;
   max-width: 680px;
   margin: 0 auto;
   min-height: 100dvh;
@@ -6,22 +8,57 @@
     max(16px, env(safe-area-inset-left));
 }
 
-/* Sticky, translucent header like iOS navigation bars */
+/* Leaves the viewport after ~10px of scrolling, which switches the header to compact */
+.sentinel {
+  position: absolute;
+  top: 10px;
+  width: 1px;
+  height: 1px;
+}
+
+/* The logo scrolls with the page; it fades and lifts away once the header turns compact */
+.brand {
+  display: flex;
+  padding: calc(12px + env(safe-area-inset-top)) 0 10px;
+  transform-origin: left center;
+  transition: opacity var(--snappy), transform var(--snappy);
+}
+
+.page[data-compact='true'] .brand {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.94);
+}
+
+/* Only the search controls stick, below the notch, like an iOS navigation bar */
 .header {
   position: sticky;
-  top: 0;
+  top: env(safe-area-inset-top);
   z-index: 10;
   margin: 0 -16px;
-  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  padding: 8px 16px 10px;
   background: var(--bar);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
-  border-bottom: 0.5px solid var(--separator);
+  border-bottom: 0.5px solid transparent;
+  transition: border-color var(--snappy), box-shadow var(--snappy);
 }
 
-.title {
-  display: flex;
-  margin-bottom: 10px;
+/* Covers the status-bar area above the sticky bar in home-screen mode (zero height in Safari) */
+.header::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: env(safe-area-inset-top);
+  background: var(--bar);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+.page[data-compact='true'] .header {
+  border-bottom-color: var(--separator);
+  box-shadow: 0 6px 16px -12px rgba(0, 0, 0, 0.25);
 }
 
 /* Logo artwork is 745×200 */
@@ -210,5 +247,10 @@
 @media (prefers-reduced-motion: reduce) {
   .spinner {
     animation: none;
+  }
+
+  .brand,
+  .header {
+    transition: none;
   }
 }
