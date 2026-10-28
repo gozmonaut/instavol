@@ -44,8 +44,8 @@ export default function LoginForm() {
         </div>
         <h1 className={styles.wordmark}>
           <picture>
-            <source srcSet="/instavol-logo-dark.svg" media="(prefers-color-scheme: dark)" />
-            <img src="/instavol-logo-light.svg" alt="Instavol" />
+            <source srcSet="/instavol-logo-wordmark-dark.svg" media="(prefers-color-scheme: dark)" />
+            <img src="/instavol-logo-wordmark-light.svg" alt="Instavol" />
           </picture>
         </h1>
         <p className={styles.tagline}>Bewaar, vat samen, vind terug.</p>

@@ -50,9 +50,10 @@
   animation: rise 600ms 80ms var(--snappy) both;
 }
 
+/* Text-only wordmark artwork is 492×114 */
 .wordmark img {
   display: block;
-  height: 36px;
+  height: 24px;
   width: auto;
 }
 
