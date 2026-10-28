@@ -64,30 +64,27 @@ test('clicking retry calls the reprocess endpoint and updates the item', async (
   await screen.findByText('Nu wel gelukt');
 });
 
-test('save button only appears when the search box contains a url', async () => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => ({ links: fixture }) }));
-  render(<LinksBrowser initialLinks={fixture} />);
-  expect(screen.queryByText('Bewaar deze link')).not.toBeInTheDocument();
-  await userEvent.type(screen.getByRole('searchbox'), 'gewone zoekterm');
-  expect(screen.queryByText('Bewaar deze link')).not.toBeInTheDocument();
-  await userEvent.clear(screen.getByRole('searchbox'));
-  await userEvent.type(screen.getByRole('searchbox'), 'https://c.example/nieuw');
-  expect(screen.getByText('Bewaar deze link')).toBeInTheDocument();
-});
+const pendingItem: LinkRow = {
+  ...fixture[0],
+  id: '3',
+  url: 'https://c.example/nieuw',
+  title: null,
+  status: 'pending',
+  summary: null,
+  category: null,
+};
 
-test('clicking save posts the url, adds the new item on top and clears the search box', async () => {
-  const created = { ...fixture[0], id: '3', url: 'https://c.example/nieuw', title: null, status: 'pending', summary: null, category: null };
-  const fetchMock = vi.fn((url: string, init?: RequestInit) =>
+test('pressing Enter with a url in the search box saves it, adds it on top and clears the box', async () => {
+  const fetchMock = vi.fn((_url: string, init?: RequestInit) =>
     Promise.resolve(
       init?.method === 'POST'
-        ? { ok: true, json: async () => created }
-        : { ok: true, json: async () => ({ links: [created, ...fixture] }) },
+        ? { ok: true, json: async () => pendingItem }
+        : { ok: true, json: async () => ({ links: [pendingItem, ...fixture] }) },
     ),
   );
   vi.stubGlobal('fetch', fetchMock);
   render(<LinksBrowser initialLinks={fixture} />);
-  await userEvent.type(screen.getByRole('searchbox'), 'https://c.example/nieuw');
-  await userEvent.click(screen.getByText('Bewaar deze link'));
+  await userEvent.type(screen.getByRole('searchbox'), 'https://c.example/nieuw{Enter}');
   expect(fetchMock).toHaveBeenCalledWith(
     '/api/links',
     expect.objectContaining({ method: 'POST', body: JSON.stringify({ url: 'https://c.example/nieuw' }) }),
@@ -95,6 +92,55 @@ test('clicking save posts the url, adds the new item on top and clears the searc
   await screen.findByText('https://c.example/nieuw');
   expect(screen.getByText('Wordt verwerkt...')).toBeInTheDocument();
   expect(screen.getByRole('searchbox')).toHaveValue('');
+  expect(screen.queryByText('Bewaar deze link')).not.toBeInTheDocument();
+});
+
+test('pressing Enter with normal search text does not save anything', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ links: fixture }) });
+  vi.stubGlobal('fetch', fetchMock);
+  render(<LinksBrowser initialLinks={fixture} />);
+  await userEvent.type(screen.getByRole('searchbox'), 'gewone zoekterm{Enter}');
+  expect(fetchMock).not.toHaveBeenCalledWith('/api/links', expect.objectContaining({ method: 'POST' }));
+});
+
+describe('auto-refresh while items are pending', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test('refetches every 3 seconds and shows the title once processing is done', async () => {
+    const done = { ...pendingItem, status: 'done', title: 'Nieuw artikel', summary: 'Klaar', category: 'Tech' };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ links: [done, ...fixture] }) });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LinksBrowser initialLinks={[pendingItem, ...fixture]} />);
+    expect(screen.getByText('https://c.example/nieuw')).toBeInTheDocument();
+    await vi.advanceTimersByTimeAsync(3000);
+    await screen.findByText('Nieuw artikel');
+    expect(screen.queryByText('https://c.example/nieuw')).not.toBeInTheDocument();
+  });
+
+  test('does not refetch when nothing is pending', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LinksBrowser initialLinks={fixture} />);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test('stops refetching after 2 minutes even if items stay pending', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ links: [pendingItem] }) });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LinksBrowser initialLinks={[pendingItem]} />);
+    await vi.advanceTimersByTimeAsync(2 * 60 * 1000 + 3000);
+    const callsAtTimeout = fetchMock.mock.calls.length;
+    expect(callsAtTimeout).toBeGreaterThan(0);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(fetchMock.mock.calls.length).toBe(callsAtTimeout);
+  });
 });
 
 test('clicking delete and confirming calls the delete endpoint and removes the item', async () => {

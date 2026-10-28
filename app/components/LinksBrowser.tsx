@@ -5,6 +5,8 @@ import type { LinkRow } from '@/lib/schema';
 import { parseShareUrl } from '@/lib/shareUrl';
 
 const SEARCH_DEBOUNCE_MS = 300;
+const POLL_INTERVAL_MS = 3000;
+const POLL_TIMEOUT_MS = 2 * 60 * 1000;
 
 function domainFromUrl(url: string): string {
   try {
@@ -54,6 +56,28 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     return () => clearTimeout(timer);
   }, [q, category]);
 
+  // Refresh while items are being processed, so title/summary appear without a reload.
+  const hasPending = links.some((link) => link.status === 'pending');
+  useEffect(() => {
+    if (!hasPending) return;
+
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+        clearInterval(timer);
+        return;
+      }
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+      if (category) params.set('category', category);
+      fetch(`/api/links?${params.toString()}`)
+        .then((res) => res.json())
+        .then((data) => setLinks(data.links));
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(timer);
+  }, [hasPending, q, category]);
+
   async function handleRetry(id: string) {
     setRetryingId(id);
     try {
@@ -95,7 +119,6 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   }
 
   const categories = distinctCategories(links);
-  const pastedUrl = parseShareUrl(q);
 
   return (
     <main style={{ maxWidth: 720, margin: '0 auto', padding: '2rem 1rem' }}>
@@ -106,6 +129,10 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
           placeholder="Zoeken..."
           value={q}
           onChange={(event) => setQ(event.target.value)}
+          onKeyDown={(event) => {
+            const url = parseShareUrl(q);
+            if (event.key === 'Enter' && url && !saving) handleSave(url);
+          }}
           style={{ flex: 1, padding: '0.5rem' }}
         />
         <select
@@ -120,11 +147,6 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             </option>
           ))}
         </select>
-        {pastedUrl && (
-          <button onClick={() => handleSave(pastedUrl)} disabled={saving}>
-            Bewaar deze link
-          </button>
-        )}
       </div>
       <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {links.map((link) => (
