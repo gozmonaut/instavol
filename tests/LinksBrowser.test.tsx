@@ -56,6 +56,17 @@ test('selecting a category fetches /api/links?category=...', async () => {
   await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('category=Tech')));
 });
 
+test('tapping an item\'s category filters on it, and tapping it again clears the filter', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ links: [fixture[0]] }) });
+  vi.stubGlobal('fetch', fetchMock);
+  render(<LinksBrowser initialLinks={fixture} />);
+  await userEvent.click(screen.getByRole('button', { name: 'Filter op Tech' }));
+  expect(screen.getByRole('combobox')).toHaveValue('Tech');
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('category=Tech')));
+  await userEvent.click(screen.getByRole('button', { name: 'Filter op Tech' }));
+  expect(screen.getByRole('combobox')).toHaveValue('');
+});
+
 test('clicking retry calls the reprocess endpoint and updates the item', async () => {
   const fetchMock = vi.fn().mockResolvedValue({
     json: async () => ({ ...fixture[1], status: 'done', summary: 'Nu wel gelukt' }),
@@ -106,6 +117,13 @@ test('pressing Enter with normal search text does not save anything', async () =
   expect(fetchMock).not.toHaveBeenCalledWith('/api/links', expect.objectContaining({ method: 'POST' }));
 });
 
+test('items are grouped under date headings, newest group first', () => {
+  const older = { ...fixture[1], createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) };
+  render(<LinksBrowser initialLinks={[fixture[0], older]} />);
+  const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+  expect(headings).toEqual(['Vandaag', 'Vorige week']);
+});
+
 describe('research with Claude', () => {
   afterEach(() => {
     Reflect.deleteProperty(navigator, 'share');
@@ -117,7 +135,7 @@ describe('research with Claude', () => {
     Object.defineProperty(navigator, 'share', { value: share, configurable: true });
     render(<LinksBrowser initialLinks={fixture} />);
     await userEvent.click(screen.getAllByText('Onderzoek')[0]);
-    expect(screen.getByRole('dialog', { name: 'Onderzoek met Claude' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Onderzoek met AI' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Factcheck' }));
     const { text } = share.mock.calls[0][0];
     expect(text).toContain('Titel: Artikel A');

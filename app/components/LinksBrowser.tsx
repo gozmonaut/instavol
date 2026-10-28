@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import type { LinkRow } from '@/lib/schema';
+import { groupByDate } from '@/lib/dateGroups';
 import { RESEARCH_FOCUSES, buildResearchPrompt, type ResearchFocus } from '@/lib/researchPrompt';
 import { parseShareUrl } from '@/lib/shareUrl';
 import styles from './LinksBrowser.module.css';
@@ -70,6 +71,20 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [promptCopiedId, setPromptCopiedId] = useState<string | null>(null);
   const [compact, setCompact] = useState(false);
   const topSentinel = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+
+  // Date headings stick right below the search header, whose height can change (e.g. the Enter hint).
+  useEffect(() => {
+    const page = pageRef.current;
+    const header = headerRef.current;
+    if (!page || !header || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      page.style.setProperty('--header-height', `${header.offsetHeight}px`);
+    });
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
 
   // Compact header (logo hidden) once the top of the page has scrolled out of view.
   useEffect(() => {
@@ -199,9 +214,10 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
 
   const categories = distinctCategories(links);
   const isFiltering = Boolean(q || category);
+  const groups = groupByDate(links);
 
   return (
-    <main className={styles.page} data-compact={compact}>
+    <main ref={pageRef} className={styles.page} data-compact={compact}>
       <div ref={topSentinel} className={styles.sentinel} aria-hidden="true" />
       <div className={styles.brand}>
         <h1>
@@ -218,7 +234,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
           </svg>
         </button>
       </div>
-      <header className={styles.header}>
+      <header ref={headerRef} className={styles.header}>
         <div className={styles.controls}>
           <input
             type="search"
@@ -264,62 +280,76 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
           )}
         </div>
       ) : (
-        <ul className={styles.list}>
-          {links.map((link) => (
-            <li key={link.id} className={styles.card}>
-              <div className={styles.cardHeader}>
-                <a href={link.url} target="_blank" rel="noreferrer" className={styles.cardTitle}>
-                  {link.title ?? link.url}
-                </a>
-                {link.category && <span className={styles.chip}>{link.category}</span>}
-              </div>
-              <div className={styles.meta}>
-                <span>{domainFromUrl(link.url)}</span>
-                <span aria-hidden="true">·</span>
-                <span>{formatDate(link.createdAt)}</span>
-              </div>
-              {link.status === 'done' && link.summary && <p className={styles.summary}>{link.summary}</p>}
-              {link.status === 'pending' && (
-                <p className={styles.status}>
-                  <span className={styles.spinner} aria-hidden="true" />
-                  Wordt verwerkt...
-                </p>
-              )}
-              {link.status === 'failed' && (
-                <p className={`${styles.status} ${styles.failed}`}>Mislukt: {link.errorMessage}</p>
-              )}
-              <div className={styles.actions}>
-                <button className={styles.action} onClick={() => handleShare(link)}>
-                  <ActionIcon name="share" />
-                  {copiedId === link.id ? 'Gekopieerd' : 'Delen'}
-                </button>
-                <button className={styles.action} onClick={() => setResearchLink(link)}>
-                  <ActionIcon name="research" />
-                  {promptCopiedId === link.id ? 'Gekopieerd' : 'Onderzoek'}
-                </button>
-                {link.status !== 'done' && (
-                  <button
-                    className={styles.action}
-                    onClick={() => handleRetry(link.id)}
-                    disabled={retryingId === link.id}
-                    aria-label="Opnieuw verwerken"
-                  >
-                    <ActionIcon name="retry" />
-                    Opnieuw
-                  </button>
-                )}
-                <button
-                  className={`${styles.action} ${styles.danger}`}
-                  onClick={() => handleDelete(link.id)}
-                  disabled={deletingId === link.id}
-                >
-                  <ActionIcon name="delete" />
-                  Verwijderen
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+        groups.map((group) => (
+          <section key={group.label} className={styles.group}>
+            <h2 className={styles.groupHeading}>{group.label}</h2>
+            <ul className={styles.list}>
+              {group.items.map((link) => (
+                <li key={link.id} className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <a href={link.url} target="_blank" rel="noreferrer" className={styles.cardTitle}>
+                      {link.title ?? link.url}
+                    </a>
+                    {link.category && (
+                      <button
+                        className={styles.chip}
+                        aria-label={`Filter op ${link.category}`}
+                        aria-pressed={category === link.category}
+                        onClick={() => setCategory((current) => (current === link.category ? '' : link.category!))}
+                      >
+                        {link.category}
+                      </button>
+                    )}
+                  </div>
+                  <div className={styles.meta}>
+                    <span>{domainFromUrl(link.url)}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{formatDate(link.createdAt)}</span>
+                  </div>
+                  {link.status === 'done' && link.summary && <p className={styles.summary}>{link.summary}</p>}
+                  {link.status === 'pending' && (
+                    <p className={styles.status}>
+                      <span className={styles.spinner} aria-hidden="true" />
+                      Wordt verwerkt...
+                    </p>
+                  )}
+                  {link.status === 'failed' && (
+                    <p className={`${styles.status} ${styles.failed}`}>Mislukt: {link.errorMessage}</p>
+                  )}
+                  <div className={styles.actions}>
+                    <button className={styles.action} onClick={() => handleShare(link)}>
+                      <ActionIcon name="share" />
+                      {copiedId === link.id ? 'Gekopieerd' : 'Delen'}
+                    </button>
+                    <button className={styles.action} onClick={() => setResearchLink(link)}>
+                      <ActionIcon name="research" />
+                      {promptCopiedId === link.id ? 'Gekopieerd' : 'Onderzoek'}
+                    </button>
+                    {link.status !== 'done' && (
+                      <button
+                        className={styles.action}
+                        onClick={() => handleRetry(link.id)}
+                        disabled={retryingId === link.id}
+                        aria-label="Opnieuw verwerken"
+                      >
+                        <ActionIcon name="retry" />
+                        Opnieuw
+                      </button>
+                    )}
+                    <button
+                      className={`${styles.action} ${styles.danger}`}
+                      onClick={() => handleDelete(link.id)}
+                      disabled={deletingId === link.id}
+                    >
+                      <ActionIcon name="delete" />
+                      Verwijderen
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
       )}
 
       {researchLink && (
@@ -334,7 +364,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             <div className={styles.sheetGroup}>
               <div className={styles.sheetHeader}>
                 <p id="research-title" className={styles.sheetTitle}>
-                  Onderzoek met Claude
+                  Onderzoek met AI
                 </p>
                 <p className={styles.sheetSubtitle}>{researchLink.title ?? domainFromUrl(researchLink.url)}</p>
               </div>
