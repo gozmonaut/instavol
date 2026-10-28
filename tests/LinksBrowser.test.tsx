@@ -5,6 +5,9 @@ import userEvent from '@testing-library/user-event';
 import LinksBrowser from '@/app/components/LinksBrowser';
 import type { LinkRow } from '@/lib/schema';
 
+const routerReplace = vi.fn();
+vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: routerReplace }) }));
+
 const fixture: LinkRow[] = [
   {
     id: '1',
@@ -101,6 +104,28 @@ test('pressing Enter with normal search text does not save anything', async () =
   render(<LinksBrowser initialLinks={fixture} />);
   await userEvent.type(screen.getByRole('searchbox'), 'gewone zoekterm{Enter}');
   expect(fetchMock).not.toHaveBeenCalledWith('/api/links', expect.objectContaining({ method: 'POST' }));
+});
+
+describe('logging out', () => {
+  test('asks for confirmation and then calls the logout endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Uitloggen' }));
+    expect(confirm).toHaveBeenCalledWith('Weet je zeker dat je wilt uitloggen?');
+    expect(fetchMock).toHaveBeenCalledWith('/api/logout', expect.objectContaining({ method: 'POST' }));
+    expect(routerReplace).toHaveBeenCalledWith('/login');
+  });
+
+  test('cancelling keeps you logged in', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Uitloggen' }));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });
 
 describe('compact header on scroll', () => {

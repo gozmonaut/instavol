@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import type { LinkRow } from '@/lib/schema';
 import { parseShareUrl } from '@/lib/shareUrl';
@@ -39,6 +40,7 @@ function distinctCategories(items: LinkRow[]): string[] {
 }
 
 export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[] }) {
+  const router = useRouter();
   const [links, setLinks] = useState<LinkRow[]>(initialLinks);
   const [q, setQ] = useState('');
   const [category, setCategory] = useState('');
@@ -143,6 +145,12 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     setTimeout(() => setCopiedId((current) => (current === link.id ? null : current)), COPIED_FEEDBACK_MS);
   }
 
+  async function handleLogout() {
+    if (!window.confirm('Weet je zeker dat je wilt uitloggen?')) return;
+    await fetch('/api/logout', { method: 'POST' });
+    router.replace('/login');
+  }
+
   async function handleDelete(id: string) {
     if (!window.confirm('Weet je zeker dat je dit item wilt verwijderen?')) return;
     setDeletingId(id);
@@ -160,12 +168,21 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   return (
     <main className={styles.page} data-compact={compact}>
       <div ref={topSentinel} className={styles.sentinel} aria-hidden="true" />
-      <h1 className={styles.brand}>
-        <picture>
-          <source srcSet="/instavol-logo-dark.svg" media="(prefers-color-scheme: dark)" />
-          <img src="/instavol-logo-light.svg" alt="Instavol" className={styles.logo} />
-        </picture>
-      </h1>
+      <div className={styles.brand}>
+        <h1>
+          <picture>
+            <source srcSet="/instavol-logo-dark.svg" media="(prefers-color-scheme: dark)" />
+            <img src="/instavol-logo-light.svg" alt="Instavol" className={styles.logo} />
+          </picture>
+        </h1>
+        <button className={styles.iconButton} onClick={handleLogout} aria-label="Uitloggen" title="Uitloggen">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
+            <path d="M10 17l-5-5 5-5" />
+            <path d="M5 12h11" />
+          </svg>
+        </button>
+      </div>
       <header className={styles.header}>
         <div className={styles.controls}>
           <input

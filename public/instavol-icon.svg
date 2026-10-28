@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 330 330" role="img" aria-label="Instavol bookmark app icon">
+<title>Instavol icon</title>
+  <defs>
+    <linearGradient id="bookmarkPurple" x1="0%" y1="85%" x2="96%" y2="13%">
+      <stop offset="0%" stop-color="#BE2DEA"/>
+      <stop offset="45%" stop-color="#7626FF"/>
+      <stop offset="100%" stop-color="#2313F8"/>
+    </linearGradient>
+    <linearGradient id="foldCoral" x1="82%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#FF995C"/>
+      <stop offset="55%" stop-color="#FF6064"/>
+      <stop offset="100%" stop-color="#FF2D71"/>
+    </linearGradient>
+  </defs>
+<g transform="translate(33 12)">
+  <path fill="url(#bookmarkPurple)" d="M53 0 C21 0 0 21 0 51 L0 289 C0 304 11 310 23 300 L101 235 C109 228 117 228 124 235 L187 299 C195 307 204 303 204 289 L204 151 Z"/>
+  <path fill="url(#foldCoral)" d="M53 0 L213 0 C242 0 264 22 264 51 L264 208 C264 217 259 220 252 213 Z"/></g>
+</svg>

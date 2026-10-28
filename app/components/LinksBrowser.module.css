@@ -19,6 +19,8 @@
 /* The logo scrolls with the page; it fades and lifts away once the header turns compact */
 .brand {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: calc(12px + env(safe-area-inset-top)) 0 10px;
   transform-origin: left center;
   transition: opacity var(--snappy), transform var(--snappy);
@@ -27,6 +29,27 @@
 .page[data-compact='true'] .brand {
   opacity: 0;
   transform: translateY(-8px) scale(0.94);
+}
+
+/* 44px round tap target, like an iOS navigation-bar button */
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -10px;
+  color: var(--accent);
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 120ms, transform 120ms;
+}
+
+.iconButton:active {
+  background: var(--fill);
+  transform: scale(0.92);
 }
 
 /* Only the search controls stick, below the notch, like an iOS navigation bar */
