@@ -151,10 +151,10 @@ describe('sharing an item', () => {
     const { text, url } = share.mock.calls[0][0];
     expect(url).toBeUndefined();
     const lines = text.split('\n');
-    expect(lines[0]).toBe('https://a.example');
-    expect(lines[1]).toMatch(/^Artikel A\. .+ · Tech$/);
-    expect(lines[2]).toBe('');
-    expect(lines[3]).toBe('Samenvatting A');
+    expect(lines[0]).toBe('Artikel A');
+    expect(lines[1]).toMatch(/^.+ \| Tech$/);
+    expect(lines[2]).toBe('Samenvatting A');
+    expect(lines[3]).toBe('https://a.example');
     expect(lines).toHaveLength(4);
   });
 

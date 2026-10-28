@@ -25,10 +25,9 @@ function formatDate(value: Date | string): string {
 
 // The URL goes inside the text: some apps keep only the text or only the url when both are passed.
 function buildShareText(link: LinkRow): string {
-  const meta = [formatDate(link.createdAt), link.category].filter(Boolean).join(' · ');
-  const heading = link.title ? `${link.title}. ${meta}` : meta;
+  const meta = [formatDate(link.createdAt), link.category].filter(Boolean).join(' | ');
   const summary = link.status === 'done' && link.summary ? link.summary : null;
-  return [link.url, heading, ...(summary ? ['', summary] : [])].join('\n');
+  return [link.title, meta, summary, link.url].filter(Boolean).join('\n');
 }
 
 function distinctCategories(items: LinkRow[]): string[] {
