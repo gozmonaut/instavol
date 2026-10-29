@@ -303,6 +303,8 @@ describe('sharing an item', () => {
   afterEach(() => {
     Reflect.deleteProperty(navigator, 'share');
     Reflect.deleteProperty(navigator, 'clipboard');
+    Reflect.deleteProperty(navigator, 'platform');
+    Reflect.deleteProperty(navigator, 'maxTouchPoints');
   });
 
   test('opens the share sheet with title, date, category, summary and url in one text', async () => {
@@ -319,6 +321,28 @@ describe('sharing an item', () => {
     expect(lines[2]).toBe('Samenvatting A');
     expect(lines[3]).toBe('https://a.example');
     expect(lines).toHaveLength(4);
+  });
+
+  test('on a Mac the url is also passed separately, so apps that only take links show up', async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    Object.defineProperty(navigator, 'platform', { value: 'MacIntel', configurable: true });
+    Object.defineProperty(navigator, 'maxTouchPoints', { value: 0, configurable: true });
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(screen.getAllByText('Delen')[0]);
+    const { text, url } = share.mock.calls[0][0];
+    expect(url).toBe('https://a.example');
+    expect(text).toContain('Samenvatting A');
+  });
+
+  test('an iPad (MacIntel with touch) keeps sharing text only, like iOS', async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    Object.defineProperty(navigator, 'platform', { value: 'MacIntel', configurable: true });
+    Object.defineProperty(navigator, 'maxTouchPoints', { value: 5, configurable: true });
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(screen.getAllByText('Delen')[0]);
+    expect(share.mock.calls[0][0].url).toBeUndefined();
   });
 
   test('cancelling the share sheet is silently ignored', async () => {

@@ -34,6 +34,12 @@ function formatDate(value: Date | string): string {
   return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
+// macOS lists only apps that accept every shared item, and many accept a url but not plain text.
+// iPads also report "MacIntel", but have touch points.
+function isMacDesktop(): boolean {
+  return navigator.platform === 'MacIntel' && navigator.maxTouchPoints === 0;
+}
+
 // The URL goes inside the text: some apps keep only the text or only the url when both are passed.
 function buildShareText(link: LinkRow): string {
   const meta = [formatDate(link.createdAt), link.category].filter(Boolean).join(' | ');
@@ -251,12 +257,14 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   // Opens the native share sheet, or copies the text where sharing isn't supported.
   async function shareOrCopy(
     text: string,
+    url: string,
     id: string,
     setFeedbackId: (update: (current: string | null) => string | null) => void,
   ) {
     if (navigator.share) {
       try {
-        await navigator.share({ text });
+        // On iOS the url stays inside the text only; on a Mac it's also passed separately (see isMacDesktop).
+        await navigator.share(isMacDesktop() ? { text, url } : { text });
       } catch {
         // User closed the share sheet; nothing to do.
       }
@@ -268,14 +276,14 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   }
 
   function handleShare(link: LinkRow) {
-    return shareOrCopy(buildShareText(link), link.id, setCopiedId);
+    return shareOrCopy(buildShareText(link), link.url, link.id, setCopiedId);
   }
 
   function handleResearch(focus: ResearchFocus) {
     if (!researchLink) return;
     const link = researchLink;
     setResearchLink(null);
-    return shareOrCopy(buildResearchPrompt(link, focus, formatDate(link.createdAt)), link.id, setPromptCopiedId);
+    return shareOrCopy(buildResearchPrompt(link, focus, formatDate(link.createdAt)), link.url, link.id, setPromptCopiedId);
   }
 
   function toggleCategoryFilter(link: LinkRow) {
