@@ -499,17 +499,20 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
               {group.items.map((link) => (
                 <li key={link.id} className={styles.card}>
                   <div className={styles.cardMain}>
-                    {link.category && (
-                      <button
-                        className={styles.chip}
-                        aria-label={`Categorie ${link.category}`}
-                        aria-haspopup="dialog"
-                        aria-pressed={category === link.category}
-                        onClick={() => setCategoryMenuLink(link)}
-                      >
-                        {link.category}
-                      </button>
-                    )}
+                    <div className={styles.cardTop}>
+                      {link.category && (
+                        <button
+                          className={styles.chip}
+                          aria-label={`Categorie ${link.category}`}
+                          aria-haspopup="dialog"
+                          aria-pressed={category === link.category}
+                          onClick={() => setCategoryMenuLink(link)}
+                        >
+                          {link.category}
+                        </button>
+                      )}
+                      <span className={styles.date}>{formatDate(link.createdAt)}</span>
+                    </div>
                     <a
                       href={link.url}
                       target="_blank"
@@ -526,14 +529,12 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                     </a>
                     <div className={styles.meta}>
                       <span>{domainFromUrl(link.url)}</span>
-                      <span aria-hidden="true">·</span>
                       {link.readingMinutes && (
                         <>
-                          <span>{link.readingMinutes} min. leestijd</span>
                           <span aria-hidden="true">·</span>
+                          <span>{link.readingMinutes} min. leestijd</span>
                         </>
                       )}
-                      <span>{formatDate(link.createdAt)}</span>
                     </div>
                     {link.imageUrl && (
                       // A remote og:image; hidden when it fails to load (e.g. hotlinking blocked).
@@ -550,9 +551,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                       />
                     )}
                     {link.status === 'done' && link.summary && (
-                      <p className={link.readingMinutes ? `${styles.summary} ${styles.clamped}` : styles.summary}>
-                        {link.summary}
-                      </p>
+                      <p className={styles.summary}>{link.summary}</p>
                     )}
                     {link.status === 'pending' && (
                       <p className={styles.status}>

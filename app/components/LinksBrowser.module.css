@@ -267,12 +267,26 @@
   color: var(--text-secondary);
 }
 
-.chip {
+/* Category label and saved date/time, above the title */
+.cardTop {
   grid-area: chip;
-  justify-self: start;
-  position: relative;
-  max-width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   margin-bottom: 6px;
+}
+
+.date {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.chip {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 12px;
@@ -310,15 +324,6 @@
   font-size: 15px;
   line-height: 1.45;
   color: var(--text);
-}
-
-/* Two lines when the item has a reader view, which shows the summary in full */
-.clamped {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
 }
 
 .status {
