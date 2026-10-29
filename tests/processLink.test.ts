@@ -9,7 +9,7 @@ vi.mock('@/lib/extractPage', async (importOriginal) => {
 });
 vi.mock('@/lib/gemini', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/gemini')>();
-  return { ...actual, summarizeAndCategorize: vi.fn() };
+  return { ...actual, summarizeAndCategorize: vi.fn(), summarizeUrlAndCategorize: vi.fn() };
 });
 
 test('happy path: fetches, summarizes, categorizes, and backfills title', async () => {
@@ -31,7 +31,9 @@ test('happy path: fetches, summarizes, categorizes, and backfills title', async 
 test('fetch failure marks the link failed and preserves url/title', async () => {
   const { fetchPageText } = await import('@/lib/extractPage');
   const { PageFetchError } = await import('@/lib/extractPage');
+  const { summarizeUrlAndCategorize, GeminiError } = await import('@/lib/gemini');
   vi.mocked(fetchPageText).mockRejectedValue(new PageFetchError('Geen leesbare inhoud gevonden'));
+  vi.mocked(summarizeUrlAndCategorize).mockRejectedValue(new GeminiError('Gemini kon de pagina niet openen'));
 
   const [row] = await db.insert(links).values({ url: 'https://example.com/paywall', title: 'Oorspronkelijke titel' }).returning();
   await processLink(row.id);
@@ -39,6 +41,7 @@ test('fetch failure marks the link failed and preserves url/title', async () => 
   const [updated] = await db.select().from(links).where(eq(links.id, row.id));
   expect(updated.status).toBe('failed');
   expect(updated.errorMessage).toContain('leesbare inhoud');
+  expect(updated.errorMessage).toContain('Gemini kon de pagina niet openen');
   expect(updated.title).toBe('Oorspronkelijke titel');
   expect(updated.url).toBe('https://example.com/paywall');
 });
@@ -102,4 +105,37 @@ test('offers existing categories most-used first', async () => {
   await processLink(row.id);
 
   expect(vi.mocked(summarizeAndCategorize).mock.lastCall?.[1]).toEqual(['Tech', 'Koken']);
+});
+
+test('when we cannot read the page, Gemini opens the URL and its title is used', async () => {
+  const { fetchPageText, PageFetchError } = await import('@/lib/extractPage');
+  const { summarizeAndCategorize, summarizeUrlAndCategorize } = await import('@/lib/gemini');
+  vi.mocked(fetchPageText).mockRejectedValue(new PageFetchError('Pagina niet beschikbaar (HTTP 403)'));
+  vi.mocked(summarizeUrlAndCategorize).mockResolvedValue({ title: 'Webshop', summary: 'Een webshop voor fietsen.', category: 'Winkelen' });
+
+  const [row] = await db.insert(links).values({ url: 'https://shop.example' }).returning();
+  await processLink(row.id);
+
+  const [updated] = await db.select().from(links).where(eq(links.id, row.id));
+  expect(updated.status).toBe('done');
+  expect(updated.title).toBe('Webshop');
+  expect(updated.summary).toBe('Een webshop voor fietsen.');
+  expect(updated.category).toBe('Winkelen');
+  expect(summarizeUrlAndCategorize).toHaveBeenCalledWith('https://shop.example', expect.any(Array));
+  expect(vi.mocked(summarizeAndCategorize).mock.calls.some(([text]) => text === 'https://shop.example')).toBe(false);
+});
+
+test('a blocked address is never handed to Gemini', async () => {
+  const { fetchPageText, DisallowedHostError } = await import('@/lib/extractPage');
+  const { summarizeUrlAndCategorize } = await import('@/lib/gemini');
+  vi.mocked(fetchPageText).mockRejectedValue(new DisallowedHostError());
+  vi.mocked(summarizeUrlAndCategorize).mockClear();
+
+  const [row] = await db.insert(links).values({ url: 'http://169.254.169.254/' }).returning();
+  await processLink(row.id);
+
+  const [updated] = await db.select().from(links).where(eq(links.id, row.id));
+  expect(updated.status).toBe('failed');
+  expect(updated.errorMessage).toBe('Dit adres mag niet opgehaald worden');
+  expect(summarizeUrlAndCategorize).not.toHaveBeenCalled();
 });

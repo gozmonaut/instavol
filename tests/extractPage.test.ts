@@ -31,6 +31,19 @@ test('throws PageFetchError when there is no extractable article text', async ()
   await expect(fetchPageText('https://example.com/spa')).rejects.toBeInstanceOf(PageFetchError);
 });
 
+test('a page that is not an article still yields its title, description and visible text', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+    '<html><head><title>Fietsshop</title><meta name="description" content="De webshop voor elektrische fietsen, onderdelen en accessoires met gratis levering in heel Nederland."><script>var tracking = "geheim";</script></head>'
+    + '<body><nav><a href="/">Home</a> <a href="/fietsen">Fietsen</a></nav><ul><li>Stadsfietsen</li><li>Bakfietsen</li><li>Racefietsen</li><li>Mountainbikes</li><li>Kinderfietsen</li><li>Fietstassen en sloten</li></ul><button>In winkelwagen</button></body></html>',
+    { status: 200, headers: { 'Content-Type': 'text/html' } },
+  )));
+  const result = await fetchPageText('https://example.com/');
+  expect(result.title).toBe('Fietsshop');
+  expect(result.text).toContain('Beschrijving: De webshop voor elektrische fietsen');
+  expect(result.text).toContain('Bakfietsen');
+  expect(result.text).not.toContain('tracking');
+});
+
 test('throws PageFetchError when the extracted text is only short boilerplate', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
     '<html><head><title>Site</title></head><body><article><p>Enable JavaScript to continue.</p></article></body></html>', { status: 200, headers: { 'Content-Type': 'text/html' } }

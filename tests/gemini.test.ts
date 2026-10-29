@@ -1,4 +1,4 @@
-import { summarizeAndCategorize, categorize, GeminiError } from '@/lib/gemini';
+import { summarizeAndCategorize, summarizeUrlAndCategorize, categorize, GeminiError } from '@/lib/gemini';
 
 test('returns summary and category, and includes existing categories in the prompt', async () => {
   const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
@@ -81,5 +81,62 @@ describe('categorize (category only, from title and summary)', () => {
       candidates: [{ content: { parts: [{ text: '{"summary": "x"}' }] } }],
     }), { status: 200 })));
     await expect(categorize('T', 'S', [])).rejects.toBeInstanceOf(GeminiError);
+  });
+});
+
+test('the prompt also covers pages that are not articles', async () => {
+  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+    candidates: [{ content: { parts: [{ text: '{"summary": "S.", "category": "Tech"}' }] } }],
+  }), { status: 200 }));
+  vi.stubGlobal('fetch', fetchMock);
+  await summarizeAndCategorize('tekst', []);
+  const prompt = JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts[0].text as string;
+  expect(prompt).toContain('homepage, product, tool of dienst');
+});
+
+describe('summarizeUrlAndCategorize (Gemini opens the URL itself)', () => {
+  const answer = '{"title": "Fietsshop", "summary": "Een webshop voor fietsen.", "category": "Winkelen"}';
+
+  test('enables the URL context tool and returns title, summary and category', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      candidates: [{
+        content: { parts: [{ text: answer.slice(0, 20) }, { text: answer.slice(20) }] },
+        urlContextMetadata: { urlMetadata: [{ retrievedUrl: 'https://shop.example', urlRetrievalStatus: 'URL_RETRIEVAL_STATUS_SUCCESS' }] },
+      }],
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await summarizeUrlAndCategorize('https://shop.example', ['Winkelen']);
+
+    expect(result).toEqual({ title: 'Fietsshop', summary: 'Een webshop voor fietsen.', category: 'Winkelen' });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.tools).toEqual([{ url_context: {} }]);
+    expect(body.contents[0].parts[0].text).toContain('https://shop.example');
+  });
+
+  test('throws when Gemini could not retrieve the page, instead of guessing from the URL', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      candidates: [{
+        content: { parts: [{ text: answer }] },
+        urlContextMetadata: { urlMetadata: [{ retrievedUrl: 'https://shop.example', urlRetrievalStatus: 'URL_RETRIEVAL_STATUS_ERROR' }] },
+      }],
+    }), { status: 200 })));
+    await expect(summarizeUrlAndCategorize('https://shop.example', [])).rejects.toThrow('Gemini kon de pagina niet openen');
+  });
+
+  test('throws when the answer has no retrieval metadata at all', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: answer }] } }],
+    }), { status: 200 })));
+    await expect(summarizeUrlAndCategorize('https://shop.example', [])).rejects.toBeInstanceOf(GeminiError);
+  });
+
+  test('the text-based summary does not enable any tools', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: '{"summary": "S.", "category": "C"}' }] } }],
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await summarizeAndCategorize('tekst', []);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).tools).toBeUndefined();
   });
 });

@@ -8,6 +8,7 @@ export class GeminiError extends Error {
 const DEFAULT_MODEL = 'gemini-1.5-flash';
 
 type SummaryResult = { summary: string; category: string };
+type UrlSummaryResult = SummaryResult & { title: string };
 
 // Shared rules so new items and the one-off recategorization produce the same kind of categories.
 function categorySection(existingCategories: string[]): string[] {
@@ -28,9 +29,14 @@ function categorySection(existingCategories: string[]): string[] {
   ];
 }
 
+// Not every saved link is an article: a homepage, product or tool should still get a useful summary.
+const NON_ARTICLE_INSTRUCTION =
+  'Het kan een artikel zijn, maar ook bijvoorbeeld een homepage, product, tool of dienst. Is het geen artikel, beschrijf dan wat de site of pagina is en waarvoor je hem gebruikt.';
+
 function buildPrompt(pageText: string, existingCategories: string[]): string {
   return [
     'Je krijgt de tekst van een webpagina. Maak een korte samenvatting in het Nederlands en kies een categorie.',
+    NON_ARTICLE_INSTRUCTION,
     '',
     ...categorySection(existingCategories),
     '',
@@ -39,6 +45,19 @@ function buildPrompt(pageText: string, existingCategories: string[]): string {
     '',
     'Tekst:',
     pageText,
+  ].join('\n');
+}
+
+function buildUrlPrompt(url: string, existingCategories: string[]): string {
+  return [
+    `Open de webpagina op ${url}. Geef de titel, maak een korte samenvatting in het Nederlands en kies een categorie.`,
+    NON_ARTICLE_INSTRUCTION,
+    'Baseer je alleen op wat er op de pagina staat; verzin niets op basis van de URL.',
+    '',
+    ...categorySection(existingCategories),
+    '',
+    'Antwoord uitsluitend met JSON in exact dit formaat, zonder extra tekst:',
+    '{"title": "...", "summary": "...", "category": "..."}',
   ].join('\n');
 }
 
@@ -77,7 +96,15 @@ function parseResult(text: string): SummaryResult {
   return { summary, category };
 }
 
-async function generate(prompt: string): Promise<string> {
+type UrlMetadata = { urlRetrievalStatus?: string; url_retrieval_status?: string };
+type Candidate = {
+  content?: { parts?: { text?: string }[] };
+  urlContextMetadata?: { urlMetadata?: UrlMetadata[] };
+  url_context_metadata?: { url_metadata?: UrlMetadata[] };
+};
+
+// With urlContext, Gemini fetches the URL in the prompt itself (needs Gemini 2.5 or newer).
+async function generate(prompt: string, { urlContext = false } = {}): Promise<string> {
   const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
   const apiKey = process.env.GEMINI_API_KEY;
 
@@ -88,6 +115,7 @@ async function generate(prompt: string): Promise<string> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
+        ...(urlContext && { tools: [{ url_context: {} }] }),
       }),
     },
   );
@@ -95,15 +123,27 @@ async function generate(prompt: string): Promise<string> {
     throw new GeminiError(`Gemini-verzoek mislukt (HTTP ${response.status})`);
   }
 
-  const data = (await response.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (typeof text !== 'string') {
+  const data = (await response.json()) as { candidates?: Candidate[] };
+  const candidate = data.candidates?.[0];
+  if (urlContext && !pageWasRetrieved(candidate)) {
+    throw new GeminiError('Gemini kon de pagina niet openen');
+  }
+
+  // With tools the answer can come in several parts.
+  const texts = (candidate?.content?.parts ?? []).map((part) => part.text).filter((text) => typeof text === 'string');
+  if (texts.length === 0) {
     throw new GeminiError('Gemini-antwoord bevat geen tekst');
   }
 
-  return text;
+  return texts.join('');
+}
+
+// Without a successful retrieval the model would only be guessing from the URL.
+function pageWasRetrieved(candidate: Candidate | undefined): boolean {
+  const entries = candidate?.urlContextMetadata?.urlMetadata ?? candidate?.url_context_metadata?.url_metadata ?? [];
+  return entries.some(
+    (entry) => (entry.urlRetrievalStatus ?? entry.url_retrieval_status) === 'URL_RETRIEVAL_STATUS_SUCCESS',
+  );
 }
 
 export async function summarizeAndCategorize(
@@ -111,6 +151,14 @@ export async function summarizeAndCategorize(
   existingCategories: string[],
 ): Promise<SummaryResult> {
   return parseResult(await generate(buildPrompt(pageText, existingCategories)));
+}
+
+// For pages we can't read ourselves (blocked, built with JavaScript, PDF, ...): Gemini opens the URL.
+export async function summarizeUrlAndCategorize(url: string, existingCategories: string[]): Promise<UrlSummaryResult> {
+  const text = await generate(buildUrlPrompt(url, existingCategories), { urlContext: true });
+  const { summary, category } = parseResult(text);
+  const { title } = parseJson(text);
+  return { title: typeof title === 'string' ? title.trim() : '', summary, category };
 }
 
 // Category only, from an already saved title and summary (used to recategorize existing items).

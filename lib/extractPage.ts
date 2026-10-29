@@ -29,6 +29,14 @@ export class PageFetchError extends Error {
   }
 }
 
+// Never retried another way: the address is blocked on purpose.
+export class DisallowedHostError extends PageFetchError {
+  constructor() {
+    super('Dit adres mag niet opgehaald worden');
+    this.name = 'DisallowedHostError';
+  }
+}
+
 export async function isDisallowedHost(hostname: string): Promise<boolean> {
   const bareHostname = hostname.replace(/^\[|\]$/g, '');
   const addresses = await lookup(bareHostname, { all: true });
@@ -42,7 +50,7 @@ async function fetchFollowingRedirects(startUrl: string): Promise<Response> {
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     if (await isDisallowedHost(currentUrl.hostname)) {
-      throw new PageFetchError('Dit adres mag niet opgehaald worden');
+      throw new DisallowedHostError();
     }
 
     let response: Response;
@@ -96,22 +104,46 @@ export async function fetchPageText(url: string): Promise<{ title: string; text:
   }
 
   let article: ReturnType<Readability['parse']>;
-  let documentTitle: string;
+  let page: { title: string; text: string };
   const dom = new JSDOM(html, { url: response.url || url });
   try {
+    // Readability changes the document it parses, so the plain-page fallback reads it first.
+    page = describePage(dom.window.document);
     article = new Readability(dom.window.document).parse();
-    documentTitle = dom.window.document.title;
   } finally {
     dom.window.close();
   }
 
   const text = article?.textContent?.trim() ?? '';
-  if (!article || text.length < MIN_ARTICLE_TEXT_LENGTH) {
-    throw new PageFetchError('Geen leesbare inhoud gevonden');
+  if (article && text.length >= MIN_ARTICLE_TEXT_LENGTH) {
+    return {
+      title: article.title || page.title,
+      text: text.slice(0, MAX_ARTICLE_TEXT_LENGTH),
+    };
   }
 
-  return {
-    title: article.title || documentTitle,
-    text: text.slice(0, MAX_ARTICLE_TEXT_LENGTH),
-  };
+  // Not an article (a homepage, product, tool, ...): use its title, description and visible text.
+  if (page.text.length < MIN_ARTICLE_TEXT_LENGTH) {
+    throw new PageFetchError('Geen leesbare inhoud gevonden');
+  }
+  return { title: page.title, text: page.text.slice(0, MAX_ARTICLE_TEXT_LENGTH) };
+}
+
+function metaContent(document: Document, selector: string): string {
+  return document.querySelector(selector)?.getAttribute('content')?.trim() ?? '';
+}
+
+function describePage(document: Document): { title: string; text: string } {
+  const title = metaContent(document, 'meta[property="og:title"]') || document.title.trim();
+  const description =
+    metaContent(document, 'meta[name="description"]') || metaContent(document, 'meta[property="og:description"]');
+
+  const body = document.body?.cloneNode(true) as HTMLElement | undefined;
+  body?.querySelectorAll('script, style, noscript, template, svg').forEach((element) => element.remove());
+  const visibleText = body?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+  const text = [title && `Titel: ${title}`, description && `Beschrijving: ${description}`, visibleText]
+    .filter(Boolean)
+    .join('\n\n');
+  return { title, text };
 }
