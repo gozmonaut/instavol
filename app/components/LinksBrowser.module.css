@@ -298,6 +298,51 @@
   animation: spin 0.8s linear infinite;
 }
 
+/* Pull-to-refresh bubble: follows the finger via --pull, then rests while refreshing */
+.pullIndicator {
+  --pull: 0;
+  position: fixed;
+  top: env(safe-area-inset-top);
+  left: 50%;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-left: -18px;
+  background: var(--surface);
+  border-radius: 50%;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  opacity: min(1, calc(var(--pull) / 40));
+  transform: translateY(calc(var(--pull) * 1px - 40px));
+  pointer-events: none;
+}
+
+.pullIndicator .spinner {
+  width: 18px;
+  height: 18px;
+  animation: none;
+  transform: rotate(calc(var(--pull) * 4deg));
+}
+
+.pullIndicator[data-ready='true'] .spinner {
+  border-color: var(--accent);
+  border-top-color: var(--accent);
+}
+
+.pullIndicator[data-refreshing='true'] {
+  opacity: 1;
+  transform: translateY(16px);
+  transition: transform var(--snappy);
+}
+
+.pullIndicator[data-refreshing='true'] .spinner {
+  border-color: var(--separator);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -513,7 +558,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .spinner {
+  .spinner,
+  .pullIndicator[data-refreshing='true'] .spinner {
     animation: none;
   }
 

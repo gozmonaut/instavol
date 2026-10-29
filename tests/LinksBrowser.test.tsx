@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import LinksBrowser from '@/app/components/LinksBrowser';
 import type { LinkRow } from '@/lib/schema';
@@ -399,4 +399,43 @@ test('cancelling the delete confirmation keeps the item and does not call the en
   await userEvent.click(screen.getAllByText('Verwijderen')[0]);
   expect(fetchMock).not.toHaveBeenCalled();
   expect(screen.getByText('Artikel A')).toBeInTheDocument();
+});
+
+describe('pull-to-refresh in the home-screen app', () => {
+  function pull(fromY: number, toY: number) {
+    fireEvent.touchStart(window, { touches: [{ clientY: fromY }] });
+    fireEvent.touchMove(window, { touches: [{ clientY: toY }] });
+    fireEvent.touchEnd(window, { touches: [] });
+  }
+
+  afterEach(() => {
+    delete (navigator as Navigator & { standalone?: boolean }).standalone;
+  });
+
+  test('pulling down far enough refetches the list', async () => {
+    Object.defineProperty(navigator, 'standalone', { value: true, configurable: true });
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ links: [fixture[0]] }) });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LinksBrowser initialLinks={fixture} />);
+    pull(100, 300);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/links?'));
+    await waitFor(() => expect(screen.queryByText('Artikel B')).not.toBeInTheDocument());
+  });
+
+  test('a short pull does not refetch', () => {
+    Object.defineProperty(navigator, 'standalone', { value: true, configurable: true });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LinksBrowser initialLinks={fixture} />);
+    pull(100, 150);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test('in the Safari browser the gesture is left to Safari', () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LinksBrowser initialLinks={fixture} />);
+    pull(100, 300);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

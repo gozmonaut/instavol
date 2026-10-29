@@ -12,6 +12,14 @@ const SEARCH_DEBOUNCE_MS = 300;
 const POLL_INTERVAL_MS = 3000;
 const POLL_TIMEOUT_MS = 2 * 60 * 1000;
 const COPIED_FEEDBACK_MS = 2000;
+const PULL_THRESHOLD_PX = 70;
+const PULL_RESISTANCE = 0.5;
+
+// Safari has its own pull-to-refresh; a home-screen web app (standalone) has none.
+function isStandalone(): boolean {
+  if (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) return true;
+  return (navigator as Navigator & { standalone?: boolean }).standalone === true;
+}
 
 function domainFromUrl(url: string): string {
   try {
@@ -118,6 +126,73 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     }, SEARCH_DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
+  }, [q, category]);
+
+  // Pull-to-refresh for the home-screen app. The pull distance is written straight to the
+  // indicator's style, so dragging doesn't re-render the whole list on every touchmove.
+  const pullIndicatorRef = useRef<HTMLDivElement>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  useEffect(() => {
+    if (!isStandalone()) return;
+
+    let startY: number | null = null;
+    let distance = 0;
+
+    function showPull(px: number) {
+      const indicator = pullIndicatorRef.current;
+      if (!indicator) return;
+      indicator.style.setProperty('--pull', String(px));
+      indicator.dataset.ready = String(px >= PULL_THRESHOLD_PX);
+    }
+
+    function onTouchStart(event: TouchEvent) {
+      const inSheet = event.target instanceof Element && event.target.closest(`.${styles.sheetBackdrop}`);
+      if (window.scrollY > 0 || event.touches.length !== 1 || inSheet) return;
+      startY = event.touches[0].clientY;
+      distance = 0;
+    }
+
+    function onTouchMove(event: TouchEvent) {
+      if (startY === null) return;
+      const dy = event.touches[0].clientY - startY;
+      if (dy <= 0 || window.scrollY > 0) {
+        startY = null;
+        showPull(0);
+        return;
+      }
+      // Stop the rubber-band bounce so only the indicator moves.
+      event.preventDefault();
+      distance = dy * PULL_RESISTANCE;
+      showPull(distance);
+    }
+
+    function onTouchEnd() {
+      if (startY === null) return;
+      startY = null;
+      showPull(0);
+      if (distance < PULL_THRESHOLD_PX) return;
+
+      setRefreshing(true);
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+      if (category) params.set('category', category);
+      fetch(`/api/links?${params.toString()}`)
+        .then((res) => res.json())
+        .then((data) => setLinks(data.links))
+        .catch(() => {})
+        .finally(() => setRefreshing(false));
+    }
+
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', onTouchEnd);
+    window.addEventListener('touchcancel', onTouchEnd);
+    return () => {
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('touchcancel', onTouchEnd);
+    };
   }, [q, category]);
 
   // Refresh while items are being processed, so title/summary appear without a reload.
@@ -267,6 +342,9 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   return (
     <main ref={pageRef} className={styles.page} data-compact={compact}>
       <div ref={topSentinel} className={styles.sentinel} aria-hidden="true" />
+      <div ref={pullIndicatorRef} className={styles.pullIndicator} data-refreshing={refreshing} role="status" aria-label={refreshing ? 'Verversen' : undefined}>
+        <span className={styles.spinner} aria-hidden="true" />
+      </div>
       <div className={styles.brand}>
         <h1>
           <picture>
