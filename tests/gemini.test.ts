@@ -59,7 +59,9 @@ test('the prompt asks for broad, short, Dutch categories and to reuse existing o
   const prompt = JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts[0].text as string;
   expect(prompt).toContain('één of twee woorden');
   expect(prompt).toContain('in het Nederlands');
-  expect(prompt).toContain('breed onderwerp');
+  expect(prompt).toContain('specifiek onderwerp');
+  expect(prompt).toContain('Kies geen bredere categorie alleen omdat die vaak gebruikt wordt');
+  expect(prompt).not.toContain('breed onderwerp');
   expect(prompt).toMatch(/- Politiek\n- Tech/);
 });
 

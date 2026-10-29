@@ -21,9 +21,10 @@ function categorySection(existingCategories: string[]): string[] {
     categoryList,
     '',
     'Regels voor de categorie:',
-    '- Hergebruik een bestaande categorie als die redelijkerwijs past; kies bij twijfel de meest gebruikte.',
-    '- Verzin alleen een nieuwe categorie als echt geen enkele bestaande past.',
-    '- Een categorie is een breed onderwerp (bijv. "Politiek", niet "EU-migratiebeleid").',
+    '- Hergebruik een bestaande categorie als die het onderwerp specifiek dekt. Kies geen bredere categorie alleen omdat die vaak gebruikt wordt.',
+    '- Dekt geen enkele bestaande categorie het onderwerp specifiek, verzin dan een nieuwe.',
+    '- Een categorie is een specifiek onderwerp, één niveau onder een algemeen thema: bijv. "Migratie" of "Verkiezingen" in plaats van "Politiek", "AI" of "Smartphones" in plaats van "Tech", "Voeding" in plaats van "Gezondheid".',
+    '- Maar niet zo smal dat er maar één artikel bij past: niet "EU-migratiebeleid" of "Frontex".',
     '- Gebruik één of twee woorden, in het Nederlands, ook als de tekst in een andere taal is.',
     '- Geen samengestelde categorieën zoals "Tech & AI" of "Politiek/Economie".',
   ];
