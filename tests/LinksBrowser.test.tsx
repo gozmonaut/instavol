@@ -221,7 +221,7 @@ describe('research with Claude', () => {
     const share = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'share', { value: share, configurable: true });
     render(<LinksBrowser initialLinks={fixture} />);
-    await userEvent.click(screen.getAllByText('Onderzoek')[0]);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Onderzoek' })[0]);
     expect(screen.getByRole('dialog', { name: 'Onderzoek met AI' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Factcheck' }));
     const { text } = share.mock.calls[0][0];
@@ -235,7 +235,7 @@ describe('research with Claude', () => {
     const share = vi.fn();
     Object.defineProperty(navigator, 'share', { value: share, configurable: true });
     render(<LinksBrowser initialLinks={fixture} />);
-    await userEvent.click(screen.getAllByText('Onderzoek')[0]);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Onderzoek' })[0]);
     await userEvent.click(screen.getByRole('button', { name: 'Annuleren' }));
     expect(share).not.toHaveBeenCalled();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -245,7 +245,7 @@ describe('research with Claude', () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     render(<LinksBrowser initialLinks={fixture} />);
-    await userEvent.click(screen.getAllByText('Onderzoek')[0]);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Onderzoek' })[0]);
     await userEvent.click(screen.getByRole('button', { name: 'Alles' }));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Ik wil dit artikel verder onderzoeken.'));
     await screen.findByRole('button', { name: 'Gekopieerd' });
@@ -319,7 +319,7 @@ describe('sharing an item', () => {
     const share = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'share', { value: share, configurable: true });
     render(<LinksBrowser initialLinks={fixture} />);
-    await userEvent.click(screen.getAllByText('Delen')[0]);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Delen' })[0]);
     expect(share).toHaveBeenCalledTimes(1);
     const { text, url } = share.mock.calls[0][0];
     expect(url).toBeUndefined();
@@ -337,7 +337,7 @@ describe('sharing an item', () => {
     Object.defineProperty(navigator, 'platform', { value: 'MacIntel', configurable: true });
     Object.defineProperty(navigator, 'maxTouchPoints', { value: 0, configurable: true });
     render(<LinksBrowser initialLinks={fixture} />);
-    await userEvent.click(screen.getAllByText('Delen')[0]);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Delen' })[0]);
     const { text, url } = share.mock.calls[0][0];
     expect(url).toBe('https://a.example');
     expect(text).toContain('Samenvatting A');
@@ -349,7 +349,7 @@ describe('sharing an item', () => {
     Object.defineProperty(navigator, 'platform', { value: 'MacIntel', configurable: true });
     Object.defineProperty(navigator, 'maxTouchPoints', { value: 5, configurable: true });
     render(<LinksBrowser initialLinks={fixture} />);
-    await userEvent.click(screen.getAllByText('Delen')[0]);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Delen' })[0]);
     expect(share.mock.calls[0][0].url).toBeUndefined();
   });
 
@@ -357,18 +357,18 @@ describe('sharing an item', () => {
     const share = vi.fn().mockRejectedValue(new DOMException('cancelled', 'AbortError'));
     Object.defineProperty(navigator, 'share', { value: share, configurable: true });
     render(<LinksBrowser initialLinks={fixture} />);
-    await userEvent.click(screen.getAllByText('Delen')[0]);
-    expect(screen.queryByText('Gekopieerd')).not.toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole('button', { name: 'Delen' })[0]);
+    expect(screen.queryByRole('button', { name: 'Gekopieerd' })).not.toBeInTheDocument();
   });
 
   test('without share support it copies the text and shows "Gekopieerd"', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     render(<LinksBrowser initialLinks={fixture} />);
-    await userEvent.click(screen.getAllByText('Delen')[1]);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Delen' })[1]);
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Artikel B'));
     expect(writeText.mock.calls[0][0]).not.toContain('Kon pagina niet ophalen');
-    await screen.findByText('Gekopieerd');
+    await screen.findByRole('button', { name: 'Gekopieerd' });
   });
 });
 
@@ -417,7 +417,7 @@ test('clicking delete and confirming calls the delete endpoint and removes the i
   vi.stubGlobal('fetch', fetchMock);
   vi.spyOn(window, 'confirm').mockReturnValue(true);
   render(<LinksBrowser initialLinks={fixture} />);
-  await userEvent.click(screen.getAllByText('Verwijderen')[0]);
+  await userEvent.click(screen.getAllByRole('button', { name: 'Verwijderen' })[0]);
   expect(fetchMock).toHaveBeenCalledWith('/api/links/1', expect.objectContaining({ method: 'DELETE' }));
   await waitFor(() => expect(screen.queryByText('Artikel A')).not.toBeInTheDocument());
   expect(screen.getByText('Artikel B')).toBeInTheDocument();
@@ -428,7 +428,7 @@ test('cancelling the delete confirmation keeps the item and does not call the en
   vi.stubGlobal('fetch', fetchMock);
   vi.spyOn(window, 'confirm').mockReturnValue(false);
   render(<LinksBrowser initialLinks={fixture} />);
-  await userEvent.click(screen.getAllByText('Verwijderen')[0]);
+  await userEvent.click(screen.getAllByRole('button', { name: 'Verwijderen' })[0]);
   expect(fetchMock).not.toHaveBeenCalled();
   expect(screen.getByText('Artikel A')).toBeInTheDocument();
 });

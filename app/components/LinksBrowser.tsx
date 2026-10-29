@@ -54,6 +54,7 @@ const ACTION_ICON_PATHS = {
   research: ['M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z', 'M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z'],
   retry: ['M20 12a8 8 0 1 1-2.34-5.66', 'M20 4v4h-4'],
   delete: ['M4 7h16', 'M10 11v6', 'M14 11v6', 'M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12', 'M9 7V4h6v3'],
+  done: ['M5 12.5l4.5 4.5L19 7.5'],
 } as const;
 
 function ActionIcon({ name }: { name: keyof typeof ACTION_ICON_PATHS }) {
@@ -563,33 +564,43 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                       <p className={`${styles.status} ${styles.failed}`}>Mislukt: {link.errorMessage}</p>
                     )}
                   </div>
+                  {/* Same round icon buttons as the reader's top bar */}
                   <div className={styles.actions}>
-                    <button className={styles.action} onClick={() => handleShare(link)}>
-                      <ActionIcon name="share" />
-                      {copiedId === link.id ? 'Gekopieerd' : 'Delen'}
+                    <button
+                      className={readerStyles.barIcon}
+                      onClick={() => handleShare(link)}
+                      aria-label={copiedId === link.id ? 'Gekopieerd' : 'Delen'}
+                      title="Delen"
+                    >
+                      <ActionIcon name={copiedId === link.id ? 'done' : 'share'} />
                     </button>
-                    <button className={styles.action} onClick={() => setResearchLink(link)}>
-                      <ActionIcon name="research" />
-                      {promptCopiedId === link.id ? 'Gekopieerd' : 'Onderzoek'}
+                    <button
+                      className={readerStyles.barIcon}
+                      onClick={() => setResearchLink(link)}
+                      aria-label={promptCopiedId === link.id ? 'Gekopieerd' : 'Onderzoek'}
+                      title="Onderzoek met AI"
+                    >
+                      <ActionIcon name={promptCopiedId === link.id ? 'done' : 'research'} />
                     </button>
                     {link.status !== 'done' && (
                       <button
-                        className={styles.action}
+                        className={readerStyles.barIcon}
                         onClick={() => handleRetry(link.id)}
                         disabled={retryingId === link.id}
                         aria-label="Opnieuw verwerken"
+                        title="Opnieuw verwerken"
                       >
                         <ActionIcon name="retry" />
-                        Opnieuw
                       </button>
                     )}
                     <button
-                      className={`${styles.action} ${styles.danger}`}
+                      className={`${readerStyles.barIcon} ${readerStyles.barDanger}`}
                       onClick={() => handleDelete(link.id)}
                       disabled={deletingId === link.id}
+                      aria-label="Verwijderen"
+                      title="Verwijderen"
                     >
                       <ActionIcon name="delete" />
-                      Verwijderen
                     </button>
                   </div>
                 </li>
@@ -829,7 +840,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                 aria-label={copiedId === readerLink.id ? 'Gekopieerd' : 'Delen'}
                 title="Delen"
               >
-                <ActionIcon name="share" />
+                <ActionIcon name={copiedId === readerLink.id ? 'done' : 'share'} />
               </button>
               <button
                 className={readerStyles.barIcon}
@@ -837,7 +848,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                 aria-label={promptCopiedId === readerLink.id ? 'Gekopieerd' : 'Onderzoek'}
                 title="Onderzoek met AI"
               >
-                <ActionIcon name="research" />
+                <ActionIcon name={promptCopiedId === readerLink.id ? 'done' : 'research'} />
               </button>
               <button
                 className={`${readerStyles.barIcon} ${readerStyles.barDanger}`}

@@ -273,7 +273,7 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  margin-bottom: 6px;
+  margin-bottom: 12px;
 }
 
 .date {
@@ -400,50 +400,14 @@
   }
 }
 
-/* Edge-to-edge bar of equal-width buttons along the bottom of the card */
+/* Round icon buttons (styled in Reader.module.css) on the right, below a hairline */
 .actions {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  margin: 14px -16px -16px;
-  border-top: 0.5px solid var(--separator);
-}
-
-/* Icon above a short label, like an iOS tab bar; 52px tall tap targets */
-.action {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  min-width: 0;
-  height: 52px;
-  padding: 0 4px;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-  color: var(--accent);
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: background-color 120ms;
-}
-
-.action + .action {
-  border-left: 0.5px solid var(--separator);
-}
-
-.action:active {
-  background: var(--fill);
-}
-
-.action:disabled {
-  opacity: 0.4;
-}
-
-.danger {
-  color: var(--danger);
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 14px -16px 0;
+  padding: 12px 16px 0;
+  border-top: 0.5px solid var(--separator);
 }
 
 .empty {
