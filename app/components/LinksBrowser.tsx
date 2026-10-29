@@ -8,6 +8,7 @@ import { RESEARCH_FOCUSES, buildResearchPrompt, type ResearchFocus } from '@/lib
 import { parseShareUrl } from '@/lib/shareUrl';
 import Reader from './Reader';
 import styles from './LinksBrowser.module.css';
+import readerStyles from './Reader.module.css';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const POLL_INTERVAL_MS = 3000;
@@ -384,7 +385,10 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     setDeletingId(id);
     try {
       const res = await fetch(`/api/links/${id}`, { method: 'DELETE' });
-      if (res.ok) setLinks((prev) => prev.filter((link) => link.id !== id));
+      if (res.ok) {
+        setLinks((prev) => prev.filter((link) => link.id !== id));
+        setReaderLink((current) => (current?.id === id ? null : current));
+      }
     } finally {
       setDeletingId(null);
     }
@@ -497,6 +501,17 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                   <div className={styles.cardMain}>
                     <div className={styles.cardText}>
                       <div className={styles.cardHeader}>
+                        {link.category && (
+                          <button
+                            className={styles.chip}
+                            aria-label={`Categorie ${link.category}`}
+                            aria-haspopup="dialog"
+                            aria-pressed={category === link.category}
+                            onClick={() => setCategoryMenuLink(link)}
+                          >
+                            {link.category}
+                          </button>
+                        )}
                         <a
                           href={link.url}
                           target="_blank"
@@ -511,17 +526,6 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                         >
                           {link.title ?? link.url}
                         </a>
-                        {link.category && (
-                          <button
-                            className={styles.chip}
-                            aria-label={`Categorie ${link.category}`}
-                            aria-haspopup="dialog"
-                            aria-pressed={category === link.category}
-                            onClick={() => setCategoryMenuLink(link)}
-                          >
-                            {link.category}
-                          </button>
-                        )}
                       </div>
                       <div className={styles.meta}>
                         <span>{domainFromUrl(link.url)}</span>
@@ -817,7 +821,41 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
       )}
 
       {readerLink && (
-        <Reader key={readerLink.id} link={readerLink} domain={domainFromUrl(readerLink.url)} onClose={closeReader} />
+        <Reader
+          key={readerLink.id}
+          link={readerLink}
+          domain={domainFromUrl(readerLink.url)}
+          onClose={closeReader}
+          actions={
+            <>
+              <button
+                className={readerStyles.barIcon}
+                onClick={() => handleShare(readerLink)}
+                aria-label={copiedId === readerLink.id ? 'Gekopieerd' : 'Delen'}
+                title="Delen"
+              >
+                <ActionIcon name="share" />
+              </button>
+              <button
+                className={readerStyles.barIcon}
+                onClick={() => setResearchLink(readerLink)}
+                aria-label={promptCopiedId === readerLink.id ? 'Gekopieerd' : 'Onderzoek'}
+                title="Onderzoek met AI"
+              >
+                <ActionIcon name="research" />
+              </button>
+              <button
+                className={`${readerStyles.barIcon} ${readerStyles.barDanger}`}
+                onClick={() => handleDelete(readerLink.id)}
+                disabled={deletingId === readerLink.id}
+                aria-label="Verwijderen"
+                title="Verwijderen"
+              >
+                <ActionIcon name="delete" />
+              </button>
+            </>
+          }
+        />
       )}
     </main>
   );

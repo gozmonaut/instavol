@@ -44,6 +44,37 @@
   opacity: 0.5;
 }
 
+.barActions {
+  display: flex;
+  align-items: center;
+}
+
+/* Icon-only actions (share, research, delete) next to "Origineel" */
+.barIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: opacity 120ms;
+}
+
+.barIcon:active {
+  opacity: 0.5;
+}
+
+.barIcon:disabled {
+  opacity: 0.4;
+}
+
+.barDanger {
+  color: var(--danger);
+}
+
 .article {
   max-width: 680px;
   margin: 0 auto;

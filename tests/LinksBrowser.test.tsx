@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import LinksBrowser from '@/app/components/LinksBrowser';
 import type { LinkRow } from '@/lib/schema';
@@ -563,6 +563,44 @@ describe('the reader', () => {
     render(<LinksBrowser initialLinks={[article]} />);
     await userEvent.click(screen.getByRole('link', { name: article.title! }));
     expect(await screen.findByRole('link', { name: 'Open het origineel' })).toHaveAttribute('href', article.url);
+  });
+
+  test('the category label sits above the title', () => {
+    render(<LinksBrowser initialLinks={[article]} />);
+    const chip = screen.getByRole('button', { name: 'Categorie Tech' });
+    const title = screen.getByRole('link', { name: article.title! });
+    expect(chip.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test('the top bar shares the item and opens the AI research menu', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ html: '<p>Tekst</p>' }) }));
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    render(<LinksBrowser initialLinks={[article]} />);
+    await userEvent.click(screen.getByRole('link', { name: article.title! }));
+    const reader = screen.getByRole('dialog', { name: article.title! });
+
+    await userEvent.click(within(reader).getByRole('button', { name: 'Delen' }));
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining(article.url) }));
+
+    await userEvent.click(within(reader).getByRole('button', { name: 'Onderzoek' }));
+    expect(screen.getByRole('dialog', { name: 'Onderzoek met AI' })).toBeInTheDocument();
+    Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
+  });
+
+  test('deleting from the top bar removes the item and closes the reader', async () => {
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) =>
+      Promise.resolve(init?.method === 'DELETE' ? { ok: true } : { ok: true, json: async () => ({ html: '<p>Tekst</p>' }) }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<LinksBrowser initialLinks={[article]} />);
+    await userEvent.click(screen.getByRole('link', { name: article.title! }));
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Verwijderen' }));
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/links/9', expect.objectContaining({ method: 'DELETE' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.queryByText(article.title!)).not.toBeInTheDocument();
   });
 
   test('an item without saved text keeps opening the site itself', async () => {

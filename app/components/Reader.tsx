@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { LinkRow } from '@/lib/schema';
 import styles from './Reader.module.css';
 
@@ -12,7 +12,18 @@ function formatPublished(value: Date | string): string {
 }
 
 // Full-screen reader for the saved article text, sliding in like an iOS navigation push.
-export default function Reader({ link, domain, onClose }: { link: LinkRow; domain: string; onClose: () => void }) {
+// `actions` are the item's buttons (share, research, delete), shown in the top bar.
+export default function Reader({
+  link,
+  domain,
+  actions,
+  onClose,
+}: {
+  link: LinkRow;
+  domain: string;
+  actions: ReactNode;
+  onClose: () => void;
+}) {
   const [content, setContent] = useState<ContentState>({ status: 'loading' });
   const backButton = useRef<HTMLButtonElement>(null);
 
@@ -62,9 +73,12 @@ export default function Reader({ link, domain, onClose }: { link: LinkRow; domai
           </svg>
           Terug
         </button>
-        <a className={styles.barButton} href={link.url} target="_blank" rel="noreferrer">
-          Origineel
-        </a>
+        <div className={styles.barActions}>
+          {actions}
+          <a className={styles.barButton} href={link.url} target="_blank" rel="noreferrer">
+            Origineel
+          </a>
+        </div>
       </div>
       <article className={styles.article}>
         <h1 id="reader-title" className={styles.title}>

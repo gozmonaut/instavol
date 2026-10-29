@@ -241,16 +241,16 @@
   border-radius: 10px;
 }
 
-/* Title on the left, category always pinned top-right */
+/* Category label above the title */
 .cardHeader {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  gap: 12px;
+  gap: 6px;
 }
 
 .cardTitle {
-  flex: 1;
-  min-width: 0;
+  align-self: stretch;
   display: block;
   font-size: 17px;
   font-weight: 600;
@@ -271,9 +271,7 @@
 
 .chip {
   position: relative;
-  flex-shrink: 0;
-  max-width: 40%;
-  margin-top: 1px;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 12px;
@@ -289,11 +287,11 @@
   transition: background-color 120ms, color 120ms, transform 120ms;
 }
 
-/* Bigger invisible tap area without making the pill itself larger */
+/* Bigger invisible tap area without making the pill itself larger; stops short of the title below */
 .chip::after {
   content: '';
   position: absolute;
-  inset: -12px -6px;
+  inset: -12px -6px -4px;
 }
 
 .chip:active {
