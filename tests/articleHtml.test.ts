@@ -83,3 +83,35 @@ test('headings become h2 at most, since the reader shows the title as h1', () =>
 test('returns null when nothing is left', () => {
   expect(cleanArticleHtml('<script>x()</script>', 'https://example.com/a', null)).toBeNull();
 });
+
+test('the same image twice (another size or crop) is shown once, with its caption', () => {
+  const html = cleanArticleHtml(
+    '<img src="https://cdn.example/uploads/vox-app.jpg?w=2400&crop=0,0,100,100">'
+      + '<figure><img src="https://cdn.example/uploads/vox-app.jpg?w=1200"><figcaption>Bijschrift</figcaption></figure>'
+      + `<p>${FIRST_PARAGRAPH}</p><img src="https://cdn.example/uploads/tweede.jpg">`,
+    'https://example.com/a',
+    null,
+  )!;
+  expect(html.match(/vox-app\.jpg/g)).toHaveLength(1);
+  expect(html).not.toContain('Bijschrift');
+  expect(html).toContain('tweede.jpg');
+});
+
+test('an image and its <noscript> copy are shown once', () => {
+  const html = cleanArticleHtml(
+    `<noscript><img src="https://cdn.example/hero.jpg"></noscript><img src="https://cdn.example/hero.jpg?w=800"><p>${FIRST_PARAGRAPH}</p>`,
+    'https://example.com/a',
+    null,
+  )!;
+  expect(html.match(/hero\.jpg/g)).toHaveLength(1);
+});
+
+test('images told apart only by their query (no image file name) are both kept', () => {
+  const html = cleanArticleHtml(
+    `<p>${FIRST_PARAGRAPH}</p><img src="https://cdn.example/image?id=1"><img src="https://cdn.example/image?id=2">`,
+    'https://example.com/a',
+    null,
+  )!;
+  expect(html).toContain('id=1');
+  expect(html).toContain('id=2');
+});

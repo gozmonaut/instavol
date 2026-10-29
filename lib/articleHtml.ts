@@ -112,6 +112,31 @@ function fixImageSources(document: Document, baseUrl: string): void {
   });
 }
 
+const IMAGE_FILE = /\.(jpe?g|png|webp|gif|avif)$/i;
+
+// The same photo at another size or crop (?w=, ?crop=) counts as the same image;
+// for addresses without an image file name the query may be what picks the image, so it stays.
+function imageKey(src: string): string {
+  const url = new URL(src);
+  return IMAGE_FILE.test(url.pathname) ? `${url.origin}${url.pathname}` : url.href;
+}
+
+// Sites often have the lead image twice (hero plus figure, or lazy image plus <noscript> copy).
+// The first one stays; a figure or picture left without an image goes with its duplicate.
+function removeDuplicateImages(document: Document): void {
+  const seen = new Set<string>();
+  document.querySelectorAll('img').forEach((img) => {
+    const key = imageKey(img.getAttribute('src')!);
+    if (!seen.has(key)) {
+      seen.add(key);
+      return;
+    }
+    const wrapper = img.closest('figure, picture');
+    img.remove();
+    if (wrapper && !wrapper.querySelector('img')) wrapper.remove();
+  });
+}
+
 // Readability's article HTML, without leading clutter and reduced to safe, simple markup.
 // Returns null when nothing (or too much) is left.
 export function cleanArticleHtml(html: string, baseUrl: string, byline: string | null): string | null {
@@ -125,6 +150,7 @@ export function cleanArticleHtml(html: string, baseUrl: string, byline: string |
     });
     removeLeadingClutter(document.body, byline);
     fixImageSources(document, baseUrl);
+    removeDuplicateImages(document);
 
     const purify = createDOMPurify(dom.window);
     purify.addHook('afterSanitizeAttributes', (node) => {
