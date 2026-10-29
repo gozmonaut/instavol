@@ -6,6 +6,28 @@ import { DisallowedHostError, fetchPageText, type PageContent } from '@/lib/extr
 import { summarizeAndCategorize, summarizeUrlAndCategorize } from '@/lib/gemini';
 import { getCategoriesByUsage } from '@/lib/links';
 
+// Thumbnail, reader metadata and article text; a page that is no longer an article loses its reader view.
+export async function saveReaderContent(id: string, page: PageContent): Promise<void> {
+  const article = page.article ?? null;
+  await db
+    .update(links)
+    .set({
+      imageUrl: page.imageUrl ?? null,
+      byline: article?.byline ?? null,
+      publishedAt: article?.publishedAt ?? null,
+      readingMinutes: article?.readingMinutes ?? null,
+    })
+    .where(eq(links.id, id));
+  if (article) {
+    await db
+      .insert(linkContents)
+      .values({ linkId: id, html: article.html })
+      .onConflictDoUpdate({ target: linkContents.linkId, set: { html: article.html, updatedAt: new Date() } });
+  } else {
+    await db.delete(linkContents).where(eq(linkContents.linkId, id));
+  }
+}
+
 export async function processLink(id: string): Promise<void> {
   try {
     const [row] = await db.select().from(links).where(eq(links.id, id));
@@ -23,26 +45,7 @@ export async function processLink(id: string): Promise<void> {
       await db.update(links).set({ title: page.title }).where(eq(links.id, id));
     }
 
-    if (page) {
-      const article = page.article ?? null;
-      await db
-        .update(links)
-        .set({
-          imageUrl: page.imageUrl ?? null,
-          byline: article?.byline ?? null,
-          publishedAt: article?.publishedAt ?? null,
-          readingMinutes: article?.readingMinutes ?? null,
-        })
-        .where(eq(links.id, id));
-      if (article) {
-        await db
-          .insert(linkContents)
-          .values({ linkId: id, html: article.html })
-          .onConflictDoUpdate({ target: linkContents.linkId, set: { html: article.html, updatedAt: new Date() } });
-      } else {
-        await db.delete(linkContents).where(eq(linkContents.linkId, id));
-      }
-    }
+    if (page) await saveReaderContent(id, page);
 
     const existingCategories = await getCategoriesByUsage();
 
