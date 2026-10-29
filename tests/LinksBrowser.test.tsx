@@ -439,3 +439,12 @@ describe('pull-to-refresh in the home-screen app', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+test('the refresh button refetches the list', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ links: [fixture[0]] }) });
+  vi.stubGlobal('fetch', fetchMock);
+  render(<LinksBrowser initialLinks={fixture} />);
+  await userEvent.click(screen.getByRole('button', { name: 'Verversen' }));
+  expect(fetchMock).toHaveBeenCalledWith('/api/links?');
+  await waitFor(() => expect(screen.queryByText('Artikel B')).not.toBeInTheDocument());
+});

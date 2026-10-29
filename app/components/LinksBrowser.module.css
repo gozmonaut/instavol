@@ -31,6 +31,21 @@
   transform: translateY(-8px) scale(0.94);
 }
 
+/* Refresh and logout sit together on the right; only the last one hangs into the margin */
+.brandActions {
+  display: flex;
+  align-items: center;
+}
+
+.brandActions .iconButton:not(:last-child) {
+  margin-right: 0;
+}
+
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* 44px round tap target, like an iOS navigation-bar button */
 .iconButton {
   display: flex;

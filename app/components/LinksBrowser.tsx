@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LinkRow } from '@/lib/schema';
 import { groupByDate } from '@/lib/dateGroups';
 import { RESEARCH_FOCUSES, buildResearchPrompt, type ResearchFocus } from '@/lib/researchPrompt';
@@ -132,6 +132,18 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   // indicator's style, so dragging doesn't re-render the whole list on every touchmove.
   const pullIndicatorRef = useRef<HTMLDivElement>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const refreshLinks = useCallback(() => {
+    setRefreshing(true);
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (category) params.set('category', category);
+    fetch(`/api/links?${params.toString()}`)
+      .then((res) => res.json())
+      .then((data) => setLinks(data.links))
+      .catch(() => {})
+      .finally(() => setRefreshing(false));
+  }, [q, category]);
+
   useEffect(() => {
     if (!isStandalone()) return;
 
@@ -170,17 +182,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
       if (startY === null) return;
       startY = null;
       showPull(0);
-      if (distance < PULL_THRESHOLD_PX) return;
-
-      setRefreshing(true);
-      const params = new URLSearchParams();
-      if (q) params.set('q', q);
-      if (category) params.set('category', category);
-      fetch(`/api/links?${params.toString()}`)
-        .then((res) => res.json())
-        .then((data) => setLinks(data.links))
-        .catch(() => {})
-        .finally(() => setRefreshing(false));
+      if (distance >= PULL_THRESHOLD_PX) refreshLinks();
     }
 
     window.addEventListener('touchstart', onTouchStart, { passive: true });
@@ -193,7 +195,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
       window.removeEventListener('touchend', onTouchEnd);
       window.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [q, category]);
+  }, [refreshLinks]);
 
   // Refresh while items are being processed, so title/summary appear without a reload.
   const hasPending = links.some((link) => link.status === 'pending');
@@ -352,13 +354,21 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             <img src="/instavol-logo-light.svg" alt="Instavol" className={styles.logo} />
           </picture>
         </h1>
-        <button className={styles.iconButton} onClick={handleLogout} aria-label="Uitloggen" title="Uitloggen">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
-            <path d="M10 17l-5-5 5-5" />
-            <path d="M5 12h11" />
-          </svg>
-        </button>
+        <div className={styles.brandActions}>
+          <button className={styles.iconButton} onClick={refreshLinks} disabled={refreshing} aria-label="Verversen" title="Verversen">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+              <path d="M20 4v4h-4" />
+            </svg>
+          </button>
+          <button className={styles.iconButton} onClick={handleLogout} aria-label="Uitloggen" title="Uitloggen">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
+              <path d="M10 17l-5-5 5-5" />
+              <path d="M5 12h11" />
+            </svg>
+          </button>
+        </div>
       </div>
       <header ref={headerRef} className={styles.header}>
         <div className={styles.controls}>
