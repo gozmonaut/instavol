@@ -1,8 +1,8 @@
 import { db } from '@/lib/db';
-import { links } from '@/lib/schema';
+import { linkContents, links } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { normalizeCategory } from '@/lib/categories';
-import { DisallowedHostError, fetchPageText } from '@/lib/extractPage';
+import { DisallowedHostError, fetchPageText, type PageContent } from '@/lib/extractPage';
 import { summarizeAndCategorize, summarizeUrlAndCategorize } from '@/lib/gemini';
 import { getCategoriesByUsage } from '@/lib/links';
 
@@ -10,7 +10,7 @@ export async function processLink(id: string): Promise<void> {
   try {
     const [row] = await db.select().from(links).where(eq(links.id, id));
 
-    let page: { title: string; text: string } | null = null;
+    let page: PageContent | null = null;
     let fetchError: unknown = null;
     try {
       page = await fetchPageText(row.url);
@@ -21,6 +21,27 @@ export async function processLink(id: string): Promise<void> {
 
     if (page && !row.title) {
       await db.update(links).set({ title: page.title }).where(eq(links.id, id));
+    }
+
+    if (page) {
+      const article = page.article ?? null;
+      await db
+        .update(links)
+        .set({
+          imageUrl: page.imageUrl ?? null,
+          byline: article?.byline ?? null,
+          publishedAt: article?.publishedAt ?? null,
+          readingMinutes: article?.readingMinutes ?? null,
+        })
+        .where(eq(links.id, id));
+      if (article) {
+        await db
+          .insert(linkContents)
+          .values({ linkId: id, html: article.html })
+          .onConflictDoUpdate({ target: linkContents.linkId, set: { html: article.html, updatedAt: new Date() } });
+      } else {
+        await db.delete(linkContents).where(eq(linkContents.linkId, id));
+      }
     }
 
     const existingCategories = await getCategoriesByUsage();

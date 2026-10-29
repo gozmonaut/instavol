@@ -9,6 +9,10 @@ const article: LinkRow = {
   summary: 'De EU-Kommissie heeft wetgevingsvoorstellen gepresenteerd.',
   category: 'Politiek',
   errorMessage: null,
+  imageUrl: null,
+  byline: null,
+  publishedAt: null,
+  readingMinutes: null,
   createdAt: new Date('2026-10-28T15:20:00Z'),
   updatedAt: new Date('2026-10-28T15:20:00Z'),
 };

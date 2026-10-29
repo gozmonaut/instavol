@@ -2,8 +2,10 @@ import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import { lookup } from 'node:dns/promises';
 import { BlockList } from 'node:net';
+import { cleanArticleHtml } from '@/lib/articleHtml';
 
 const MIN_ARTICLE_TEXT_LENGTH = 200;
+const WORDS_PER_MINUTE = 230;
 const MAX_ARTICLE_TEXT_LENGTH = 25_000;
 const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 15_000;
@@ -81,7 +83,22 @@ async function fetchFollowingRedirects(startUrl: string): Promise<Response> {
   throw new PageFetchError('Te veel doorverwijzingen');
 }
 
-export async function fetchPageText(url: string): Promise<{ title: string; text: string }> {
+export type PageArticle = {
+  html: string;
+  byline: string | null;
+  publishedAt: Date | null;
+  readingMinutes: number;
+};
+
+export type PageContent = {
+  title: string;
+  text: string;
+  imageUrl?: string | null;
+  // Only for pages that read as an article: what the reader view shows.
+  article?: PageArticle | null;
+};
+
+export async function fetchPageText(url: string): Promise<PageContent> {
   const response = await fetchFollowingRedirects(url);
 
   if (!response.ok) {
@@ -105,20 +122,35 @@ export async function fetchPageText(url: string): Promise<{ title: string; text:
 
   let article: ReturnType<Readability['parse']>;
   let page: { title: string; text: string };
-  const dom = new JSDOM(html, { url: response.url || url });
+  let imageUrl: string | null;
+  const pageUrl = response.url || url;
+  const dom = new JSDOM(html, { url: pageUrl });
   try {
     // Readability changes the document it parses, so the plain-page fallback reads it first.
     page = describePage(dom.window.document);
-    article = new Readability(dom.window.document).parse();
+    imageUrl = pageImage(dom.window.document, pageUrl);
+    // Classes help cleanArticleHtml spot author photos; it strips them afterwards.
+    article = new Readability(dom.window.document, { keepClasses: true }).parse();
   } finally {
     dom.window.close();
   }
 
   const text = article?.textContent?.trim() ?? '';
   if (article && text.length >= MIN_ARTICLE_TEXT_LENGTH) {
+    const byline = article.byline?.trim() || null;
+    const articleHtml = article.content ? cleanArticleHtml(article.content, pageUrl, byline) : null;
     return {
       title: article.title || page.title,
       text: text.slice(0, MAX_ARTICLE_TEXT_LENGTH),
+      imageUrl,
+      article: articleHtml
+        ? {
+            html: articleHtml,
+            byline,
+            publishedAt: parseDate(article.publishedTime),
+            readingMinutes: Math.max(1, Math.round(text.split(/\s+/).length / WORDS_PER_MINUTE)),
+          }
+        : null,
     };
   }
 
@@ -126,7 +158,28 @@ export async function fetchPageText(url: string): Promise<{ title: string; text:
   if (page.text.length < MIN_ARTICLE_TEXT_LENGTH) {
     throw new PageFetchError('Geen leesbare inhoud gevonden');
   }
-  return { title: page.title, text: page.text.slice(0, MAX_ARTICLE_TEXT_LENGTH) };
+  return { title: page.title, text: page.text.slice(0, MAX_ARTICLE_TEXT_LENGTH), imageUrl };
+}
+
+function parseDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+// The page's share image (og:image), used as thumbnail; only http(s) addresses.
+function pageImage(document: Document, pageUrl: string): string | null {
+  const value =
+    metaContent(document, 'meta[property="og:image"]') ||
+    metaContent(document, 'meta[name="twitter:image"]') ||
+    metaContent(document, 'meta[name="twitter:image:src"]');
+  if (!value) return null;
+  try {
+    const imageUrl = new URL(value, pageUrl);
+    return imageUrl.protocol === 'https:' || imageUrl.protocol === 'http:' ? imageUrl.href : null;
+  } catch {
+    return null;
+  }
 }
 
 function metaContent(document: Document, selector: string): string {

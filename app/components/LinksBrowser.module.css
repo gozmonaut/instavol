@@ -220,6 +220,27 @@
   box-shadow: var(--card-shadow);
 }
 
+/* Text on the left, the page's thumbnail on the right */
+.cardMain {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.cardText {
+  flex: 1;
+  min-width: 0;
+}
+
+.thumbnail {
+  flex-shrink: 0;
+  width: 76px;
+  height: 76px;
+  object-fit: cover;
+  background: var(--fill);
+  border-radius: 10px;
+}
+
 /* Title on the left, category always pinned top-right */
 .cardHeader {
   display: flex;
@@ -289,6 +310,15 @@
   font-size: 15px;
   line-height: 1.45;
   color: var(--text);
+}
+
+/* Two lines when the item has a reader view, which shows the summary in full */
+.clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }
 
 .status {

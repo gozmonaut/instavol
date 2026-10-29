@@ -6,6 +6,7 @@ import type { LinkRow } from '@/lib/schema';
 import { groupByDate } from '@/lib/dateGroups';
 import { RESEARCH_FOCUSES, buildResearchPrompt, type ResearchFocus } from '@/lib/researchPrompt';
 import { parseShareUrl } from '@/lib/shareUrl';
+import Reader from './Reader';
 import styles from './LinksBrowser.module.css';
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -97,6 +98,8 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordChanged, setPasswordChanged] = useState(false);
+  const [readerLink, setReaderLink] = useState<LinkRow | null>(null);
+  const closeReader = useCallback(() => setReaderLink(null), []);
   const topSentinel = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLElement>(null);
   const headerRef = useRef<HTMLElement>(null);
@@ -171,7 +174,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     }
 
     function onTouchStart(event: TouchEvent) {
-      const inSheet = event.target instanceof Element && event.target.closest(`.${styles.sheetBackdrop}`);
+      const inSheet = event.target instanceof Element && event.target.closest(`.${styles.sheetBackdrop}, [data-reader]`);
       if (window.scrollY > 0 || event.touches.length !== 1 || inSheet) return;
       startY = event.touches[0].clientY;
       distance = 0;
@@ -491,37 +494,76 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             <ul className={styles.list}>
               {group.items.map((link) => (
                 <li key={link.id} className={styles.card}>
-                  <div className={styles.cardHeader}>
-                    <a href={link.url} target="_blank" rel="noreferrer" className={styles.cardTitle}>
-                      {link.title ?? link.url}
-                    </a>
-                    {link.category && (
-                      <button
-                        className={styles.chip}
-                        aria-label={`Categorie ${link.category}`}
-                        aria-haspopup="dialog"
-                        aria-pressed={category === link.category}
-                        onClick={() => setCategoryMenuLink(link)}
-                      >
-                        {link.category}
-                      </button>
+                  <div className={styles.cardMain}>
+                    <div className={styles.cardText}>
+                      <div className={styles.cardHeader}>
+                        <a
+                          href={link.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={styles.cardTitle}
+                          onClick={(event) => {
+                            // Saved articles open in the reader; a modified click still opens the site.
+                            if (!link.readingMinutes || event.metaKey || event.ctrlKey || event.shiftKey) return;
+                            event.preventDefault();
+                            setReaderLink(link);
+                          }}
+                        >
+                          {link.title ?? link.url}
+                        </a>
+                        {link.category && (
+                          <button
+                            className={styles.chip}
+                            aria-label={`Categorie ${link.category}`}
+                            aria-haspopup="dialog"
+                            aria-pressed={category === link.category}
+                            onClick={() => setCategoryMenuLink(link)}
+                          >
+                            {link.category}
+                          </button>
+                        )}
+                      </div>
+                      <div className={styles.meta}>
+                        <span>{domainFromUrl(link.url)}</span>
+                        <span aria-hidden="true">·</span>
+                        {link.readingMinutes && (
+                          <>
+                            <span>{link.readingMinutes} min. leestijd</span>
+                            <span aria-hidden="true">·</span>
+                          </>
+                        )}
+                        <span>{formatDate(link.createdAt)}</span>
+                      </div>
+                      {link.status === 'done' && link.summary && (
+                        <p className={link.readingMinutes ? `${styles.summary} ${styles.clamped}` : styles.summary}>
+                          {link.summary}
+                        </p>
+                      )}
+                      {link.status === 'pending' && (
+                        <p className={styles.status}>
+                          <span className={styles.spinner} aria-hidden="true" />
+                          Wordt verwerkt...
+                        </p>
+                      )}
+                      {link.status === 'failed' && (
+                        <p className={`${styles.status} ${styles.failed}`}>Mislukt: {link.errorMessage}</p>
+                      )}
+                    </div>
+                    {link.imageUrl && (
+                      // A remote og:image; hidden when it fails to load (e.g. hotlinking blocked).
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={link.imageUrl}
+                        alt=""
+                        className={styles.thumbnail}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        onError={(event) => {
+                          event.currentTarget.hidden = true;
+                        }}
+                      />
                     )}
                   </div>
-                  <div className={styles.meta}>
-                    <span>{domainFromUrl(link.url)}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>{formatDate(link.createdAt)}</span>
-                  </div>
-                  {link.status === 'done' && link.summary && <p className={styles.summary}>{link.summary}</p>}
-                  {link.status === 'pending' && (
-                    <p className={styles.status}>
-                      <span className={styles.spinner} aria-hidden="true" />
-                      Wordt verwerkt...
-                    </p>
-                  )}
-                  {link.status === 'failed' && (
-                    <p className={`${styles.status} ${styles.failed}`}>Mislukt: {link.errorMessage}</p>
-                  )}
                   <div className={styles.actions}>
                     <button className={styles.action} onClick={() => handleShare(link)}>
                       <ActionIcon name="share" />
@@ -772,6 +814,10 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             </button>
           </div>
         </div>
+      )}
+
+      {readerLink && (
+        <Reader key={readerLink.id} link={readerLink} domain={domainFromUrl(readerLink.url)} onClose={closeReader} />
       )}
     </main>
   );

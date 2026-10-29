@@ -1,6 +1,6 @@
 import { processLink } from '@/lib/processLink';
 import { db } from '@/lib/db';
-import { links } from '@/lib/schema';
+import { linkContents, links } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 
 vi.mock('@/lib/extractPage', async (importOriginal) => {
@@ -138,4 +138,51 @@ test('a blocked address is never handed to Gemini', async () => {
   expect(updated.status).toBe('failed');
   expect(updated.errorMessage).toBe('Dit adres mag niet opgehaald worden');
   expect(summarizeUrlAndCategorize).not.toHaveBeenCalled();
+});
+
+test('an article saves its reader html and the list metadata', async () => {
+  const { fetchPageText } = await import('@/lib/extractPage');
+  const { summarizeAndCategorize } = await import('@/lib/gemini');
+  vi.mocked(fetchPageText).mockResolvedValue({
+    title: 'Artikel',
+    text: 'content',
+    imageUrl: 'https://cdn.example/beeld.jpg',
+    article: { html: '<p>Tekst</p>', byline: 'Jan Jansen', publishedAt: new Date('2026-10-28T09:00:00Z'), readingMinutes: 4 },
+  });
+  vi.mocked(summarizeAndCategorize).mockResolvedValue({ summary: 'x', category: 'Tech' });
+
+  const [row] = await db.insert(links).values({ url: 'https://e.example' }).returning();
+  await processLink(row.id);
+
+  const [updated] = await db.select().from(links).where(eq(links.id, row.id));
+  expect(updated.imageUrl).toBe('https://cdn.example/beeld.jpg');
+  expect(updated.byline).toBe('Jan Jansen');
+  expect(updated.publishedAt).toEqual(new Date('2026-10-28T09:00:00Z'));
+  expect(updated.readingMinutes).toBe(4);
+  const [content] = await db.select().from(linkContents).where(eq(linkContents.linkId, row.id));
+  expect(content.html).toBe('<p>Tekst</p>');
+});
+
+test('reprocessing replaces the saved article, and removes it when the page is no longer an article', async () => {
+  const { fetchPageText } = await import('@/lib/extractPage');
+  const { summarizeAndCategorize } = await import('@/lib/gemini');
+  vi.mocked(summarizeAndCategorize).mockResolvedValue({ summary: 'x', category: 'Tech' });
+  const [row] = await db.insert(links).values({ url: 'https://f.example' }).returning();
+
+  vi.mocked(fetchPageText).mockResolvedValue({
+    title: 'T', text: 'content', article: { html: '<p>Oud</p>', byline: null, publishedAt: null, readingMinutes: 2 },
+  });
+  await processLink(row.id);
+  vi.mocked(fetchPageText).mockResolvedValue({
+    title: 'T', text: 'content', article: { html: '<p>Nieuw</p>', byline: null, publishedAt: null, readingMinutes: 3 },
+  });
+  await processLink(row.id);
+  const [content] = await db.select().from(linkContents).where(eq(linkContents.linkId, row.id));
+  expect(content.html).toBe('<p>Nieuw</p>');
+
+  vi.mocked(fetchPageText).mockResolvedValue({ title: 'T', text: 'content', imageUrl: null });
+  await processLink(row.id);
+  expect(await db.select().from(linkContents).where(eq(linkContents.linkId, row.id))).toHaveLength(0);
+  const [updated] = await db.select().from(links).where(eq(links.id, row.id));
+  expect(updated.readingMinutes).toBeNull();
 });

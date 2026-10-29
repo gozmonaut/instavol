@@ -17,6 +17,10 @@ const fixture: LinkRow[] = [
     summary: 'Samenvatting A',
     category: 'Tech',
     errorMessage: null,
+    imageUrl: null,
+    byline: null,
+    publishedAt: null,
+    readingMinutes: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   },
@@ -28,6 +32,10 @@ const fixture: LinkRow[] = [
     summary: null,
     category: null,
     errorMessage: 'Kon pagina niet ophalen',
+    imageUrl: null,
+    byline: null,
+    publishedAt: null,
+    readingMinutes: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   },
@@ -508,5 +516,58 @@ describe('changing the password', () => {
     render(<LinksBrowser initialLinks={fixture} />);
     await fillIn('fout', 'nieuw-wachtwoord', 'nieuw-wachtwoord');
     expect(await screen.findByRole('alert')).toHaveTextContent('Huidig wachtwoord klopt niet');
+  });
+});
+
+describe('the reader', () => {
+  const article: LinkRow = {
+    ...fixture[0],
+    id: '9',
+    url: 'https://www.theverge.com/news/akai',
+    title: 'Akai is embracing vibe-coded mods',
+    imageUrl: 'https://cdn.example/akai.jpg',
+    byline: "Terrence O'Brien",
+    publishedAt: new Date('2026-10-28T09:00:00Z'),
+    readingMinutes: 2,
+  };
+
+  test('a saved article shows its thumbnail and reading time, and the title opens the text', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ html: '<p>De volledige tekst</p>' }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const { container } = render(<LinksBrowser initialLinks={[article]} />);
+    expect(screen.getByText('2 min. leestijd')).toBeInTheDocument();
+    expect(container.querySelector('img[src="https://cdn.example/akai.jpg"]')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('link', { name: 'Akai is embracing vibe-coded mods' }));
+    const reader = screen.getByRole('dialog', { name: 'Akai is embracing vibe-coded mods' });
+    expect(fetchMock).toHaveBeenCalledWith('/api/links/9/content');
+    expect(await screen.findByText('De volledige tekst')).toBeInTheDocument();
+    expect(reader).toHaveTextContent("www.theverge.com · Terrence O'Brien · 28 oktober 2026 · 2 min. leestijd");
+    expect(screen.getByRole('link', { name: 'Origineel' })).toHaveAttribute('href', article.url);
+  });
+
+  test('Terug and Escape close the reader', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ html: '<p>Tekst</p>' }) }));
+    render(<LinksBrowser initialLinks={[article]} />);
+    await userEvent.click(screen.getByRole('link', { name: article.title! }));
+    await userEvent.click(screen.getByRole('button', { name: 'Terug' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('link', { name: article.title! }));
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  test('when the text cannot be loaded it points to the original', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }));
+    render(<LinksBrowser initialLinks={[article]} />);
+    await userEvent.click(screen.getByRole('link', { name: article.title! }));
+    expect(await screen.findByRole('link', { name: 'Open het origineel' })).toHaveAttribute('href', article.url);
+  });
+
+  test('an item without saved text keeps opening the site itself', async () => {
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(screen.getByRole('link', { name: 'Artikel A' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

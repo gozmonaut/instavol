@@ -130,3 +130,41 @@ test('fetchPageText refuses to fetch a host that resolves to a blocked address',
   await expect(fetchPageText('http://metadata.example/latest')).rejects.toThrow('Dit adres mag niet opgehaald worden');
   expect(fetchMock).not.toHaveBeenCalled();
 });
+
+test('an article also yields its cleaned html, byline, date, reading time and share image', async () => {
+  const paragraph = '<p>Een bekende alinea met genoeg tekst om als artikel herkend te worden door Readability. Deze zin is bewust wat langer gemaakt, zodat de tekst ruim boven de minimale lengte uitkomt.</p>';
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+    '<html><head><title>Artikel</title><meta property="og:image" content="/beeld.jpg">'
+    + '<meta name="author" content="Jan Jansen"><meta property="article:published_time" content="2026-10-28T09:00:00Z"></head>'
+    + `<body><article>${paragraph.repeat(30)}<script>steal()</script></article></body></html>`,
+    { status: 200, headers: { 'Content-Type': 'text/html' } },
+  )));
+  const result = await fetchPageText('https://example.com/nieuws/artikel');
+  expect(result.imageUrl).toBe('https://example.com/beeld.jpg');
+  expect(result.article?.byline).toBe('Jan Jansen');
+  expect(result.article?.publishedAt).toEqual(new Date('2026-10-28T09:00:00Z'));
+  expect(result.article?.readingMinutes).toBe(4);
+  expect(result.article?.html).toContain('Een bekende alinea');
+  expect(result.article?.html).not.toContain('steal');
+});
+
+test('a page that is not an article has no reader html, but keeps its share image', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+    '<html><head><title>Fietsshop</title><meta property="og:image" content="https://cdn.example/shop.jpg">'
+    + '<meta name="description" content="De webshop voor elektrische fietsen, onderdelen en accessoires met gratis levering in heel Nederland."></head>'
+    + '<body><ul><li>Stadsfietsen</li><li>Bakfietsen</li><li>Racefietsen</li><li>Mountainbikes</li><li>Kinderfietsen</li><li>Fietstassen en sloten</li></ul><button>In winkelwagen</button></body></html>',
+    { status: 200, headers: { 'Content-Type': 'text/html' } },
+  )));
+  const result = await fetchPageText('https://example.com/');
+  expect(result.imageUrl).toBe('https://cdn.example/shop.jpg');
+  expect(result.article).toBeUndefined();
+});
+
+test('a share image that is not http(s) is ignored', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+    '<html><head><title>Fixture Title</title><meta property="og:image" content="javascript:alert(1)"></head><body><article><p>Een bekende alinea met genoeg tekst om als artikel herkend te worden door Readability. Deze zin is bewust wat langer gemaakt, zodat de tekst ruim boven de minimale lengte van tweehonderd tekens uitkomt en de test betrouwbaar slaagt.</p></article></body></html>',
+    { status: 200, headers: { 'Content-Type': 'text/html' } },
+  )));
+  const result = await fetchPageText('https://example.com/article');
+  expect(result.imageUrl).toBeNull();
+});
