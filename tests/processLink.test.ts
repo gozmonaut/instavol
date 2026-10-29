@@ -112,6 +112,7 @@ test('when we cannot read the page, Gemini opens the URL and its title is used',
   const { summarizeAndCategorize, summarizeUrlAndCategorize } = await import('@/lib/gemini');
   vi.mocked(fetchPageText).mockRejectedValue(new PageFetchError('Pagina niet beschikbaar (HTTP 403)'));
   vi.mocked(summarizeUrlAndCategorize).mockResolvedValue({ title: 'Webshop', summary: 'Een webshop voor fietsen.', category: 'Winkelen' });
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
   const [row] = await db.insert(links).values({ url: 'https://shop.example' }).returning();
   await processLink(row.id);
@@ -122,6 +123,7 @@ test('when we cannot read the page, Gemini opens the URL and its title is used',
   expect(updated.summary).toBe('Een webshop voor fietsen.');
   expect(updated.category).toBe('Winkelen');
   expect(summarizeUrlAndCategorize).toHaveBeenCalledWith('https://shop.example', expect.any(Array));
+  expect(warn).toHaveBeenCalledWith('Pagina zelf ophalen mislukt voor https://shop.example:', 'Pagina niet beschikbaar (HTTP 403)');
   expect(vi.mocked(summarizeAndCategorize).mock.calls.some(([text]) => text === 'https://shop.example')).toBe(false);
 });
 

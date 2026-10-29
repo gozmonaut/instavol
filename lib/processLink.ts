@@ -39,6 +39,8 @@ export async function processLink(id: string): Promise<void> {
     } catch (error) {
       if (error instanceof DisallowedHostError) throw error;
       fetchError = error;
+      // Gemini may still succeed, which would otherwise hide why we couldn't read the page.
+      console.warn(`Pagina zelf ophalen mislukt voor ${row.url}:`, error instanceof Error ? error.message : error);
     }
 
     if (page && !row.title) {
