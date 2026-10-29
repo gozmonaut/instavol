@@ -543,7 +543,7 @@ describe('the reader', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/links/9/content');
     expect(await screen.findByText('De volledige tekst')).toBeInTheDocument();
     expect(reader).toHaveTextContent("www.theverge.com · Terrence O'Brien · 28 oktober 2026 · 2 min. leestijd");
-    expect(screen.getByRole('link', { name: 'Origineel' })).toHaveAttribute('href', article.url);
+    expect(screen.getByRole('link', { name: 'Origineel openen' })).toHaveAttribute('href', article.url);
   });
 
   test('Terug and Escape close the reader', async () => {

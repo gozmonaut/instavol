@@ -10,7 +10,7 @@
   animation: pushIn 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* Navigation bar below the notch, like the list's search header */
+/* Navigation bar below the notch: round icon buttons, back on the left, actions on the right */
 .bar {
   position: sticky;
   top: 0;
@@ -18,57 +18,59 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: env(safe-area-inset-top) max(4px, env(safe-area-inset-right)) 0 max(4px, env(safe-area-inset-left));
+  padding: calc(8px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px
+    max(12px, env(safe-area-inset-left));
   background: var(--bar);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
   border-bottom: 0.5px solid var(--separator);
 }
 
-.barButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 44px;
-  padding: 0 12px;
-  font: inherit;
-  font-size: 17px;
-  color: var(--accent);
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: opacity 120ms;
-}
-
-.barButton:active {
-  opacity: 0.5;
-}
-
 .barActions {
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
-/* Icon-only actions (share, research, delete) next to "Origineel" */
+/* 36px circle, with an invisible 44px tap area around it */
 .barIcon {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   color: var(--accent);
-  background: none;
+  background: var(--fill);
   border: none;
+  border-radius: 50%;
   cursor: pointer;
-  transition: opacity 120ms;
+  transition: transform 120ms, opacity 120ms;
+}
+
+.barIcon::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
 }
 
 .barIcon:active {
-  opacity: 0.5;
+  transform: scale(0.92);
 }
 
 .barIcon:disabled {
   opacity: 0.4;
+}
+
+.barIcon:focus {
+  outline: none;
+}
+
+.barIcon:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .barDanger {

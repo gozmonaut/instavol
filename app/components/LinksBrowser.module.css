@@ -220,18 +220,17 @@
   box-shadow: var(--card-shadow);
 }
 
-/* Category label on top; title and meta beside the thumbnail; summary across the full width,
-   so every line of text starts at the same left edge */
+/* Category label on top; title and meta to the right of the thumbnail; summary across the full width */
 .cardMain {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   /* The empty 1fr row takes up extra thumbnail height, so meta stays right below a short title */
   grid-template-rows: auto auto auto 1fr auto;
   grid-template-areas:
     'chip chip'
-    'title thumb'
-    'meta thumb'
-    '. thumb'
+    'thumb title'
+    'thumb meta'
+    'thumb .'
     'body body';
   align-items: start;
 }
@@ -240,7 +239,7 @@
   grid-area: thumb;
   width: 72px;
   height: 72px;
-  margin-left: 12px;
+  margin-right: 12px;
   object-fit: cover;
   background: var(--fill);
   border-radius: 10px;
@@ -279,6 +278,7 @@
 
 .date {
   flex-shrink: 0;
+  margin-left: auto;
   font-size: 13px;
   color: var(--text-secondary);
 }

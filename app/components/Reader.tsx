@@ -44,7 +44,8 @@ export default function Reader({
 
   // The list behind stays put while reading; Escape goes back.
   useEffect(() => {
-    backButton.current?.focus();
+    // Focus for keyboard and screen readers, without drawing a focus ring after a tap.
+    backButton.current?.focus({ focusVisible: false } as FocusOptions);
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') onClose();
     }
@@ -67,16 +68,26 @@ export default function Reader({
   return (
     <div className={styles.reader} role="dialog" aria-modal="true" aria-labelledby="reader-title" data-reader>
       <div className={styles.bar}>
-        <button ref={backButton} className={styles.barButton} onClick={onClose}>
-          <svg width="12" height="20" viewBox="0 0 12 20" aria-hidden="true">
-            <path d="M10 2L2 10l8 8" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+        <button ref={backButton} className={styles.barIcon} onClick={onClose} aria-label="Terug" title="Terug">
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Terug
         </button>
         <div className={styles.barActions}>
           {actions}
-          <a className={styles.barButton} href={link.url} target="_blank" rel="noreferrer">
-            Origineel
+          <a
+            className={styles.barIcon}
+            href={link.url}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Origineel openen"
+            title="Origineel openen"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M14 4h6v6" />
+              <path d="M20 4l-9 9" />
+              <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
+            </svg>
           </a>
         </div>
       </div>
