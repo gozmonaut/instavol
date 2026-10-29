@@ -499,59 +499,41 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
               {group.items.map((link) => (
                 <li key={link.id} className={styles.card}>
                   <div className={styles.cardMain}>
-                    <div className={styles.cardText}>
-                      <div className={styles.cardHeader}>
-                        {link.category && (
-                          <button
-                            className={styles.chip}
-                            aria-label={`Categorie ${link.category}`}
-                            aria-haspopup="dialog"
-                            aria-pressed={category === link.category}
-                            onClick={() => setCategoryMenuLink(link)}
-                          >
-                            {link.category}
-                          </button>
-                        )}
-                        <a
-                          href={link.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={styles.cardTitle}
-                          onClick={(event) => {
-                            // Saved articles open in the reader; a modified click still opens the site.
-                            if (!link.readingMinutes || event.metaKey || event.ctrlKey || event.shiftKey) return;
-                            event.preventDefault();
-                            setReaderLink(link);
-                          }}
-                        >
-                          {link.title ?? link.url}
-                        </a>
-                      </div>
-                      <div className={styles.meta}>
-                        <span>{domainFromUrl(link.url)}</span>
-                        <span aria-hidden="true">·</span>
-                        {link.readingMinutes && (
-                          <>
-                            <span>{link.readingMinutes} min. leestijd</span>
-                            <span aria-hidden="true">·</span>
-                          </>
-                        )}
-                        <span>{formatDate(link.createdAt)}</span>
-                      </div>
-                      {link.status === 'done' && link.summary && (
-                        <p className={link.readingMinutes ? `${styles.summary} ${styles.clamped}` : styles.summary}>
-                          {link.summary}
-                        </p>
+                    {link.category && (
+                      <button
+                        className={styles.chip}
+                        aria-label={`Categorie ${link.category}`}
+                        aria-haspopup="dialog"
+                        aria-pressed={category === link.category}
+                        onClick={() => setCategoryMenuLink(link)}
+                      >
+                        {link.category}
+                      </button>
+                    )}
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={styles.cardTitle}
+                      onClick={(event) => {
+                        // Saved articles open in the reader; a modified click still opens the site.
+                        if (!link.readingMinutes || event.metaKey || event.ctrlKey || event.shiftKey) return;
+                        event.preventDefault();
+                        setReaderLink(link);
+                      }}
+                    >
+                      {link.title ?? link.url}
+                    </a>
+                    <div className={styles.meta}>
+                      <span>{domainFromUrl(link.url)}</span>
+                      <span aria-hidden="true">·</span>
+                      {link.readingMinutes && (
+                        <>
+                          <span>{link.readingMinutes} min. leestijd</span>
+                          <span aria-hidden="true">·</span>
+                        </>
                       )}
-                      {link.status === 'pending' && (
-                        <p className={styles.status}>
-                          <span className={styles.spinner} aria-hidden="true" />
-                          Wordt verwerkt...
-                        </p>
-                      )}
-                      {link.status === 'failed' && (
-                        <p className={`${styles.status} ${styles.failed}`}>Mislukt: {link.errorMessage}</p>
-                      )}
+                      <span>{formatDate(link.createdAt)}</span>
                     </div>
                     {link.imageUrl && (
                       // A remote og:image; hidden when it fails to load (e.g. hotlinking blocked).
@@ -566,6 +548,20 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                           event.currentTarget.hidden = true;
                         }}
                       />
+                    )}
+                    {link.status === 'done' && link.summary && (
+                      <p className={link.readingMinutes ? `${styles.summary} ${styles.clamped}` : styles.summary}>
+                        {link.summary}
+                      </p>
+                    )}
+                    {link.status === 'pending' && (
+                      <p className={styles.status}>
+                        <span className={styles.spinner} aria-hidden="true" />
+                        Wordt verwerkt...
+                      </p>
+                    )}
+                    {link.status === 'failed' && (
+                      <p className={`${styles.status} ${styles.failed}`}>Mislukt: {link.errorMessage}</p>
                     )}
                   </div>
                   <div className={styles.actions}>

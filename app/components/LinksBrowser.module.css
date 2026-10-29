@@ -220,37 +220,34 @@
   box-shadow: var(--card-shadow);
 }
 
-/* Text on the left, the page's thumbnail on the right */
+/* Category label on top; title and meta beside the thumbnail; summary across the full width,
+   so every line of text starts at the same left edge */
 .cardMain {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.cardText {
-  flex: 1;
-  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  /* The empty 1fr row takes up extra thumbnail height, so meta stays right below a short title */
+  grid-template-rows: auto auto auto 1fr auto;
+  grid-template-areas:
+    'chip chip'
+    'title thumb'
+    'meta thumb'
+    '. thumb'
+    'body body';
+  align-items: start;
 }
 
 .thumbnail {
-  flex-shrink: 0;
-  width: 76px;
-  height: 76px;
+  grid-area: thumb;
+  width: 72px;
+  height: 72px;
+  margin-left: 12px;
   object-fit: cover;
   background: var(--fill);
   border-radius: 10px;
 }
 
-/* Category label above the title */
-.cardHeader {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-}
-
 .cardTitle {
-  align-self: stretch;
+  grid-area: title;
   display: block;
   font-size: 17px;
   font-weight: 600;
@@ -260,6 +257,7 @@
 }
 
 .meta {
+  grid-area: meta;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -270,8 +268,11 @@
 }
 
 .chip {
+  grid-area: chip;
+  justify-self: start;
   position: relative;
   max-width: 100%;
+  margin-bottom: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 12px;
@@ -304,6 +305,7 @@
 }
 
 .summary {
+  grid-area: body;
   margin-top: 10px;
   font-size: 15px;
   line-height: 1.45;
@@ -320,6 +322,7 @@
 }
 
 .status {
+  grid-area: body;
   display: flex;
   align-items: center;
   gap: 8px;
