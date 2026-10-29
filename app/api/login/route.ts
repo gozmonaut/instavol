@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { SESSION_COOKIE, SESSION_MAX_AGE_SECONDS, createSessionToken, isValidLogin } from '@/lib/session';
+import { isValidLogin } from '@/lib/password';
+import { SESSION_COOKIE, SESSION_MAX_AGE_SECONDS, createSessionToken } from '@/lib/session';
 
 export async function POST(request: Request): Promise<Response> {
   let body: unknown;
@@ -10,7 +11,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const { username, password } = (body ?? {}) as { username?: unknown; password?: unknown };
-  if (!isValidLogin(username, password)) {
+  if (!(await isValidLogin(username, password))) {
     return NextResponse.json({ error: 'Onjuiste gebruikersnaam of wachtwoord' }, { status: 401 });
   }
 

@@ -536,6 +536,19 @@
   outline-offset: -2px;
 }
 
+/* Three password fields stacked, with the save button below */
+.passwordForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.passwordError {
+  font-size: 15px;
+  color: var(--danger);
+}
+
 .sheetSave {
   height: 44px;
   padding: 0 14px;

@@ -472,3 +472,41 @@ test('the refresh button refetches the list', async () => {
   expect(fetchMock).toHaveBeenCalledWith('/api/links?');
   await waitFor(() => expect(screen.queryByText('Artikel B')).not.toBeInTheDocument());
 });
+
+describe('changing the password', () => {
+  async function fillIn(current: string, next: string, repeat: string) {
+    await userEvent.click(screen.getByRole('button', { name: 'Wachtwoord wijzigen' }));
+    await userEvent.type(screen.getByLabelText('Huidig wachtwoord'), current);
+    await userEvent.type(screen.getByLabelText('Nieuw wachtwoord'), next);
+    await userEvent.type(screen.getByLabelText('Herhaal nieuw wachtwoord'), repeat);
+    await userEvent.click(screen.getByRole('button', { name: 'Bewaar' }));
+  }
+
+  test('sends current and new password, and confirms the change', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LinksBrowser initialLinks={fixture} />);
+    await fillIn('geheim', 'nieuw-wachtwoord', 'nieuw-wachtwoord');
+    expect(fetchMock).toHaveBeenCalledWith('/api/password', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ currentPassword: 'geheim', newPassword: 'nieuw-wachtwoord' }),
+    }));
+    expect(await screen.findByText('Je wachtwoord is gewijzigd')).toBeInTheDocument();
+  });
+
+  test('different new passwords are caught before anything is sent', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LinksBrowser initialLinks={fixture} />);
+    await fillIn('geheim', 'nieuw-wachtwoord', 'iets-anders1');
+    expect(screen.getByRole('alert')).toHaveTextContent('niet gelijk');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test('shows the error from the server', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: 'Huidig wachtwoord klopt niet' }) }));
+    render(<LinksBrowser initialLinks={fixture} />);
+    await fillIn('fout', 'nieuw-wachtwoord', 'nieuw-wachtwoord');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Huidig wachtwoord klopt niet');
+  });
+});

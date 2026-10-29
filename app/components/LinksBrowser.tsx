@@ -90,6 +90,13 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [savingCategory, setSavingCategory] = useState(false);
   const [promptCopiedId, setPromptCopiedId] = useState<string | null>(null);
   const [compact, setCompact] = useState(false);
+  const [passwordSheetOpen, setPasswordSheetOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [repeatPassword, setRepeatPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordChanged, setPasswordChanged] = useState(false);
   const topSentinel = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLElement>(null);
   const headerRef = useRef<HTMLElement>(null);
@@ -328,6 +335,41 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     section?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
   }
 
+  function openPasswordSheet() {
+    setCurrentPassword('');
+    setNewPassword('');
+    setRepeatPassword('');
+    setPasswordError(null);
+    setPasswordChanged(false);
+    setPasswordSheetOpen(true);
+  }
+
+  async function savePassword() {
+    if (newPassword !== repeatPassword) {
+      setPasswordError('De nieuwe wachtwoorden zijn niet gelijk');
+      return;
+    }
+    setSavingPassword(true);
+    setPasswordError(null);
+    try {
+      const res = await fetch('/api/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      if (res.ok) {
+        setPasswordChanged(true);
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      setPasswordError(data.error ?? 'Wijzigen mislukt, probeer het opnieuw');
+    } catch {
+      setPasswordError('Geen verbinding, probeer het opnieuw');
+    } finally {
+      setSavingPassword(false);
+    }
+  }
+
   async function handleLogout() {
     if (!window.confirm('Weet je zeker dat je wilt uitloggen?')) return;
     await fetch('/api/logout', { method: 'POST' });
@@ -367,6 +409,13 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M20 12a8 8 0 1 1-2.34-5.66" />
               <path d="M20 4v4h-4" />
+            </svg>
+          </button>
+          <button className={styles.iconButton} onClick={openPasswordSheet} aria-label="Wachtwoord wijzigen" title="Wachtwoord wijzigen">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="8" cy="15" r="4" />
+              <path d="M11 12l9-9" />
+              <path d="M17 6l3 3" />
             </svg>
           </button>
           <button className={styles.iconButton} onClick={handleLogout} aria-label="Uitloggen" title="Uitloggen">
@@ -618,6 +667,79 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             </div>
             <button className={styles.sheetCancel} onClick={() => setGroupPickerOpen(false)}>
               Annuleren
+            </button>
+          </div>
+        </div>
+      )}
+
+      {passwordSheetOpen && (
+        <div className={styles.sheetBackdrop} onClick={() => setPasswordSheetOpen(false)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="password-title"
+            className={styles.sheet}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={styles.sheetGroup}>
+              <div className={styles.sheetHeader}>
+                <p id="password-title" className={styles.sheetTitle}>
+                  Wachtwoord wijzigen
+                </p>
+                {passwordChanged && <p className={styles.sheetSubtitle}>Je wachtwoord is gewijzigd</p>}
+              </div>
+              {!passwordChanged && (
+                <form
+                  className={styles.passwordForm}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    savePassword();
+                  }}
+                >
+                  <input
+                    className={styles.sheetInput}
+                    type="password"
+                    aria-label="Huidig wachtwoord"
+                    placeholder="Huidig wachtwoord"
+                    autoComplete="current-password"
+                    required
+                    value={currentPassword}
+                    onChange={(event) => setCurrentPassword(event.target.value)}
+                  />
+                  <input
+                    className={styles.sheetInput}
+                    type="password"
+                    aria-label="Nieuw wachtwoord"
+                    placeholder="Nieuw wachtwoord (minstens 8 tekens)"
+                    autoComplete="new-password"
+                    minLength={8}
+                    required
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                  />
+                  <input
+                    className={styles.sheetInput}
+                    type="password"
+                    aria-label="Herhaal nieuw wachtwoord"
+                    placeholder="Herhaal nieuw wachtwoord"
+                    autoComplete="new-password"
+                    required
+                    value={repeatPassword}
+                    onChange={(event) => setRepeatPassword(event.target.value)}
+                  />
+                  {passwordError && (
+                    <p className={styles.passwordError} role="alert">
+                      {passwordError}
+                    </p>
+                  )}
+                  <button type="submit" className={styles.sheetSave} disabled={savingPassword}>
+                    Bewaar
+                  </button>
+                </form>
+              )}
+            </div>
+            <button className={styles.sheetCancel} onClick={() => setPasswordSheetOpen(false)}>
+              {passwordChanged ? 'Sluiten' : 'Annuleren'}
             </button>
           </div>
         </div>
