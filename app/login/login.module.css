@@ -59,7 +59,7 @@
 
 .tagline {
   margin-top: 8px;
-  font-size: 15px;
+  font-size: calc(15rem / 17);
   color: var(--text-secondary);
   animation: rise 600ms 140ms var(--snappy) both;
 }
@@ -86,7 +86,7 @@
   height: 52px;
   padding: 0 16px;
   font: inherit;
-  font-size: 17px;
+  font-size: max(16px, 1rem);
   color: var(--text);
   background: transparent;
   border: none;
@@ -108,7 +108,7 @@
 }
 
 .error {
-  font-size: 15px;
+  font-size: calc(15rem / 17);
   text-align: center;
   color: var(--danger);
   animation: shake 360ms var(--snappy);
@@ -117,7 +117,7 @@
 .submit {
   height: 52px;
   font: inherit;
-  font-size: 17px;
+  font-size: calc(17rem / 17);
   font-weight: 600;
   color: #ffffff;
   background: linear-gradient(120deg, #7626ff 0%, #2313f8 100%);

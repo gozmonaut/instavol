@@ -86,7 +86,7 @@
 
 .title {
   font-family: 'New York', ui-serif, Georgia, serif;
-  font-size: 30px;
+  font-size: calc(30rem / 17);
   font-weight: 600;
   line-height: 1.2;
   overflow-wrap: anywhere;
@@ -94,7 +94,7 @@
 
 .meta {
   margin-top: 10px;
-  font-size: 14px;
+  font-size: calc(14rem / 17);
   color: var(--text-secondary);
 }
 
@@ -102,7 +102,7 @@
 .summary {
   margin-top: 20px;
   padding: 14px 16px;
-  font-size: 15px;
+  font-size: calc(15rem / 17);
   line-height: 1.45;
   background: var(--fill);
   border-radius: 12px;
@@ -113,7 +113,7 @@
   align-items: center;
   gap: 8px;
   margin-top: 28px;
-  font-size: 15px;
+  font-size: calc(15rem / 17);
   color: var(--text-secondary);
 }
 
@@ -134,7 +134,7 @@
 .body {
   margin-top: 28px;
   font-family: 'New York', ui-serif, Georgia, serif;
-  font-size: 19px;
+  font-size: calc(19rem / 17);
   line-height: 1.6;
   overflow-wrap: break-word;
 }
@@ -157,11 +157,11 @@
 }
 
 .body h2 {
-  font-size: 24px;
+  font-size: calc(24rem / 17);
 }
 
 .body h3 {
-  font-size: 21px;
+  font-size: calc(21rem / 17);
 }
 
 .body ul,
@@ -184,7 +184,7 @@
 .body figcaption {
   margin-top: 6px;
   font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  font-size: 13px;
+  font-size: calc(13rem / 17);
   line-height: 1.4;
   color: var(--text-secondary);
 }
@@ -198,7 +198,7 @@
 .body pre {
   overflow-x: auto;
   padding: 12px;
-  font-size: 14px;
+  font-size: calc(14rem / 17);
   background: var(--fill);
   border-radius: 8px;
 }
@@ -211,7 +211,7 @@
 .body table {
   display: block;
   overflow-x: auto;
-  font-size: 15px;
+  font-size: calc(15rem / 17);
   border-collapse: collapse;
 }
 
