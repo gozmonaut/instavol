@@ -1,6 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import { Atkinson_Hyperlegible_Next } from "next/font/google";
 import { appName } from "@/lib/config";
 import "./globals.css";
+
+// The "Leesbaar" option in the reader; not preloaded, so it only downloads when chosen
+const legible = Atkinson_Hyperlegible_Next({
+  subsets: ["latin"],
+  variable: "--font-legible",
+  preload: false,
+});
 
 export const metadata: Metadata = {
   title: appName,
@@ -25,7 +33,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="nl">
+    <html lang="nl" className={legible.variable}>
       <body>{children}</body>
     </html>
   );

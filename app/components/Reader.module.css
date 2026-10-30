@@ -6,8 +6,95 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  color: var(--text);
   background: var(--surface);
   animation: pushIn 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Reading settings (ReaderSettings.tsx); --reader-scale is set inline */
+  --reader-scale: 1;
+  --reader-font: 'New York', ui-serif, Georgia, serif;
+  --reader-leading: 1.6;
+  --reader-width: 680px;
+  --reader-gutter: 20px;
+}
+
+.reader[data-font='sans'] {
+  --reader-font: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.reader[data-font='legible'] {
+  --reader-font: var(--font-legible), -apple-system, system-ui, sans-serif;
+}
+
+/* The legible font is for everything in the article, not just title and text */
+.reader[data-font='legible'] .article {
+  font-family: var(--reader-font);
+}
+
+.reader[data-leading='tight'] {
+  --reader-leading: 1.4;
+}
+
+.reader[data-leading='loose'] {
+  --reader-leading: 1.9;
+}
+
+.reader[data-spacing='wide'] .article {
+  letter-spacing: 0.05em;
+  word-spacing: 0.16em;
+}
+
+.reader[data-width='narrow'] {
+  --reader-width: 560px;
+  --reader-gutter: 32px;
+}
+
+.reader[data-width='wide'] {
+  --reader-width: 860px;
+  --reader-gutter: 12px;
+}
+
+.reader[data-bold='true'] .body,
+.reader[data-bold='true'] .summary,
+.reader[data-bold='true'] .meta {
+  font-weight: 600;
+}
+
+.reader[data-bold='true'] .title {
+  font-weight: 800;
+}
+
+/* Fixed backgrounds override the system light/dark colours; 'auto' keeps them */
+.reader[data-theme='light'] {
+  color-scheme: light;
+  --surface: #ffffff;
+  --bar: rgba(242, 242, 247, 0.82);
+  --fill: rgba(118, 118, 128, 0.12);
+  --separator: rgba(60, 60, 67, 0.18);
+  --text: #000000;
+  --text-secondary: rgba(60, 60, 67, 0.65);
+  --accent: #007aff;
+}
+
+.reader[data-theme='sepia'] {
+  color-scheme: light;
+  --surface: #f8f1e3;
+  --bar: rgba(240, 230, 210, 0.85);
+  --fill: rgba(120, 90, 50, 0.12);
+  --separator: rgba(120, 90, 50, 0.25);
+  --text: #4f3b2a;
+  --text-secondary: rgba(79, 59, 42, 0.65);
+  --accent: #a0522d;
+}
+
+.reader[data-theme='dark'] {
+  color-scheme: dark;
+  --surface: #1c1c1e;
+  --bar: rgba(0, 0, 0, 0.78);
+  --fill: rgba(118, 118, 128, 0.24);
+  --separator: rgba(84, 84, 88, 0.6);
+  --text: #ffffff;
+  --text-secondary: rgba(235, 235, 245, 0.6);
+  --accent: #0a84ff;
 }
 
 /* Navigation bar below the notch: round icon buttons, back on the left, actions on the right */
@@ -77,16 +164,21 @@
   color: var(--danger);
 }
 
+.barText {
+  font-size: calc(15rem / 17);
+  font-weight: 600;
+}
+
 .article {
-  max-width: 680px;
+  max-width: var(--reader-width);
   margin: 0 auto;
-  padding: 24px max(20px, env(safe-area-inset-right)) calc(48px + env(safe-area-inset-bottom))
-    max(20px, env(safe-area-inset-left));
+  padding: 24px max(var(--reader-gutter), env(safe-area-inset-right)) calc(48px + env(safe-area-inset-bottom))
+    max(var(--reader-gutter), env(safe-area-inset-left));
 }
 
 .title {
-  font-family: 'New York', ui-serif, Georgia, serif;
-  font-size: calc(30rem / 17);
+  font-family: var(--reader-font);
+  font-size: calc(30rem / 17 * var(--reader-scale));
   font-weight: 600;
   line-height: 1.2;
   overflow-wrap: anywhere;
@@ -94,7 +186,7 @@
 
 .meta {
   margin-top: 10px;
-  font-size: calc(14rem / 17);
+  font-size: calc(14rem / 17 * var(--reader-scale));
   color: var(--text-secondary);
 }
 
@@ -102,7 +194,7 @@
 .summary {
   margin-top: 20px;
   padding: 14px 16px;
-  font-size: calc(15rem / 17);
+  font-size: calc(15rem / 17 * var(--reader-scale));
   line-height: 1.45;
   background: var(--fill);
   border-radius: 12px;
@@ -113,7 +205,7 @@
   align-items: center;
   gap: 8px;
   margin-top: 28px;
-  font-size: calc(15rem / 17);
+  font-size: calc(15rem / 17 * var(--reader-scale));
   color: var(--text-secondary);
 }
 
@@ -133,9 +225,9 @@
 /* The saved article; only simple tags get here (see lib/articleHtml.ts) */
 .body {
   margin-top: 28px;
-  font-family: 'New York', ui-serif, Georgia, serif;
-  font-size: calc(19rem / 17);
-  line-height: 1.6;
+  font-family: var(--reader-font);
+  font-size: calc(19rem / 17 * var(--reader-scale));
+  line-height: var(--reader-leading);
   overflow-wrap: break-word;
 }
 
@@ -157,11 +249,11 @@
 }
 
 .body h2 {
-  font-size: calc(24rem / 17);
+  font-size: calc(24rem / 17 * var(--reader-scale));
 }
 
 .body h3 {
-  font-size: calc(21rem / 17);
+  font-size: calc(21rem / 17 * var(--reader-scale));
 }
 
 .body ul,
@@ -184,7 +276,7 @@
 .body figcaption {
   margin-top: 6px;
   font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  font-size: calc(13rem / 17);
+  font-size: calc(13rem / 17 * var(--reader-scale));
   line-height: 1.4;
   color: var(--text-secondary);
 }
@@ -198,7 +290,7 @@
 .body pre {
   overflow-x: auto;
   padding: 12px;
-  font-size: calc(14rem / 17);
+  font-size: calc(14rem / 17 * var(--reader-scale));
   background: var(--fill);
   border-radius: 8px;
 }
@@ -211,7 +303,7 @@
 .body table {
   display: block;
   overflow-x: auto;
-  font-size: calc(15rem / 17);
+  font-size: calc(15rem / 17 * var(--reader-scale));
   border-collapse: collapse;
 }
 
@@ -224,6 +316,222 @@
 .body hr {
   border: none;
   border-top: 0.5px solid var(--separator);
+}
+
+/* Reading settings sheet: a light backdrop, so the article stays visible while adjusting */
+.settingsBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.settingsSheet {
+  width: 100%;
+  max-width: 480px;
+  max-height: 70dvh;
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+  background: var(--surface);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.18);
+  /* Not affected by the article settings: always the app's own font and spacing */
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: normal;
+  word-spacing: normal;
+  animation: slideUp 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.settingsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid var(--separator);
+}
+
+.settingsTitle {
+  font-size: calc(17rem / 17);
+  font-weight: 600;
+}
+
+.settingsDone {
+  min-height: 44px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: calc(17rem / 17);
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.settingsScroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 16px calc(16px + env(safe-area-inset-bottom));
+}
+
+.setting {
+  margin: 0;
+  padding: 12px 0 0;
+  border: none;
+}
+
+.settingLabel {
+  display: block;
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: calc(13rem / 17);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.sizeRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sizeSmall {
+  font-size: calc(13rem / 17);
+}
+
+.sizeLarge {
+  font-size: calc(24rem / 17);
+}
+
+.slider {
+  flex: 1;
+  min-height: 44px;
+  accent-color: var(--accent);
+}
+
+/* iOS segmented control built from radio buttons */
+.segmented {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--fill);
+  border-radius: 9px;
+}
+
+.segment {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.segment input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segment span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 4px 6px;
+  font-size: calc(15rem / 17);
+  text-align: center;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.segment input:checked + span {
+  font-weight: 600;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.segment input:focus-visible + span {
+  outline: 2px solid var(--accent);
+}
+
+/* Each font option is shown in its own font */
+.segment[data-option='font-serif'] span {
+  font-family: 'New York', ui-serif, Georgia, serif;
+}
+
+.segment[data-option='font-legible'] span {
+  font-family: var(--font-legible), sans-serif;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  margin-top: 12px;
+  font-size: calc(17rem / 17);
+}
+
+/* iOS-style switch on a plain checkbox */
+.toggle {
+  position: relative;
+  flex-shrink: 0;
+  width: 51px;
+  height: 31px;
+  margin: 0;
+  background: var(--fill);
+  border-radius: 999px;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  transition: background-color 200ms;
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: transform 200ms;
+}
+
+.toggle:checked {
+  background: #34c759;
+}
+
+.toggle:checked::after {
+  transform: translateX(20px);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.settingsReset {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 16px;
+  font: inherit;
+  font-size: calc(17rem / 17);
+  color: var(--accent);
+  background: var(--fill);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
 }
 
 @keyframes pushIn {
@@ -240,7 +548,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .reader,
-  .spinner {
+  .spinner,
+  .settingsSheet {
     animation: none;
   }
 }

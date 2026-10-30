@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { LinkRow } from '@/lib/schema';
 import styles from './Reader.module.css';
+import { ReaderSettingsSheet, loadSettings, saveSettings, settingsAttributes, type ReaderSettings } from './ReaderSettings';
 
 type ContentState = { status: 'loading' } | { status: 'ready'; html: string } | { status: 'failed' };
 
@@ -26,6 +27,24 @@ export default function Reader({
 }) {
   const [content, setContent] = useState<ContentState>({ status: 'loading' });
   const backButton = useRef<HTMLButtonElement>(null);
+  const settingsButton = useRef<HTMLButtonElement>(null);
+  const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsOpenRef = useRef(false);
+
+  useEffect(() => {
+    settingsOpenRef.current = settingsOpen;
+  }, [settingsOpen]);
+
+  function changeSettings(next: ReaderSettings) {
+    setSettings(next);
+    saveSettings(next);
+  }
+
+  function closeSettings() {
+    setSettingsOpen(false);
+    settingsButton.current?.focus({ focusVisible: false } as FocusOptions);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -42,12 +61,18 @@ export default function Reader({
     };
   }, [link.id]);
 
-  // The list behind stays put while reading; Escape goes back.
+  // The list behind stays put while reading; Escape closes the settings first, then goes back.
   useEffect(() => {
     // Focus for keyboard and screen readers, without drawing a focus ring after a tap.
     backButton.current?.focus({ focusVisible: false } as FocusOptions);
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
+      if (event.key !== 'Escape') return;
+      if (settingsOpenRef.current) {
+        setSettingsOpen(false);
+        settingsButton.current?.focus({ focusVisible: false } as FocusOptions);
+      } else {
+        onClose();
+      }
     }
     window.addEventListener('keydown', onKeyDown);
     const previousOverflow = document.body.style.overflow;
@@ -66,7 +91,14 @@ export default function Reader({
   ].filter(Boolean);
 
   return (
-    <div className={styles.reader} role="dialog" aria-modal="true" aria-labelledby="reader-title" data-reader>
+    <div
+      className={styles.reader}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="reader-title"
+      data-reader
+      {...settingsAttributes(settings)}
+    >
       <div className={styles.bar}>
         <button ref={backButton} className={styles.barIcon} onClick={onClose} aria-label="Terug" title="Terug">
           <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
@@ -74,6 +106,18 @@ export default function Reader({
           </svg>
         </button>
         <div className={styles.barActions}>
+          <button
+            ref={settingsButton}
+            className={styles.barIcon}
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Weergave"
+            title="Weergave"
+            aria-expanded={settingsOpen}
+          >
+            <span className={styles.barText} aria-hidden="true">
+              Aa
+            </span>
+          </button>
           {actions}
           <a
             className={styles.barIcon}
@@ -116,6 +160,7 @@ export default function Reader({
           <div className={styles.body} dangerouslySetInnerHTML={{ __html: content.html }} />
         )}
       </article>
+      {settingsOpen && <ReaderSettingsSheet settings={settings} onChange={changeSettings} onClose={closeSettings} />}
     </div>
   );
 }
