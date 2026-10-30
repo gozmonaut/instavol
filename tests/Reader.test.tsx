@@ -66,6 +66,22 @@ test('Escape closes the settings first, then the reader', async () => {
   expect(onClose).toHaveBeenCalled();
 });
 
+test('a recipe shows only the recipe, without summary or reading time', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ html: '<div data-recipe=""><h2>Ingrediënten</h2></div>', recipe: true }) }),
+  );
+  render(<Reader link={{ ...link, readingMinutes: 3 }} domain="a.example" actions={null} onClose={vi.fn()} />);
+  expect(await screen.findByText('Ingrediënten')).toBeInTheDocument();
+  expect(screen.queryByText('Samenvatting A')).not.toBeInTheDocument();
+  expect(screen.queryByText(/leestijd/)).not.toBeInTheDocument();
+});
+
+test('an article still shows its summary', async () => {
+  renderReader();
+  expect(await screen.findByText('Samenvatting A')).toBeInTheDocument();
+});
+
 test('unreadable saved settings fall back to the defaults', () => {
   localStorage.setItem('instavol.reader', JSON.stringify({ font: 'comic', size: 99, bold: 'ja' }));
   expect(loadSettings()).toMatchObject({ font: 'serif', size: 1, bold: false });

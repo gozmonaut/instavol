@@ -5,7 +5,7 @@ import type { LinkRow } from '@/lib/schema';
 import styles from './Reader.module.css';
 import { ReaderSettingsSheet, loadSettings, saveSettings, settingsAttributes, type ReaderSettings } from './ReaderSettings';
 
-type ContentState = { status: 'loading' } | { status: 'ready'; html: string } | { status: 'failed' };
+type ContentState = { status: 'loading' } | { status: 'ready'; html: string; recipe: boolean } | { status: 'failed' };
 
 function formatPublished(value: Date | string): string {
   const date = typeof value === 'string' ? new Date(value) : value;
@@ -50,8 +50,8 @@ export default function Reader({
     let cancelled = false;
     fetch(`/api/links/${link.id}/content`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
-      .then((data: { html: string }) => {
-        if (!cancelled) setContent({ status: 'ready', html: data.html });
+      .then((data: { html: string; recipe?: boolean }) => {
+        if (!cancelled) setContent({ status: 'ready', html: data.html, recipe: data.recipe === true });
       })
       .catch(() => {
         if (!cancelled) setContent({ status: 'failed' });
@@ -83,12 +83,18 @@ export default function Reader({
     };
   }, [onClose]);
 
-  const meta = [
-    domain,
-    link.byline,
-    link.publishedAt && formatPublished(link.publishedAt),
-    link.readingMinutes && `${link.readingMinutes} min. leestijd`,
-  ].filter(Boolean);
+  // A recipe shows only the recipe: no summary, author, date or reading time.
+  const isRecipe = content.status === 'ready' && content.recipe;
+  const meta = isRecipe
+    ? [domain]
+    : [
+        domain,
+        link.byline,
+        link.publishedAt && formatPublished(link.publishedAt),
+        link.readingMinutes && `${link.readingMinutes} min. leestijd`,
+      ].filter(Boolean);
+  // Waits for the article, so a recipe's summary doesn't flash by first.
+  const showSummary = link.summary && content.status !== 'loading' && !isRecipe;
 
   return (
     <div
@@ -140,7 +146,7 @@ export default function Reader({
           {link.title ?? domain}
         </h1>
         <p className={styles.meta}>{meta.join(' · ')}</p>
-        {link.summary && <p className={styles.summary}>{link.summary}</p>}
+        {showSummary && <p className={styles.summary}>{link.summary}</p>}
         {content.status === 'loading' && (
           <p className={styles.status}>
             <span className={styles.spinner} aria-hidden="true" />

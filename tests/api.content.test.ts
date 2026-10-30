@@ -8,7 +8,14 @@ test('returns the saved article html', async () => {
   await db.insert(linkContents).values({ linkId: row.id, html: '<p>Tekst</p>' });
   const res = await GET(new Request('https://x'), { params: Promise.resolve({ id: row.id }) });
   expect(res.status).toBe(200);
-  expect(await res.json()).toEqual({ html: '<p>Tekst</p>' });
+  expect(await res.json()).toEqual({ html: '<p>Tekst</p>', recipe: false });
+});
+
+test('tells the reader when the saved article is a recipe', async () => {
+  const [row] = await db.insert(links).values({ url: 'https://a.example' }).returning();
+  await db.insert(linkContents).values({ linkId: row.id, html: '<div data-recipe=""><h2>Ingrediënten</h2></div>' });
+  const res = await GET(new Request('https://x'), { params: Promise.resolve({ id: row.id }) });
+  expect((await res.json()).recipe).toBe(true);
 });
 
 test('404 when the item has no saved article', async () => {

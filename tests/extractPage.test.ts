@@ -168,3 +168,22 @@ test('a share image that is not http(s) is ignored', async () => {
   const result = await fetchPageText('https://example.com/article');
   expect(result.imageUrl).toBeNull();
 });
+
+test('a recipe page keeps only the recipe for the reader, but the whole story for the summary', async () => {
+  const paragraph = '<p>Toen ik klein was, maakte oma deze soep elke herfst. Een lang verhaal dat de lezer moet doorlopen voordat het recept eindelijk begint, met nog veel meer zinnen.</p>';
+  const recipe = {
+    '@type': 'Recipe',
+    recipeYield: '4',
+    recipeIngredient: ['1 pompoen'],
+    recipeInstructions: [{ '@type': 'HowToStep', text: 'Kook de pompoen.' }],
+  };
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+    `<html><head><title>Pompoensoep</title><script type="application/ld+json">${JSON.stringify(recipe)}</script></head>`
+    + `<body><article>${paragraph.repeat(10)}</article></body></html>`,
+    { status: 200, headers: { 'Content-Type': 'text/html' } },
+  )));
+  const result = await fetchPageText('https://example.com/recept');
+  expect(result.text).toContain('oma deze soep');
+  expect(result.article?.html).toContain('Kook de pompoen.');
+  expect(result.article?.html).not.toContain('oma');
+});

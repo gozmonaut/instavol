@@ -3,6 +3,7 @@ import { Readability } from '@mozilla/readability';
 import { lookup } from 'node:dns/promises';
 import { BlockList } from 'node:net';
 import { cleanArticleHtml } from '@/lib/articleHtml';
+import { extractRecipe, type Recipe } from '@/lib/recipe';
 
 const MIN_ARTICLE_TEXT_LENGTH = 200;
 const WORDS_PER_MINUTE = 230;
@@ -123,34 +124,41 @@ export async function fetchPageText(url: string): Promise<PageContent> {
   let article: ReturnType<Readability['parse']>;
   let page: { title: string; text: string };
   let imageUrl: string | null;
+  let recipe: Recipe | null;
   const pageUrl = response.url || url;
   const dom = new JSDOM(html, { url: pageUrl });
   try {
-    // Readability changes the document it parses, so the plain-page fallback reads it first.
+    // Readability changes the document it parses, so the plain-page fallback and recipe read it first.
     page = describePage(dom.window.document);
     imageUrl = pageImage(dom.window.document, pageUrl);
+    recipe = extractRecipe(dom.window.document);
     // Classes help cleanArticleHtml spot author photos; it strips them afterwards.
     article = new Readability(dom.window.document, { keepClasses: true }).parse();
   } finally {
     dom.window.close();
   }
 
+  // A recipe page's reader view is only the recipe, without the story around it.
+  const recipeArticle: PageArticle | null = recipe
+    ? { html: recipe.html, byline: null, publishedAt: null, readingMinutes: recipe.readingMinutes }
+    : null;
+
   const text = article?.textContent?.trim() ?? '';
   if (article && text.length >= MIN_ARTICLE_TEXT_LENGTH) {
     const byline = article.byline?.trim() || null;
-    const articleHtml = article.content ? cleanArticleHtml(article.content, pageUrl, byline) : null;
+    const articleHtml = article.content && !recipe ? cleanArticleHtml(article.content, pageUrl, byline) : null;
     return {
       title: article.title || page.title,
       text: text.slice(0, MAX_ARTICLE_TEXT_LENGTH),
       imageUrl,
-      article: articleHtml
+      article: recipeArticle ?? (articleHtml
         ? {
             html: articleHtml,
             byline,
             publishedAt: parseDate(article.publishedTime),
             readingMinutes: Math.max(1, Math.round(text.split(/\s+/).length / WORDS_PER_MINUTE)),
           }
-        : null,
+        : null),
     };
   }
 
@@ -158,7 +166,12 @@ export async function fetchPageText(url: string): Promise<PageContent> {
   if (page.text.length < MIN_ARTICLE_TEXT_LENGTH) {
     throw new PageFetchError('Geen leesbare inhoud gevonden');
   }
-  return { title: page.title, text: page.text.slice(0, MAX_ARTICLE_TEXT_LENGTH), imageUrl };
+  return {
+    title: page.title,
+    text: page.text.slice(0, MAX_ARTICLE_TEXT_LENGTH),
+    imageUrl,
+    ...(recipeArticle && { article: recipeArticle }),
+  };
 }
 
 function parseDate(value: string | null | undefined): Date | null {
