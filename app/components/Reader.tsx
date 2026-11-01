@@ -127,7 +127,6 @@ export default function Reader({
               Aa
             </span>
           </button>
-          {actions}
           <a
             className={styles.barIcon}
             href={link.url}
@@ -142,6 +141,7 @@ export default function Reader({
               <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
             </svg>
           </a>
+          {actions}
         </div>
       </div>
       <article className={styles.article}>
