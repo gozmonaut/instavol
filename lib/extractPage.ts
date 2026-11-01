@@ -3,7 +3,7 @@ import { Readability } from '@mozilla/readability';
 import { lookup } from 'node:dns/promises';
 import { BlockList } from 'node:net';
 import { cleanArticleHtml } from '@/lib/articleHtml';
-import { extractRecipe, type Recipe } from '@/lib/recipe';
+import { extractRecipe, recipeFromArticle, type Recipe } from '@/lib/recipe';
 
 const MIN_ARTICLE_TEXT_LENGTH = 200;
 const WORDS_PER_MINUTE = 230;
@@ -138,15 +138,18 @@ export async function fetchPageText(url: string): Promise<PageContent> {
     dom.window.close();
   }
 
+  const text = article?.textContent?.trim() ?? '';
+  const byline = article?.byline?.trim() || null;
+  const articleHtml = article?.content && !recipe ? cleanArticleHtml(article.content, pageUrl, byline) : null;
+  // Without schema.org ingredients, a recipe can still be recognised by its headings.
+  recipe ??= articleHtml ? recipeInArticle(articleHtml) : null;
+
   // A recipe page's reader view is only the recipe, without the story around it.
   const recipeArticle: PageArticle | null = recipe
     ? { html: recipe.html, byline: null, publishedAt: null, readingMinutes: recipe.readingMinutes }
     : null;
 
-  const text = article?.textContent?.trim() ?? '';
   if (article && text.length >= MIN_ARTICLE_TEXT_LENGTH) {
-    const byline = article.byline?.trim() || null;
-    const articleHtml = article.content && !recipe ? cleanArticleHtml(article.content, pageUrl, byline) : null;
     return {
       title: article.title || page.title,
       text: text.slice(0, MAX_ARTICLE_TEXT_LENGTH),
@@ -172,6 +175,15 @@ export async function fetchPageText(url: string): Promise<PageContent> {
     imageUrl,
     ...(recipeArticle && { article: recipeArticle }),
   };
+}
+
+function recipeInArticle(html: string): Recipe | null {
+  const dom = new JSDOM(html);
+  try {
+    return recipeFromArticle(dom.window.document);
+  } finally {
+    dom.window.close();
+  }
 }
 
 function parseDate(value: string | null | undefined): Date | null {

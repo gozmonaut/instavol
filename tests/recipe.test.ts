@@ -1,5 +1,5 @@
 import { JSDOM } from 'jsdom';
-import { extractRecipe, isRecipeHtml, splitIngredient } from '@/lib/recipe';
+import { extractRecipe, isRecipeHtml, recipeFromArticle, splitIngredient } from '@/lib/recipe';
 
 function pageWith(...jsonLd: unknown[]): Document {
   const scripts = jsonLd
@@ -81,4 +81,75 @@ test('splitIngredient separates the amount from the ingredient', () => {
   expect(splitIngredient('3 eieren')).toEqual({ amount: '3', name: 'eieren' });
   expect(splitIngredient('1 blik tomaten (400 g)')).toEqual({ amount: '1 blik', name: 'tomaten (400 g)' });
   expect(splitIngredient('zout en peper')).toEqual({ amount: '', name: 'zout en peper' });
+});
+
+function articleDocument(html: string): Document {
+  return new JSDOM(`<body>${html}</body>`).window.document;
+}
+
+test('recipeFromArticle keeps only the ingredients and steps of a recipe written as an article', () => {
+  const recipe = recipeFromArticle(
+    articleDocument(`
+      <p><strong>In het nieuwe kookboek draait alles om voorbereiding.</strong></p>
+      <p>Wie liever vis eet, kan garnalen nemen.</p>
+      <h2>Ingrediënten, voor 4 personen</h2>
+      <p><em>Sticky kippendijen</em></p>
+      <ul><li>3 eetlepels sojasaus</li><li>2 eetlepels honing</li></ul>
+      <p><em>Rijstsalade </em></p>
+      <ul><li>1 rijpe mango</li></ul>
+      <h2>Bereiding rijstsalade met sticky kippendij</h2>
+      <h3>Sticky kippendijen</h3>
+      <p>Meng de sojasaus en honing.</p>
+      <p>Bak de kip.</p>
+      <h3>Rijstsalade</h3>
+      <p>Kook de rijst.</p>
+      <p><strong>Kijk voor meer recepten op <a href="https://x.example">onze receptenpagina</a>.</strong></p>
+      <p><em>Foto: Jeroen</em></p>
+    `),
+  );
+  expect(recipe).not.toBeNull();
+  expect(isRecipeHtml(recipe!.html)).toBe(true);
+  const body = new JSDOM(recipe!.html).window.document.body;
+  expect(body.textContent).not.toContain('kookboek');
+  expect(body.textContent).not.toContain('garnalen');
+  expect(body.textContent).not.toContain('Kijk voor meer');
+  expect(body.textContent).not.toContain('Foto');
+  expect(body.textContent).toContain('Voor: 4 personen');
+  expect(Array.from(body.querySelectorAll('h2, h3')).map((h) => h.textContent)).toEqual([
+    'Ingrediënten',
+    'Sticky kippendijen',
+    'Rijstsalade',
+    'Bereiding',
+    'Sticky kippendijen',
+    'Rijstsalade',
+  ]);
+  expect(Array.from(body.querySelectorAll('ul li')).map((li) => li.textContent)).toEqual([
+    '3 eetlepels sojasaus',
+    '2 eetlepels honing',
+    '1 rijpe mango',
+  ]);
+  expect(Array.from(body.querySelectorAll('ol li')).map((li) => li.textContent)).toEqual([
+    'Meng de sojasaus en honing.',
+    'Bak de kip.',
+    'Kook de rijst.',
+  ]);
+});
+
+test('recipeFromArticle stops the steps at the next main heading', () => {
+  const recipe = recipeFromArticle(
+    articleDocument(`
+      <h2>Ingrediënten</h2><ul><li>200 g bloem</li><li>1 ei</li></ul>
+      <h2>Bereiding</h2><ol><li>Mengen</li><li>Bakken</li></ol>
+      <h2>Lees ook</h2><p>Een ander artikel</p>
+    `),
+  );
+  const body = new JSDOM(recipe!.html).window.document.body;
+  expect(Array.from(body.querySelectorAll('ol li')).map((li) => li.textContent)).toEqual(['Mengen', 'Bakken']);
+  expect(body.textContent).not.toContain('Lees ook');
+});
+
+test('recipeFromArticle ignores articles without both an ingredients and a method heading', () => {
+  expect(recipeFromArticle(articleDocument('<h2>Ingrediënten</h2><ul><li>a</li><li>b</li></ul><p>Tekst</p>'))).toBeNull();
+  expect(recipeFromArticle(articleDocument('<h2>Bereiding</h2><p>Mengen</p>'))).toBeNull();
+  expect(recipeFromArticle(articleDocument('<h2>Het nieuws</h2><p>Tekst</p><h2>Bereiding</h2><p>x</p>'))).toBeNull();
 });

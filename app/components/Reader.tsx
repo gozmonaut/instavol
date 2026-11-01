@@ -19,14 +19,18 @@ function formatNoteDate(value: string): string {
   return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 }
 
-// A recipe's ingredient list (see lib/recipe.ts) as a table: amount on the left, ingredient on the right.
+// A recipe's ingredients (see lib/recipe.ts) as one table: amount on the left, ingredient on the right,
+// with a row for each group name ("Voor de saus").
 function withIngredientTable(html: string): string {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const heading = Array.from(doc.querySelectorAll('[data-recipe] > h2')).find(
     (element) => element.textContent === 'Ingrediënten',
   );
-  const list = heading?.nextElementSibling;
-  if (!list || list.tagName !== 'UL') return html;
+  const parts: Element[] = [];
+  for (let element = heading?.nextElementSibling; element && element.tagName !== 'H2'; element = element.nextElementSibling) {
+    parts.push(element);
+  }
+  if (!heading || !parts.some((part) => part.tagName === 'UL')) return html;
 
   // Built with textContent, so nothing from the saved html ends up as markup.
   const table = doc.createElement('table');
@@ -38,14 +42,27 @@ function withIngredientTable(html: string): string {
     cell.textContent = label;
     head.append(cell);
   }
-  const body = table.createTBody();
-  for (const item of Array.from(list.children)) {
-    const { amount, name } = splitIngredient(item.textContent ?? '');
-    const row = body.insertRow();
-    row.insertCell().textContent = amount;
-    row.insertCell().textContent = name;
+  for (const part of parts) {
+    // Each group gets its own body, so the row colours start over per group.
+    const body = table.createTBody();
+    if (part.tagName === 'H3') {
+      const cell = doc.createElement('th');
+      cell.scope = 'rowgroup';
+      cell.colSpan = 2;
+      cell.className = styles.ingredientGroup;
+      cell.textContent = part.textContent;
+      body.insertRow().append(cell);
+      continue;
+    }
+    for (const item of Array.from(part.children)) {
+      const { amount, name } = splitIngredient(item.textContent ?? '');
+      const row = body.insertRow();
+      row.insertCell().textContent = amount;
+      row.insertCell().textContent = name;
+    }
   }
-  list.replaceWith(table);
+  parts.forEach((part) => part.remove());
+  heading.after(table);
   return doc.body.innerHTML;
 }
 

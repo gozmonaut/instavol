@@ -89,13 +89,13 @@ test('unreadable saved settings fall back to the defaults', () => {
   expect(loadSettings()).toMatchObject({ font: 'serif', size: 1, bold: false });
 });
 
-test('a recipe shows its ingredients as a table with amount and ingredient', async () => {
+test('a recipe shows its ingredients as one table, with a row for each group', async () => {
   vi.stubGlobal(
     'fetch',
     vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        html: '<div data-recipe=""><h2>Ingrediënten</h2><ul><li>200 g bloem</li><li>zout</li></ul><h2>Bereiding</h2><ol><li>Mengen</li></ol></div>',
+        html: '<div data-recipe=""><h2>Ingrediënten</h2><ul><li>200 g bloem</li></ul><h3>Saus</h3><ul><li>zout</li></ul><h2>Bereiding</h2><ol><li>Mengen</li></ol></div>',
         recipe: true,
       }),
     }),
@@ -106,10 +106,7 @@ test('a recipe shows its ingredients as a table with amount and ingredient', asy
   const rows = Array.from(table.querySelectorAll('tbody tr')).map((row) =>
     Array.from(row.children).map((cell) => cell.textContent),
   );
-  expect(rows).toEqual([
-    ['200 g', 'bloem'],
-    ['', 'zout'],
-  ]);
+  expect(rows).toEqual([['200 g', 'bloem'], ['Saus'], ['', 'zout']]);
   expect(screen.getByText('Mengen')).toBeInTheDocument();
 });
 

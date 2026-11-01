@@ -24,7 +24,8 @@ export function splitIngredient(text: string): { amount: string; name: string } 
   return match ? { amount: match[1], name: match[2] } : { amount: '', name: text.trim() };
 }
 
-type RecipeSection ={ name: string | null; steps: string[] };
+type RecipeSection = { name: string | null; steps: string[] };
+type IngredientGroup = { name: string | null; items: string[] };
 
 export type Recipe = {
   html: string;
@@ -129,6 +130,47 @@ function servings(document: Document, value: unknown): string {
   return /^\d+$/.test(text) ? `${text} ${text === '1' ? 'persoon' : 'personen'}` : text;
 }
 
+// Reader html for a recipe: servings, time, ingredients (optionally in groups) and steps, nothing else.
+function buildRecipe(
+  document: Document,
+  recipe: { servings: string; minutes: number; ingredients: IngredientGroup[]; sections: RecipeSection[] },
+): Recipe {
+  // Built with textContent, so nothing from the page ends up as markup.
+  const root = document.createElement('div');
+  root.setAttribute('data-recipe', '');
+  const add = (parent: Element, tag: string, text?: string) => {
+    const element = document.createElement(tag);
+    if (text !== undefined) element.textContent = text;
+    parent.append(element);
+    return element;
+  };
+  const addFact = (label: string, value: string) => {
+    const p = add(root, 'p');
+    add(p, 'strong', `${label}: `);
+    p.append(value);
+  };
+
+  if (recipe.servings) addFact('Voor', recipe.servings);
+  if (recipe.minutes) addFact('Bereidingstijd', formatMinutes(recipe.minutes));
+  add(root, 'h2', 'Ingrediënten');
+  for (const group of recipe.ingredients) {
+    if (group.name) add(root, 'h3', group.name);
+    const list = add(root, 'ul');
+    group.items.forEach((ingredient) => add(list, 'li', ingredient));
+  }
+  add(root, 'h2', 'Bereiding');
+  for (const section of recipe.sections) {
+    if (section.name) add(root, 'h3', section.name);
+    const steps = add(root, 'ol');
+    section.steps.forEach((step) => add(steps, 'li', step));
+  }
+
+  const words = [...recipe.ingredients.flatMap((group) => group.items), ...recipe.sections.flatMap((section) => section.steps)]
+    .join(' ')
+    .split(/\s+/).length;
+  return { html: root.outerHTML, readingMinutes: Math.max(1, Math.round(words / WORDS_PER_MINUTE)) };
+}
+
 // The page's schema.org Recipe as reader html: servings, time, ingredients and steps, nothing else.
 // Returns null when the page has no recipe with both ingredients and steps.
 export function extractRecipe(document: Document): Recipe | null {
@@ -152,33 +194,83 @@ export function extractRecipe(document: Document): Recipe | null {
   const minutes = durationMinutes(node.totalTime) || durationMinutes(node.prepTime) + durationMinutes(node.cookTime);
   const forPeople = servings(document, node.recipeYield);
 
-  // Built with textContent, so nothing from the page ends up as markup.
-  const root = document.createElement('div');
-  root.setAttribute('data-recipe', '');
-  const add = (parent: Element, tag: string, text?: string) => {
-    const element = document.createElement(tag);
-    if (text !== undefined) element.textContent = text;
-    parent.append(element);
-    return element;
-  };
-  const addFact = (label: string, value: string) => {
-    const p = add(root, 'p');
-    add(p, 'strong', `${label}: `);
-    p.append(value);
-  };
+  return buildRecipe(document, { servings: forPeople, minutes, ingredients: [{ name: null, items: ingredients }], sections });
+}
 
-  if (forPeople) addFact('Voor', forPeople);
-  if (minutes) addFact('Bereidingstijd', formatMinutes(minutes));
-  add(root, 'h2', 'Ingrediënten');
-  const list = add(root, 'ul');
-  ingredients.forEach((ingredient) => add(list, 'li', ingredient));
-  add(root, 'h2', 'Bereiding');
-  for (const section of sections) {
-    if (section.name) add(root, 'h3', section.name);
-    const steps = add(root, 'ol');
-    section.steps.forEach((step) => add(steps, 'li', step));
+const INGREDIENTS_HEADING = /^(ingredi[eë]nt(en)?|benodigdheden|wat heb je nodig|boodschappen(lijst)?|ingredients)\b/i;
+const METHOD_HEADING = /^(bereiding(swijze)?|werkwijze|instructies|zo maak je|aan de slag|methode|preparation|method|directions|instructions)\b/i;
+const MAX_LABEL_LENGTH = 60;
+
+function headingLevel(element: Element): number {
+  const match = /^H([1-6])$/.exec(element.tagName);
+  return match ? Number(match[1]) : 0;
+}
+
+function textOf(element: Element): string {
+  return element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+}
+
+// Where the recipe ends: a closing line that is all bold or italic ("Kijk voor meer recepten...",
+// "Foto: ...") or one with links.
+function isClosingParagraph(element: Element): boolean {
+  if (element.tagName !== 'P') return false;
+  if (element.querySelector('a')) return true;
+  const children = Array.from(element.children);
+  const emphasized = children.filter((child) => /^(STRONG|B|EM|I)$/.test(child.tagName)).map(textOf).join(' ');
+  return children.length > 0 && emphasized.replace(/\s+/g, '') === textOf(element).replace(/\s+/g, '');
+}
+
+// A recipe written as a normal article, with an ingredients heading followed by a method heading,
+// turned into the same reader html as extractRecipe. `document` holds the cleaned article.
+// Returns null when it doesn't read as a recipe.
+export function recipeFromArticle(document: Document): Recipe | null {
+  const headings = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+  const ingredientsHeading = headings.find((heading) => INGREDIENTS_HEADING.test(textOf(heading)));
+  if (!ingredientsHeading) return null;
+  const following = headings.slice(headings.indexOf(ingredientsHeading) + 1);
+  const methodHeading = following.find(
+    (heading) => heading.parentElement === ingredientsHeading.parentElement && METHOD_HEADING.test(textOf(heading)),
+  );
+  if (!methodHeading) return null;
+
+  // Ingredients: lists, each after an optional short label ("Voor de saus").
+  const ingredients: IngredientGroup[] = [];
+  let label: string | null = null;
+  for (let element = ingredientsHeading.nextElementSibling; element && element !== methodHeading; element = element.nextElementSibling) {
+    if (element.tagName === 'UL' || element.tagName === 'OL') {
+      const items = Array.from(element.children).map(textOf).filter(Boolean);
+      if (items.length) ingredients.push({ name: label, items });
+      label = null;
+    } else {
+      const text = textOf(element);
+      label = text && text.length <= MAX_LABEL_LENGTH ? text.replace(/[:\s]+$/, '') : null;
+    }
   }
 
-  const words = [...ingredients, ...sections.flatMap((section) => section.steps)].join(' ').split(/\s+/).length;
-  return { html: root.outerHTML, readingMinutes: Math.max(1, Math.round(words / WORDS_PER_MINUTE)) };
+  // Steps: paragraphs and list items, in sections under lower headings, up to the next heading
+  // at the method heading's level or the closing lines.
+  const sections: RecipeSection[] = [];
+  let section: RecipeSection = { name: null, steps: [] };
+  const methodLevel = headingLevel(methodHeading);
+  for (let element = methodHeading.nextElementSibling; element; element = element.nextElementSibling) {
+    const level = headingLevel(element);
+    if ((level && level <= methodLevel) || isClosingParagraph(element)) break;
+    if (level) {
+      sections.push(section);
+      section = { name: textOf(element) || null, steps: [] };
+    } else if (element.tagName === 'UL' || element.tagName === 'OL') {
+      section.steps.push(...Array.from(element.children).map(textOf).filter(Boolean));
+    } else {
+      const text = textOf(element);
+      if (text) section.steps.push(text);
+    }
+  }
+  sections.push(section);
+
+  const steps = sections.filter((part) => part.steps.length > 0);
+  if (ingredients.flatMap((group) => group.items).length < 2 || !steps.length) return null;
+
+  // "Ingrediënten, voor 4 personen"
+  const servings = /voor\s+(\d+(?:\s*[-–]\s*\d+)?\s*(?:personen|persoon|stuks)?)/i.exec(textOf(ingredientsHeading))?.[1] ?? '';
+  return buildRecipe(document, { servings, minutes: 0, ingredients, sections: steps });
 }

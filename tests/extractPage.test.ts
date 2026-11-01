@@ -187,3 +187,23 @@ test('a recipe page keeps only the recipe for the reader, but the whole story fo
   expect(result.article?.html).toContain('Kook de pompoen.');
   expect(result.article?.html).not.toContain('oma');
 });
+
+test('a recipe without schema.org ingredients is recognised by its headings', async () => {
+  const paragraph = '<p>In het nieuwe kookboek draait alles om voorbereiding. Zo wordt koken doordeweeks een stuk gemakkelijker, met nog veel meer zinnen.</p>';
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+    '<html><head><title>Rijstsalade</title></head><body><article>'
+    + paragraph.repeat(3)
+    + '<h2>Ingrediënten, voor 4 personen</h2><ul><li>260 gram basmatirijst</li><li>1 rijpe mango</li></ul>'
+    + '<h2>Bereiding</h2><p>Kook de rijst en snijd de mango.</p>'
+    + '<p><strong>Kijk voor meer recepten op <a href="https://example.com/recepten">onze receptenpagina</a>.</strong></p>'
+    + '</article></body></html>',
+    { status: 200, headers: { 'Content-Type': 'text/html' } },
+  )));
+  const result = await fetchPageText('https://example.com/rijstsalade');
+  expect(result.text).toContain('kookboek');
+  expect(result.article?.html.startsWith('<div data-recipe="">')).toBe(true);
+  expect(result.article?.html).toContain('Kook de rijst en snijd de mango.');
+  expect(result.article?.html).not.toContain('kookboek');
+  expect(result.article?.html).not.toContain('Kijk voor meer');
+  expect(result.article?.byline).toBeNull();
+});

@@ -370,7 +370,7 @@
   border-top: 0.5px solid var(--separator);
 }
 
-/* A recipe's ingredients (Reader.tsx): a green header and rows in alternating soft colours */
+/* A recipe's ingredients (Reader.tsx): a blue header and rows in alternating light blues */
 .body .ingredients {
   display: table;
   width: 100%;
@@ -397,7 +397,17 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #ffffff;
-  background: #248a3d;
+  background: #0a63c9;
+}
+
+/* Group name ("Voor de saus") between the ingredients; the row colours start over below it */
+.body .ingredients .ingredientGroup {
+  padding-top: 14px;
+  font-size: calc(15rem / 17 * var(--reader-scale));
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text);
+  background: rgba(0, 122, 255, 0.24);
 }
 
 /* Amounts stay on one line, so the ingredient names line up */
@@ -407,24 +417,12 @@
   font-weight: 700;
 }
 
-.body .ingredients tbody tr:nth-child(5n + 1) {
-  background: rgba(52, 199, 89, 0.16);
+.body .ingredients tbody tr:nth-child(odd) {
+  background: rgba(0, 122, 255, 0.14);
 }
 
-.body .ingredients tbody tr:nth-child(5n + 2) {
-  background: rgba(255, 149, 0, 0.16);
-}
-
-.body .ingredients tbody tr:nth-child(5n + 3) {
-  background: rgba(255, 204, 0, 0.2);
-}
-
-.body .ingredients tbody tr:nth-child(5n + 4) {
-  background: rgba(255, 45, 85, 0.13);
-}
-
-.body .ingredients tbody tr:nth-child(5n + 5) {
-  background: rgba(0, 122, 255, 0.13);
+.body .ingredients tbody tr:nth-child(even) {
+  background: rgba(0, 122, 255, 0.07);
 }
 
 /* The user's own notes, between the summary and the article */
