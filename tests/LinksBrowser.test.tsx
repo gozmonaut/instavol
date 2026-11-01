@@ -18,6 +18,7 @@ const fixture: LinkRow[] = [
     category: 'Tech',
     errorMessage: null,
     tags: [],
+    notes: [],
     imageUrl: null,
     byline: null,
     publishedAt: null,
@@ -34,6 +35,7 @@ const fixture: LinkRow[] = [
     category: null,
     errorMessage: 'Kon pagina niet ophalen',
     tags: [],
+    notes: [],
     imageUrl: null,
     byline: null,
     publishedAt: null,
@@ -680,4 +682,11 @@ describe('tags', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('tag=weekend')));
   });
+});
+
+test('a card shows how many notes the item has', () => {
+  const note = (id: string) => ({ id, text: 'x', createdAt: '2026-11-01T12:00:00.000Z' });
+  render(<LinksBrowser initialLinks={[{ ...fixture[0], notes: [note('a'), note('b')] }, { ...fixture[1], notes: [note('c')] }]} />);
+  expect(screen.getByText('2 notities')).toBeInTheDocument();
+  expect(screen.getByText('1 notitie')).toBeInTheDocument();
 });

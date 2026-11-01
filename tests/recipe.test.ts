@@ -1,5 +1,5 @@
 import { JSDOM } from 'jsdom';
-import { extractRecipe, isRecipeHtml } from '@/lib/recipe';
+import { extractRecipe, isRecipeHtml, splitIngredient } from '@/lib/recipe';
 
 function pageWith(...jsonLd: unknown[]): Document {
   const scripts = jsonLd
@@ -71,4 +71,14 @@ test('no recipe without both ingredients and steps', () => {
   expect(extractRecipe(pageWith({ '@type': 'NewsArticle', headline: 'Nieuws' }))).toBeNull();
   expect(extractRecipe(pageWith({ ...recipe, recipeInstructions: [] }))).toBeNull();
   expect(extractRecipe(pageWith({ ...recipe, recipeIngredient: [] }))).toBeNull();
+});
+
+test('splitIngredient separates the amount from the ingredient', () => {
+  expect(splitIngredient('200 g bloem')).toEqual({ amount: '200 g', name: 'bloem' });
+  expect(splitIngredient('1½ el olijfolie')).toEqual({ amount: '1½ el', name: 'olijfolie' });
+  expect(splitIngredient('2-3 teentjes knoflook')).toEqual({ amount: '2-3 teentjes', name: 'knoflook' });
+  expect(splitIngredient('1/2 tl zout')).toEqual({ amount: '1/2 tl', name: 'zout' });
+  expect(splitIngredient('3 eieren')).toEqual({ amount: '3', name: 'eieren' });
+  expect(splitIngredient('1 blik tomaten (400 g)')).toEqual({ amount: '1 blik', name: 'tomaten (400 g)' });
+  expect(splitIngredient('zout en peper')).toEqual({ amount: '', name: 'zout en peper' });
 });

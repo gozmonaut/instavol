@@ -1,0 +1,1 @@
+ALTER TABLE "links" ADD COLUMN "notes" jsonb DEFAULT '[]'::jsonb NOT NULL;

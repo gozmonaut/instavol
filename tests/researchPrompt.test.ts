@@ -10,6 +10,7 @@ const article: LinkRow = {
   category: 'Politiek',
   errorMessage: null,
   tags: [],
+  notes: [],
   imageUrl: null,
   byline: null,
   publishedAt: null,

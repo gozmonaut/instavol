@@ -1,5 +1,7 @@
 import { sql } from 'drizzle-orm';
-import { pgTable, uuid, text, timestamp, integer } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
+
+export type LinkNote = { id: string; text: string; createdAt: string };
 
 export const links = pgTable('links', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -10,6 +12,8 @@ export const links = pgTable('links', {
   category: text('category'),
   // Free labels added by the user (cleaned up in lib/tags.ts).
   tags: text('tags').array().notNull().default(sql`'{}'::text[]`),
+  // The user's own notes, oldest first (added and removed via /api/links/[id]/notes).
+  notes: jsonb('notes').$type<LinkNote[]>().notNull().default(sql`'[]'::jsonb`),
   errorMessage: text('error_message'),
   imageUrl: text('image_url'),
   byline: text('byline'),

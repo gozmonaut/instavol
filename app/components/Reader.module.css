@@ -370,6 +370,149 @@
   border-top: 0.5px solid var(--separator);
 }
 
+/* A recipe's ingredients (Reader.tsx): a green header and rows in alternating soft colours */
+.body .ingredients {
+  display: table;
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: calc(16rem / 17 * var(--reader-scale));
+  line-height: 1.35;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.body .ingredients th,
+.body .ingredients td {
+  padding: 10px 14px;
+  text-align: left;
+  vertical-align: top;
+  border: none;
+}
+
+.body .ingredients th {
+  font-size: calc(13rem / 17 * var(--reader-scale));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ffffff;
+  background: #248a3d;
+}
+
+/* Amounts stay on one line, so the ingredient names line up */
+.body .ingredients td:first-child {
+  width: 1%;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.body .ingredients tbody tr:nth-child(5n + 1) {
+  background: rgba(52, 199, 89, 0.16);
+}
+
+.body .ingredients tbody tr:nth-child(5n + 2) {
+  background: rgba(255, 149, 0, 0.16);
+}
+
+.body .ingredients tbody tr:nth-child(5n + 3) {
+  background: rgba(255, 204, 0, 0.2);
+}
+
+.body .ingredients tbody tr:nth-child(5n + 4) {
+  background: rgba(255, 45, 85, 0.13);
+}
+
+.body .ingredients tbody tr:nth-child(5n + 5) {
+  background: rgba(0, 122, 255, 0.13);
+}
+
+/* The user's own notes, between the summary and the article */
+.notes {
+  margin-top: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.notesTitle {
+  font-size: calc(13rem / 17 * var(--reader-scale));
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.noteList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  list-style: none;
+}
+
+.note {
+  padding: 12px 14px;
+  background: rgba(255, 204, 0, 0.18);
+  border-left: 3px solid #ffcc00;
+  border-radius: 10px;
+}
+
+.noteText {
+  font-size: calc(16rem / 17 * var(--reader-scale));
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.noteFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: calc(13rem / 17);
+  color: var(--text-secondary);
+}
+
+.noteDelete {
+  min-height: 32px;
+  padding: 0 4px;
+  font: inherit;
+  color: var(--danger);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.noteDelete:disabled {
+  opacity: 0.5;
+}
+
+.noteInput {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: calc(17rem / 17);
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--fill);
+  border: none;
+  border-radius: 10px;
+  resize: vertical;
+}
+
+.noteInput:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+
+.noteError {
+  margin-top: 8px;
+  font-size: calc(15rem / 17);
+  color: var(--danger);
+}
+
 /* Reading settings sheet: a light backdrop, so the article stays visible while adjusting */
 .settingsBackdrop {
   position: fixed;
@@ -418,6 +561,21 @@
   font: inherit;
   font-size: calc(17rem / 17);
   font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.settingsDone:disabled {
+  opacity: 0.4;
+}
+
+.settingsCancel {
+  min-height: 44px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: calc(17rem / 17);
   color: var(--accent);
   background: none;
   border: none;

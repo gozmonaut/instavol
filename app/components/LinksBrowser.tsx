@@ -651,6 +651,18 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                           <span>{link.readingMinutes} min. leestijd</span>
                         </>
                       )}
+                      {link.notes.length > 0 && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className={styles.noteCount}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="M12 20h9" />
+                              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+                            </svg>
+                            {link.notes.length === 1 ? '1 notitie' : `${link.notes.length} notities`}
+                          </span>
+                        </>
+                      )}
                     </div>
                     {link.imageUrl && (
                       // A remote og:image; hidden when it fails to load (e.g. hotlinking blocked).
@@ -909,6 +921,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
           link={readerLink}
           domain={domainFromUrl(readerLink.url)}
           onClose={closeReader}
+          onChange={replaceLink}
           actions={moreButton(readerLink, readerStyles.barIcon)}
           labels={
             Boolean(readerLink.category || readerLink.tags?.length) && (

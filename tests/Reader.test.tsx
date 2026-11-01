@@ -15,6 +15,7 @@ const link: LinkRow = {
   category: null,
   errorMessage: null,
   tags: [],
+  notes: [],
   imageUrl: null,
   byline: null,
   publishedAt: null,
@@ -86,4 +87,51 @@ test('an article still shows its summary', async () => {
 test('unreadable saved settings fall back to the defaults', () => {
   localStorage.setItem('instavol.reader', JSON.stringify({ font: 'comic', size: 99, bold: 'ja' }));
   expect(loadSettings()).toMatchObject({ font: 'serif', size: 1, bold: false });
+});
+
+test('a recipe shows its ingredients as a table with amount and ingredient', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        html: '<div data-recipe=""><h2>Ingrediënten</h2><ul><li>200 g bloem</li><li>zout</li></ul><h2>Bereiding</h2><ol><li>Mengen</li></ol></div>',
+        recipe: true,
+      }),
+    }),
+  );
+  render(<Reader link={{ ...link, readingMinutes: 3 }} domain="a.example" actions={null} onClose={vi.fn()} />);
+  const table = await screen.findByRole('table');
+  expect(screen.getByRole('columnheader', { name: 'Hoeveelheid' })).toBeInTheDocument();
+  const rows = Array.from(table.querySelectorAll('tbody tr')).map((row) =>
+    Array.from(row.children).map((cell) => cell.textContent),
+  );
+  expect(rows).toEqual([
+    ['200 g', 'bloem'],
+    ['', 'zout'],
+  ]);
+  expect(screen.getByText('Mengen')).toBeInTheDocument();
+});
+
+test('a note can be added from the reader and is shown above the article', async () => {
+  const user = userEvent.setup();
+  const note = { id: 'n1', text: 'Minder zout', createdAt: '2026-11-01T12:00:00.000Z' };
+  const fetchMock = vi.fn(async (url: string) => ({
+    ok: true,
+    json: async () => (url.endsWith('/notes') ? { ...link, notes: [note] } : { html: '<p>Tekst</p>' }),
+  }));
+  vi.stubGlobal('fetch', fetchMock);
+  const onChange = vi.fn();
+  const { rerender } = render(<Reader link={link} domain="a.example" actions={null} onChange={onChange} onClose={vi.fn()} />);
+
+  await user.click(screen.getByRole('button', { name: 'Notitie toevoegen' }));
+  await user.type(screen.getByRole('textbox', { name: 'Notitie' }), 'Minder zout');
+  await user.click(screen.getByRole('button', { name: 'Bewaar' }));
+
+  expect(fetchMock).toHaveBeenCalledWith('/api/links/1/notes', expect.objectContaining({ method: 'POST' }));
+  expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ notes: [note] }));
+  expect(screen.queryByRole('dialog', { name: 'Notitie' })).not.toBeInTheDocument();
+
+  rerender(<Reader link={{ ...link, notes: [note] }} domain="a.example" actions={null} onChange={onChange} onClose={vi.fn()} />);
+  expect(screen.getByRole('region', { name: 'Notitie' })).toHaveTextContent('Minder zout');
 });

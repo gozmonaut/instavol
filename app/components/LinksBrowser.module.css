@@ -266,6 +266,17 @@
   color: var(--text-secondary);
 }
 
+/* "2 notities": a small yellow label, like the notes in the reader */
+.noteCount {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  color: var(--text);
+  background: rgba(255, 204, 0, 0.28);
+  border-radius: 999px;
+}
+
 /* Category label and saved date/time, above the title */
 .cardTop {
   grid-area: chip;

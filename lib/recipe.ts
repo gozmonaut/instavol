@@ -7,7 +7,24 @@ export function isRecipeHtml(html: string): boolean {
   return html.startsWith(RECIPE_MARKER);
 }
 
-type RecipeSection = { name: string | null; steps: string[] };
+const NUMBER = String.raw`(?:\d+(?:[.,]\d+)?\s*[½¼¾⅓⅔⅛]?|[½¼¾⅓⅔⅛]|\d+\s*\/\s*\d+)`;
+const UNIT = [
+  'kg', 'gr', 'gram', 'g', 'mg', 'ml', 'cl', 'dl', 'liter', 'l',
+  'eetlepels?', 'el', 'theelepels?', 'tl', 'kopjes?', 'cups?', 'tbsp', 'tsp', 'oz', 'lbs?',
+  'stuks?', 'teentjes?', 'tenen', 'teen', 'snufjes?', 'snuf', 'blikjes?', 'blikken', 'blik',
+  'pakjes?', 'pakken', 'pak', 'zakjes?', 'bosjes?', 'bos', 'takjes?', 'plakjes?', 'plakken',
+  'handjes?', 'handvol', 'scheutjes?', 'scheut', 'mespunt(?:je)?', 'potjes?', 'pot', 'blaadjes?', 'stengels?',
+].join('|');
+// "200 g", "1½ el", "2-3 teentjes", "1/2 tl": a leading amount, optionally with a unit.
+const AMOUNT = new RegExp(String.raw`^(${NUMBER}(?:\s*[-–]\s*${NUMBER})?(?:\s*(?:${UNIT})\.?(?=\s|$))?)\s+(.+)$`, 'i');
+
+// An ingredient line split into its amount and the rest, for the reader's ingredient table.
+export function splitIngredient(text: string): { amount: string; name: string } {
+  const match = AMOUNT.exec(text.trim());
+  return match ? { amount: match[1], name: match[2] } : { amount: '', name: text.trim() };
+}
+
+type RecipeSection ={ name: string | null; steps: string[] };
 
 export type Recipe = {
   html: string;
