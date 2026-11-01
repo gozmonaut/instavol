@@ -83,17 +83,36 @@ test('selecting a category fetches /api/links?category=...', async () => {
   await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('category=Tech')));
 });
 
+// Holding a chip opens its menu; the click that follows the release must not also filter.
+async function longPress(element: HTMLElement) {
+  fireEvent.pointerDown(element, { clientX: 0, clientY: 0 });
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 550));
+  });
+  fireEvent.pointerUp(element);
+  fireEvent.click(element);
+}
+
 describe('the category menu', () => {
-  test('"Filter op" filters on the category, and the same menu can turn the filter off again', async () => {
+  test('a short tap on the category filters straight away, without opening the menu', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ links: [fixture[0]] }) });
     vi.stubGlobal('fetch', fetchMock);
     render(<LinksBrowser initialLinks={fixture} />);
     await userEvent.click(screen.getByRole('button', { name: 'Categorie Tech' }));
+    expect(screen.getByRole('combobox')).toHaveValue('Tech');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  test('"Filter op" filters on the category, and the same menu can turn the filter off again', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ links: [fixture[0]] }) });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LinksBrowser initialLinks={fixture} />);
+    await longPress(screen.getByRole('button', { name: 'Categorie Tech' }));
     await userEvent.click(screen.getByRole('button', { name: 'Filter op Tech' }));
     expect(screen.getByRole('combobox')).toHaveValue('Tech');
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('category=Tech')));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Categorie Tech' }));
+    await longPress(screen.getByRole('button', { name: 'Categorie Tech' }));
     await userEvent.click(screen.getByRole('button', { name: 'Toon alle categorieën' }));
     expect(screen.getByRole('combobox')).toHaveValue('');
   });
@@ -108,7 +127,7 @@ describe('the category menu', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
     render(<LinksBrowser initialLinks={fixture} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Categorie Tech' }));
+    await longPress(screen.getByRole('button', { name: 'Categorie Tech' }));
     await userEvent.click(screen.getByRole('button', { name: 'Categorie wijzigen' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Politiek' }));
     expect(fetchMock).toHaveBeenCalledWith(
@@ -129,7 +148,7 @@ describe('the category menu', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
     render(<LinksBrowser initialLinks={fixture} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Categorie Tech' }));
+    await longPress(screen.getByRole('button', { name: 'Categorie Tech' }));
     await userEvent.click(screen.getByRole('button', { name: 'Categorie wijzigen' }));
     const input = screen.getByLabelText('Nieuwe categorie');
     expect(input).toHaveValue('Tech');

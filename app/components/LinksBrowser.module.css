@@ -667,3 +667,10 @@
     animation: none;
   }
 }
+
+/* Chips that open a menu on a long press: no iOS callout or text selection while holding */
+.pressable {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
