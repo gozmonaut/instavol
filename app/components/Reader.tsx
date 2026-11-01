@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, type TouchEvent } from 'react';
 import { splitIngredient } from '@/lib/recipe';
 import type { LinkNote, LinkRow } from '@/lib/schema';
 import styles from './Reader.module.css';
@@ -158,6 +158,28 @@ export default function Reader({
     };
   }, [onClose]);
 
+  // A swipe to the right goes back to the overview, like the back button. Mostly-horizontal
+  // swipes only, and not from inside something that scrolls sideways (wide tables, code).
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  function onTouchStart(event: TouchEvent<HTMLDivElement>) {
+    swipeStart.current = null;
+    if (event.touches.length !== 1 || sheetRef.current) return;
+    for (let el = event.target as HTMLElement | null; el && el !== event.currentTarget; el = el.parentElement) {
+      if (el.scrollWidth > el.clientWidth && getComputedStyle(el).overflowX !== 'visible') return;
+    }
+    const touch = event.touches[0];
+    swipeStart.current = { x: touch.clientX, y: touch.clientY };
+  }
+  function onTouchEnd(event: TouchEvent<HTMLDivElement>) {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    if (!start || sheetRef.current) return;
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (dx > 80 && dx > Math.abs(dy) * 2) onClose();
+  }
+
   // A recipe shows only the recipe: no summary, author, date or reading time.
   const isRecipe = content.status === 'ready' && content.recipe;
   const meta = isRecipe
@@ -183,6 +205,8 @@ export default function Reader({
       aria-modal="true"
       aria-labelledby="reader-title"
       data-reader
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
       {...settingsAttributes(settings)}
     >
       <div className={styles.bar}>
