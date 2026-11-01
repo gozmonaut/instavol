@@ -176,6 +176,58 @@
     max(var(--reader-gutter), env(safe-area-inset-left));
 }
 
+/* Category and tags above the title */
+.labels {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.labels .tags {
+  margin-top: 0;
+}
+
+/* Free labels, also used on the cards (LinksBrowser.tsx); grey, to set them apart from the category */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+  list-style: none;
+}
+
+.tag {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 10px;
+  font: inherit;
+  font-size: calc(13rem / 17);
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--fill);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 120ms, color 120ms, transform 120ms;
+}
+
+.tag:active {
+  transform: scale(0.94);
+}
+
+.tag[aria-pressed='true'] {
+  color: #ffffff;
+  background: var(--text-secondary);
+}
+
+.tag:disabled {
+  opacity: 0.5;
+}
+
 .title {
   font-family: var(--reader-font);
   font-size: calc(30rem / 17 * var(--reader-scale));

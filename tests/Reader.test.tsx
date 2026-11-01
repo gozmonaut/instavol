@@ -14,6 +14,7 @@ const link: LinkRow = {
   summary: 'Samenvatting A',
   category: null,
   errorMessage: null,
+  tags: [],
   imageUrl: null,
   byline: null,
   publishedAt: null,

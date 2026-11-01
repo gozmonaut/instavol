@@ -10,6 +10,7 @@ export async function GET(request: Request): Promise<Response> {
   const links = await getLinks({
     q: searchParams.get('q') ?? undefined,
     category: searchParams.get('category') ?? undefined,
+    tag: searchParams.get('tag') ?? undefined,
   });
 
   return NextResponse.json({ links });

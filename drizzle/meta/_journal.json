@@ -22,6 +22,13 @@
       "when": 1793282717154,
       "tag": "0002_thick_jean_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793539523805,
+      "tag": "0003_fuzzy_black_bird",
+      "breakpoints": true
     }
   ]
 }

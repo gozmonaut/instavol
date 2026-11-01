@@ -400,14 +400,69 @@
   }
 }
 
-/* Round icon buttons (styled in Reader.module.css) on the right, below a hairline */
-.actions {
+/* Grey "..." button at the top right of a card; the tap area reaches beyond the dots */
+.moreButton {
+  position: relative;
+  flex-shrink: 0;
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin: 14px -16px 0;
-  padding: 12px 16px 0;
-  border-top: 0.5px solid var(--separator);
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: -6px -8px -6px 0;
+  padding: 0;
+  color: var(--text-tertiary);
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.moreButton::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.moreButton:active {
+  background: var(--fill);
+}
+
+/* Shown below the search field while filtering on a tag */
+.activeTag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: calc(13rem / 17);
+  color: var(--text-secondary);
+}
+
+/* Item menu: text on the left, icon on the right, like an iOS context menu */
+.menuOption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 20px;
+  color: var(--text);
+  text-align: left;
+}
+
+.menuOption svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.menuDanger,
+.menuDanger svg {
+  color: var(--danger);
+}
+
+.tagEditorList {
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid var(--separator);
 }
 
 .empty {

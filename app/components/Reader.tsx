@@ -13,16 +13,19 @@ function formatPublished(value: Date | string): string {
 }
 
 // Full-screen reader for the saved article text, sliding in like an iOS navigation push.
-// `actions` are the item's buttons (share, research, delete), shown in the top bar.
+// `actions` are the item's buttons (the "..." menu), shown in the top bar;
+// `labels` (category and tags) go above the title.
 export default function Reader({
   link,
   domain,
   actions,
+  labels,
   onClose,
 }: {
   link: LinkRow;
   domain: string;
   actions: ReactNode;
+  labels?: ReactNode;
   onClose: () => void;
 }) {
   const [content, setContent] = useState<ContentState>({ status: 'loading' });
@@ -142,6 +145,7 @@ export default function Reader({
         </div>
       </div>
       <article className={styles.article}>
+        {labels && <div className={styles.labels}>{labels}</div>}
         <h1 id="reader-title" className={styles.title}>
           {link.title ?? domain}
         </h1>

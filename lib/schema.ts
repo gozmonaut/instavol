@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { pgTable, uuid, text, timestamp, integer } from 'drizzle-orm/pg-core';
 
 export const links = pgTable('links', {
@@ -7,6 +8,8 @@ export const links = pgTable('links', {
   status: text('status').notNull().default('pending'),
   summary: text('summary'),
   category: text('category'),
+  // Free labels added by the user (cleaned up in lib/tags.ts).
+  tags: text('tags').array().notNull().default(sql`'{}'::text[]`),
   errorMessage: text('error_message'),
   imageUrl: text('image_url'),
   byline: text('byline'),

@@ -55,9 +55,19 @@ const ACTION_ICON_PATHS = {
   retry: ['M20 12a8 8 0 1 1-2.34-5.66', 'M20 4v4h-4'],
   delete: ['M4 7h16', 'M10 11v6', 'M14 11v6', 'M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12', 'M9 7V4h6v3'],
   done: ['M5 12.5l4.5 4.5L19 7.5'],
+  tag: ['M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z', 'M7.5 7.5h.01'],
 } as const;
 
-function ActionIcon({ name }: { name: keyof typeof ACTION_ICON_PATHS }) {
+function ActionIcon({ name }: { name: keyof typeof ACTION_ICON_PATHS | 'more' }) {
+  if (name === 'more') {
+    return (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <circle cx="12" cy="5" r="1.9" />
+        <circle cx="12" cy="12" r="1.9" />
+        <circle cx="12" cy="19" r="1.9" />
+      </svg>
+    );
+  }
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       {ACTION_ICON_PATHS[name].map((d) => (
@@ -80,6 +90,12 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [links, setLinks] = useState<LinkRow[]>(initialLinks);
   const [q, setQ] = useState('');
   const [category, setCategory] = useState('');
+  const [tag, setTag] = useState('');
+  const [menuLink, setMenuLink] = useState<LinkRow | null>(null);
+  const [tagsLink, setTagsLink] = useState<LinkRow | null>(null);
+  const [tagDraft, setTagDraft] = useState('');
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [savingTags, setSavingTags] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -138,13 +154,14 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
       const params = new URLSearchParams();
       if (q) params.set('q', q);
       if (category) params.set('category', category);
+      if (tag) params.set('tag', tag);
       fetch(`/api/links?${params.toString()}`)
         .then((res) => res.json())
         .then((data) => setLinks(data.links));
     }, SEARCH_DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [q, category]);
+  }, [q, category, tag]);
 
   // Pull-to-refresh for the home-screen app. The pull distance is written straight to the
   // indicator's style, so dragging doesn't re-render the whole list on every touchmove.
@@ -155,12 +172,13 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (category) params.set('category', category);
+    if (tag) params.set('tag', tag);
     fetch(`/api/links?${params.toString()}`)
       .then((res) => res.json())
       .then((data) => setLinks(data.links))
       .catch(() => {})
       .finally(() => setRefreshing(false));
-  }, [q, category]);
+  }, [q, category, tag]);
 
   useEffect(() => {
     if (!isStandalone()) return;
@@ -229,13 +247,14 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
       const params = new URLSearchParams();
       if (q) params.set('q', q);
       if (category) params.set('category', category);
+      if (tag) params.set('tag', tag);
       fetch(`/api/links?${params.toString()}`)
         .then((res) => res.json())
         .then((data) => setLinks(data.links));
     }, POLL_INTERVAL_MS);
 
     return () => clearInterval(timer);
-  }, [hasPending, q, category]);
+  }, [hasPending, q, category, tag]);
 
   async function handleRetry(id: string) {
     setRetryingId(id);
@@ -303,6 +322,62 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     setCategory((current) => (current === link.category ? '' : (link.category ?? '')));
   }
 
+  // Tapping a tag filters on it (or stops filtering); from the reader it goes back to the list.
+  function toggleTagFilter(value: string) {
+    setReaderLink(null);
+    setTag((current) => (current === value ? '' : value));
+  }
+
+  // Keeps the list and an open reader in step after an item changed.
+  function replaceLink(updated: LinkRow) {
+    setLinks((prev) => prev.map((link) => (link.id === updated.id ? updated : link)));
+    setReaderLink((current) => (current?.id === updated.id ? updated : current));
+  }
+
+  // The "..." menu: each choice closes it and opens what it stands for.
+  function chooseFromMenu(action: (link: LinkRow) => void) {
+    const link = menuLink;
+    setMenuLink(null);
+    if (link) action(link);
+  }
+
+  function openTags(link: LinkRow) {
+    setTagsLink(link);
+    setTagDraft('');
+    // The filtered list may not contain every tag, so ask the server for all of them.
+    fetch('/api/tags')
+      .then((res) => res.json())
+      .then((data) => setAllTags(data.tags))
+      .catch(() => setAllTags(Array.from(new Set(links.flatMap((item) => item.tags ?? [])))));
+  }
+
+  async function saveTags(link: LinkRow, tags: string[]) {
+    if (savingTags) return;
+    setSavingTags(true);
+    try {
+      const res = await fetch(`/api/links/${link.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags }),
+      });
+      if (res.ok) {
+        const updated: LinkRow = await res.json();
+        replaceLink(updated);
+        setTagsLink(updated);
+        setAllTags((prev) => [...prev, ...updated.tags.filter((t) => !prev.includes(t))]);
+      }
+    } finally {
+      setSavingTags(false);
+    }
+  }
+
+  function addTag(link: LinkRow, value: string) {
+    const name = value.trim();
+    if (!name) return;
+    setTagDraft('');
+    saveTags(link, [...(link.tags ?? []), name]);
+  }
+
   function startEditingCategory(link: LinkRow) {
     setCategoryMenuLink(null);
     setEditingLink(link);
@@ -325,7 +400,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
       });
       if (res.ok) {
         const updated: LinkRow = await res.json();
-        setLinks((prev) => prev.map((link) => (link.id === updated.id ? updated : link)));
+        replaceLink(updated);
         setEditingLink(null);
       }
     } finally {
@@ -396,7 +471,38 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   }
 
   const categories = distinctCategories(links);
-  const isFiltering = Boolean(q || category);
+  const isFiltering = Boolean(q || category || tag);
+
+  // Round "..." button that opens the item menu; shows a check while something was just copied.
+  function moreButton(link: LinkRow, className: string) {
+    const copied = copiedId === link.id || promptCopiedId === link.id;
+    return (
+      <button
+        className={className}
+        onClick={() => setMenuLink(link)}
+        aria-label={copied ? 'Gekopieerd' : 'Meer'}
+        aria-haspopup="dialog"
+        title="Meer"
+      >
+        <ActionIcon name={copied ? 'done' : 'more'} />
+      </button>
+    );
+  }
+
+  function tagList(link: LinkRow) {
+    if (!link.tags?.length) return null;
+    return (
+      <ul className={readerStyles.tags} aria-label="Tags">
+        {link.tags.map((t) => (
+          <li key={t}>
+            <button className={readerStyles.tag} aria-pressed={tag === t} onClick={() => toggleTagFilter(t)}>
+              {t}
+            </button>
+          </li>
+        ))}
+      </ul>
+    );
+  }
   const groups = groupByDate(links);
 
   return (
@@ -467,6 +573,14 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
           </select>
         </div>
         {parseShareUrl(q) && <p className={styles.hint}>Druk op Enter om deze link te bewaren</p>}
+        {tag && (
+          <div className={styles.activeTag}>
+            <span>Tag:</span>
+            <button className={readerStyles.tag} aria-pressed="true" aria-label={`Stop filter op tag ${tag}`} onClick={() => setTag('')}>
+              {tag} ✕
+            </button>
+          </div>
+        )}
       </header>
 
       {links.length === 0 ? (
@@ -513,6 +627,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                         </button>
                       )}
                       <span className={styles.date}>{formatDate(link.createdAt)}</span>
+                      {moreButton(link, styles.moreButton)}
                     </div>
                     <a
                       href={link.url}
@@ -564,45 +679,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                       <p className={`${styles.status} ${styles.failed}`}>Mislukt: {link.errorMessage}</p>
                     )}
                   </div>
-                  {/* Same round icon buttons as the reader's top bar */}
-                  <div className={styles.actions}>
-                    <button
-                      className={readerStyles.barIcon}
-                      onClick={() => handleShare(link)}
-                      aria-label={copiedId === link.id ? 'Gekopieerd' : 'Delen'}
-                      title="Delen"
-                    >
-                      <ActionIcon name={copiedId === link.id ? 'done' : 'share'} />
-                    </button>
-                    <button
-                      className={readerStyles.barIcon}
-                      onClick={() => setResearchLink(link)}
-                      aria-label={promptCopiedId === link.id ? 'Gekopieerd' : 'Onderzoek'}
-                      title="Onderzoek met AI"
-                    >
-                      <ActionIcon name={promptCopiedId === link.id ? 'done' : 'research'} />
-                    </button>
-                    {link.status !== 'done' && (
-                      <button
-                        className={readerStyles.barIcon}
-                        onClick={() => handleRetry(link.id)}
-                        disabled={retryingId === link.id}
-                        aria-label="Opnieuw verwerken"
-                        title="Opnieuw verwerken"
-                      >
-                        <ActionIcon name="retry" />
-                      </button>
-                    )}
-                    <button
-                      className={`${readerStyles.barIcon} ${readerStyles.barDanger}`}
-                      onClick={() => handleDelete(link.id)}
-                      disabled={deletingId === link.id}
-                      aria-label="Verwijderen"
-                      title="Verwijderen"
-                    >
-                      <ActionIcon name="delete" />
-                    </button>
-                  </div>
+                  {tagList(link)}
                 </li>
               ))}
             </ul>
@@ -832,36 +909,149 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
           link={readerLink}
           domain={domainFromUrl(readerLink.url)}
           onClose={closeReader}
-          actions={
-            <>
-              <button
-                className={readerStyles.barIcon}
-                onClick={() => handleShare(readerLink)}
-                aria-label={copiedId === readerLink.id ? 'Gekopieerd' : 'Delen'}
-                title="Delen"
-              >
-                <ActionIcon name={copiedId === readerLink.id ? 'done' : 'share'} />
-              </button>
-              <button
-                className={readerStyles.barIcon}
-                onClick={() => setResearchLink(readerLink)}
-                aria-label={promptCopiedId === readerLink.id ? 'Gekopieerd' : 'Onderzoek'}
-                title="Onderzoek met AI"
-              >
-                <ActionIcon name={promptCopiedId === readerLink.id ? 'done' : 'research'} />
-              </button>
-              <button
-                className={`${readerStyles.barIcon} ${readerStyles.barDanger}`}
-                onClick={() => handleDelete(readerLink.id)}
-                disabled={deletingId === readerLink.id}
-                aria-label="Verwijderen"
-                title="Verwijderen"
-              >
-                <ActionIcon name="delete" />
-              </button>
-            </>
+          actions={moreButton(readerLink, readerStyles.barIcon)}
+          labels={
+            Boolean(readerLink.category || readerLink.tags?.length) && (
+              <>
+                {readerLink.category && (
+                  <button
+                    className={styles.chip}
+                    aria-label={`Categorie ${readerLink.category}`}
+                    aria-pressed={category === readerLink.category}
+                    onClick={() => {
+                      setReaderLink(null);
+                      toggleCategoryFilter(readerLink);
+                    }}
+                  >
+                    {readerLink.category}
+                  </button>
+                )}
+                {tagList(readerLink)}
+              </>
+            )
           }
         />
+      )}
+
+      {menuLink && (
+        <div className={styles.sheetBackdrop} onClick={() => setMenuLink(null)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="item-menu-title"
+            className={styles.sheet}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={styles.sheetGroup}>
+              <div className={styles.sheetHeader}>
+                <p id="item-menu-title" className={styles.sheetSubtitle}>
+                  {menuLink.title ?? domainFromUrl(menuLink.url)}
+                </p>
+              </div>
+              <button className={`${styles.sheetOption} ${styles.menuOption}`} onClick={() => chooseFromMenu(openTags)}>
+                <span>Tags toevoegen</span>
+                <ActionIcon name="tag" />
+              </button>
+              <button className={`${styles.sheetOption} ${styles.menuOption}`} onClick={() => chooseFromMenu(handleShare)}>
+                <span>Delen</span>
+                <ActionIcon name="share" />
+              </button>
+              <button className={`${styles.sheetOption} ${styles.menuOption}`} onClick={() => chooseFromMenu(setResearchLink)}>
+                <span>AI-onderzoek</span>
+                <ActionIcon name="research" />
+              </button>
+              {menuLink.status !== 'done' && (
+                <button
+                  className={`${styles.sheetOption} ${styles.menuOption}`}
+                  disabled={retryingId === menuLink.id}
+                  onClick={() => chooseFromMenu((link) => handleRetry(link.id))}
+                >
+                  <span>Opnieuw verwerken</span>
+                  <ActionIcon name="retry" />
+                </button>
+              )}
+              <button
+                className={`${styles.sheetOption} ${styles.menuOption} ${styles.menuDanger}`}
+                disabled={deletingId === menuLink.id}
+                onClick={() => chooseFromMenu((link) => handleDelete(link.id))}
+              >
+                <span>Verwijderen</span>
+                <ActionIcon name="delete" />
+              </button>
+            </div>
+            <button className={styles.sheetCancel} onClick={() => setMenuLink(null)}>
+              Annuleren
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tagsLink && (
+        <div className={styles.sheetBackdrop} onClick={() => setTagsLink(null)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="tags-title"
+            className={styles.sheet}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={`${styles.sheetGroup} ${styles.sheetScroll}`}>
+              <div className={styles.sheetHeader}>
+                <p id="tags-title" className={styles.sheetTitle}>
+                  Tags
+                </p>
+                <p className={styles.sheetSubtitle}>{tagsLink.title ?? domainFromUrl(tagsLink.url)}</p>
+              </div>
+              {tagsLink.tags?.length > 0 && (
+                <ul className={`${readerStyles.tags} ${styles.tagEditorList}`} aria-label="Huidige tags">
+                  {tagsLink.tags.map((t) => (
+                    <li key={t}>
+                      <button
+                        className={readerStyles.tag}
+                        aria-label={`Tag ${t} verwijderen`}
+                        disabled={savingTags}
+                        onClick={() => saveTags(tagsLink, tagsLink.tags.filter((other) => other !== t))}
+                      >
+                        {t} ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <form
+                className={styles.sheetForm}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  addTag(tagsLink, tagDraft);
+                }}
+              >
+                <input
+                  className={styles.sheetInput}
+                  aria-label="Nieuwe tag"
+                  placeholder="Nieuwe tag"
+                  enterKeyHint="done"
+                  autoCapitalize="none"
+                  maxLength={40}
+                  value={tagDraft}
+                  onChange={(event) => setTagDraft(event.target.value)}
+                />
+                <button type="submit" className={styles.sheetSave} disabled={!tagDraft.trim() || savingTags}>
+                  Voeg toe
+                </button>
+              </form>
+              {allTags
+                .filter((t) => !tagsLink.tags?.some((own) => own.toLocaleLowerCase('nl') === t.toLocaleLowerCase('nl')))
+                .map((t) => (
+                  <button key={t} className={styles.sheetOption} disabled={savingTags} onClick={() => addTag(tagsLink, t)}>
+                    {t}
+                  </button>
+                ))}
+            </div>
+            <button className={styles.sheetCancel} onClick={() => setTagsLink(null)}>
+              Klaar
+            </button>
+          </div>
+        </div>
       )}
     </main>
   );
