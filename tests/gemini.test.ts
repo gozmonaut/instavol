@@ -38,7 +38,7 @@ test('uses GEMINI_MODEL from the environment, falling back to the default model'
 
   vi.stubEnv('GEMINI_MODEL', '');
   await summarizeAndCategorize('tekst', []);
-  expect(fetchMock.mock.calls[1][0]).toContain('/models/gemini-1.5-flash:generateContent');
+  expect(fetchMock.mock.calls[1][0]).toContain('/models/gemini-3.8-flash:generateContent');
 
   vi.unstubAllEnvs();
 });

@@ -5,7 +5,7 @@ export class GeminiError extends Error {
   }
 }
 
-const DEFAULT_MODEL = 'gemini-1.5-flash';
+const DEFAULT_MODEL = 'gemini-3.8-flash';
 
 type SummaryResult = { summary: string; category: string };
 type UrlSummaryResult = SummaryResult & { title: string };
