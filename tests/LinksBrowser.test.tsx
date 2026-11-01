@@ -213,14 +213,14 @@ test('pressing Enter with normal search text does not save anything', async () =
 });
 
 test('items are grouped under date headings, newest group first', () => {
-  const older = { ...fixture[1], createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) };
+  const older = { ...fixture[1], createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) };
   render(<LinksBrowser initialLinks={[fixture[0], older]} />);
   const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
   expect(headings).toEqual(['Vandaag', 'Vorige week']);
 });
 
 describe('jumping between date groups', () => {
-  const older = { ...fixture[1], createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) };
+  const older = { ...fixture[1], createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) };
   let scrollIntoView: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
