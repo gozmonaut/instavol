@@ -294,6 +294,18 @@ describe('top bar on scroll', () => {
     await waitFor(() => expect(level()).toBe('0'));
   });
 
+  test('a new swipe counts as the second time, even while the page still glides on (no pause)', async () => {
+    render(<LinksBrowser initialLinks={fixture} />);
+    scrollTo(800);
+    await waitFor(() => expect(level()).toBe('0'));
+    fireEvent.touchStart(window);
+    scrollTo(780);
+    await waitFor(() => expect(level()).toBe('1'));
+    fireEvent.touchStart(window);
+    scrollTo(760, { soon: true });
+    await waitFor(() => expect(level()).toBe('2'));
+  });
+
   test('one long scroll up counts once', async () => {
     render(<LinksBrowser initialLinks={fixture} />);
     scrollTo(800);

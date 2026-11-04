@@ -255,7 +255,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     return () => observer.disconnect();
   }, []);
   // Scrolling down slides the search bar away. Scrolling up brings it back; scrolling up a second
-  // time (after a pause, or after scrolling down) also brings back the logo bar. Near the top, and
+  // time (a new swipe, or after a pause or after scrolling down) also brings back the logo bar. Near the top, and
   // while typing in the search field, the page looks as it does at the top.
   useEffect(() => {
     let lastY = window.scrollY;
@@ -292,9 +292,16 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     function onScroll() {
       if (!frame) frame = requestAnimationFrame(check);
     }
+    // On a phone every new swipe counts as a new time, even while the page still glides on from
+    // the previous one (then there is no pause between them).
+    function onTouchStart() {
+      movingUp = false;
+    }
     window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
     return () => {
       window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('touchstart', onTouchStart);
       cancelAnimationFrame(frame);
     };
   }, []);
