@@ -218,6 +218,20 @@ describe('light and dark mode button', () => {
   });
 });
 
+test('a tap outside the open "..." menu only closes it, without opening the card underneath', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ html: '<p>Tekst</p>' }) }));
+  const article = { ...fixture[0], readingMinutes: 3 };
+  render(<LinksBrowser initialLinks={[article, fixture[1]]} />);
+  await userEvent.click(moreButton(1));
+  expect(screen.getByRole('menu')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('link', { name: article.title! }));
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  // The next tap works normally again.
+  await userEvent.click(screen.getByRole('link', { name: article.title! }));
+  expect(screen.getByRole('dialog', { name: article.title! })).toBeInTheDocument();
+});
+
 describe('the "..." menu and scrolling', () => {
   afterEach(() => {
     Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });

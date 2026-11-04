@@ -13,8 +13,9 @@ type Sheet = 'settings' | 'note' | null;
 
 // Matches the slideOut animation in Reader.module.css.
 const SLIDE_OUT_MS = 170;
-// Width of the strip along the left edge where Safari starts its own back gesture.
-const SAFARI_EDGE_PX = 30;
+// The reader's top bar slides away once scrolled past this, and ignores smaller movements.
+const BAR_HIDE_AFTER_PX = 60;
+const BAR_SCROLL_SLACK_PX = 6;
 
 function isStandalone(): boolean {
   if (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) return true;
@@ -282,6 +283,36 @@ export default function Reader({
     });
   }
 
+  // Scrolling down slides the top bar away for more room to read; scrolling up brings it back.
+  // Near the top it always shows. Tiny movements (finger jitter, rubber-banding) are ignored.
+  const [barHidden, setBarHidden] = useState(false);
+  useEffect(() => {
+    const reader = readerRef.current;
+    if (!reader) return;
+    let lastY = reader.scrollTop;
+    let frame = 0;
+    function check() {
+      frame = 0;
+      const y = reader!.scrollTop;
+      const dy = y - lastY;
+      if (y < BAR_HIDE_AFTER_PX) {
+        setBarHidden(false);
+        lastY = y;
+      } else if (Math.abs(dy) > BAR_SCROLL_SLACK_PX) {
+        setBarHidden(dy > 0);
+        lastY = y;
+      }
+    }
+    function onScroll() {
+      if (!frame) frame = requestAnimationFrame(check);
+    }
+    reader.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      reader.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+
   // Going back slides the reader out to the right, over the overview, before it closes.
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -296,8 +327,8 @@ export default function Reader({
     closeTimer.current = setTimeout(onClose, SLIDE_OUT_MS);
   }
 
-  // Swiping right drags the reader along with the finger, showing the overview underneath, like
-  // going back in an iOS app. Let go past a third of the screen (or with a quick flick) and it
+  // In the home-screen app, swiping right drags the reader along with the finger, showing the
+  // overview underneath, like going back in an iOS app. Let go past a third of the screen (or with a quick flick) and it
   // slides away; otherwise it springs back. Mostly-horizontal drags only, and not from inside
   // something that scrolls sideways (wide tables, code) or while text is selected.
   const swipe = useRef<{ x: number; y: number; time: number; dragging: boolean | null; dx: number } | null>(null);
@@ -314,11 +345,12 @@ export default function Reader({
     for (let el = event.target as HTMLElement | null; el && el !== event.currentTarget; el = el.parentElement) {
       if (el.scrollWidth > el.clientWidth && getComputedStyle(el).overflowX !== 'visible') return;
     }
+    // In Safari, swiping back is Safari's own gesture, which already slides in a picture of the
+    // overview (the reader has its own history entry). Dragging the reader as well showed the
+    // overview twice, so in Safari the reader leaves it to Safari. The home-screen app has no such
+    // gesture, so there the reader follows the finger itself.
+    if (!isStandalone()) return;
     const touch = event.touches[0];
-    // In Safari, a swipe from the left edge is Safari's own back gesture, which already slides the
-    // overview in (the reader has its own history entry). Dragging the reader as well would show the
-    // overview twice, so leave edge swipes to Safari. The home-screen app has no such gesture.
-    if (touch.clientX < SAFARI_EDGE_PX && !isStandalone()) return;
     swipe.current = { x: touch.clientX, y: touch.clientY, time: Date.now(), dragging: null, dx: 0 };
   }
   function onTouchMove(event: TouchEvent<HTMLDivElement>) {
@@ -389,7 +421,7 @@ export default function Reader({
       {...settingsAttributes(settings)}
       data-closing={closing || undefined}
     >
-      <div className={styles.bar}>
+      <div className={styles.bar} data-hidden={barHidden || undefined}>
         <button ref={backButton} className={styles.barIcon} onClick={slideOut} aria-label="Terug" title="Terug">
           <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />

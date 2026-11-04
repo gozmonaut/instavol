@@ -203,7 +203,15 @@ describe('highlighting text', () => {
   });
 });
 
-describe('swiping back', () => {
+describe('swiping back in the home-screen app', () => {
+  beforeEach(() => {
+    Object.defineProperty(navigator, 'standalone', { value: true, configurable: true });
+  });
+
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'standalone');
+  });
+
   function swipe(reader: HTMLElement, toX: number, toY = 100) {
     fireEvent.touchStart(reader, { touches: [{ clientX: 60, clientY: 100 }] });
     fireEvent.touchMove(reader, { touches: [{ clientX: 80, clientY: 100 }] });
@@ -236,16 +244,36 @@ describe('swiping back', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  test('in Safari, a swipe from the very left edge is left to Safari\'s own back gesture', () => {
-    const reader = renderReader();
-    fireEvent.touchStart(reader, { touches: [{ clientX: 5, clientY: 100 }] });
-    fireEvent.touchMove(reader, { touches: [{ clientX: 150, clientY: 100 }] });
-    expect(reader.style.transform).toBe('');
-  });
-
   test('scrolling down is not a swipe', () => {
     const reader = renderReader();
     swipe(reader, 70, 400);
     expect(reader.style.transform).toBe('');
   });
+});
+
+test('in Safari the reader does not drag along: swiping back is left to Safari itself', () => {
+  const reader = renderReader();
+  fireEvent.touchStart(reader, { touches: [{ clientX: 80, clientY: 100 }] });
+  fireEvent.touchMove(reader, { touches: [{ clientX: 100, clientY: 100 }] });
+  fireEvent.touchMove(reader, { touches: [{ clientX: 250, clientY: 100 }] });
+  expect(reader.style.transform).toBe('');
+});
+
+test('scrolling down hides the top bar, scrolling up brings it back', async () => {
+  const reader = renderReader();
+  const bar = screen.getByRole('button', { name: 'Terug' }).parentElement!;
+  const scrollTo = (y: number) => {
+    reader.scrollTop = y;
+    act(() => {
+      reader.dispatchEvent(new Event('scroll'));
+    });
+  };
+  scrollTo(300);
+  await vi.waitFor(() => expect(bar).toHaveAttribute('data-hidden'));
+  scrollTo(280);
+  await vi.waitFor(() => expect(bar).not.toHaveAttribute('data-hidden'));
+  scrollTo(500);
+  await vi.waitFor(() => expect(bar).toHaveAttribute('data-hidden'));
+  scrollTo(20);
+  await vi.waitFor(() => expect(bar).not.toHaveAttribute('data-hidden'));
 });

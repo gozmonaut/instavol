@@ -97,6 +97,22 @@ function distinctCategories(items: LinkRow[]): string[] {
   return Array.from(categories).sort();
 }
 
+// A tap outside an open menu only closes the menu: the click that follows it (which would open the
+// card underneath, or follow a link) is swallowed. Cleared after a moment in case no click comes.
+function swallowNextClick() {
+  function swallow(event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    done();
+  }
+  function done() {
+    window.removeEventListener('click', swallow, true);
+    clearTimeout(timer);
+  }
+  window.addEventListener('click', swallow, true);
+  const timer = setTimeout(done, 600);
+}
+
 // Closes a dropdown on a tap outside it (the button that opens it handles itself), on Escape, when
 // the page really scrolls, and on rotation. At the very top of the page a tap can rubber-band the
 // screen: that fires scroll events and shifts the button, but must not close the menu again.
@@ -111,6 +127,7 @@ function useDismissibleMenu(open: boolean, close: () => void, menuRef: RefObject
     function onPointerDown(event: PointerEvent) {
       const target = event.target;
       if (target instanceof Element && (menuRef.current?.contains(target) || target.closest(triggerSelector))) return;
+      swallowNextClick();
       close();
     }
     function onKeyDown(event: KeyboardEvent) {
@@ -590,7 +607,10 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   useEffect(() => {
     if (!settingsOpen) return;
     function onPointerDown(event: PointerEvent) {
-      if (event.target instanceof Node && !settingsRef.current?.contains(event.target)) closeSettings();
+      if (event.target instanceof Node && !settingsRef.current?.contains(event.target)) {
+        swallowNextClick();
+        closeSettings();
+      }
     }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') closeSettings();
