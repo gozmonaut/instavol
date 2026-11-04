@@ -105,8 +105,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: calc(8px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px
-    max(12px, env(safe-area-inset-left));
+  /* The buttons line up with the article text: same side gutter, same centered column */
+  padding: calc(8px + env(safe-area-inset-top))
+    calc(max(0px, (100% - var(--reader-width)) / 2) + max(var(--reader-gutter), env(safe-area-inset-right))) 8px
+    calc(max(0px, (100% - var(--reader-width)) / 2) + max(var(--reader-gutter), env(safe-area-inset-left)));
   background: var(--bar);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);

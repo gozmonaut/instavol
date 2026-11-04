@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import type { LinkRow } from '@/lib/schema';
 import { groupByDate } from '@/lib/dateGroups';
 import { RESEARCH_FOCUSES, buildResearchPrompt, type ResearchFocus } from '@/lib/researchPrompt';
@@ -55,6 +55,7 @@ const ACTION_ICON_PATHS = {
   retry: ['M20 12a8 8 0 1 1-2.34-5.66', 'M20 4v4h-4'],
   delete: ['M4 7h16', 'M10 11v6', 'M14 11v6', 'M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12', 'M9 7V4h6v3'],
   done: ['M5 12.5l4.5 4.5L19 7.5'],
+  category: ['M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'],
   tag: ['M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z', 'M7.5 7.5h.01'],
 } as const;
 
@@ -85,6 +86,51 @@ function distinctCategories(items: LinkRow[]): string[] {
   return Array.from(categories).sort();
 }
 
+// Closes a dropdown on a tap outside it (the button that opens it handles itself), on Escape, when
+// the page really scrolls, and on rotation. At the very top of the page a tap can rubber-band the
+// screen: that fires scroll events and shifts the button, but must not close the menu again.
+function useDismissibleMenu(open: boolean, close: () => void, menuRef: RefObject<HTMLElement | null>, triggerSelector: string) {
+  useEffect(() => {
+    if (!open) return;
+    const startScroll = window.scrollY;
+    const startWidth = window.innerWidth;
+    const trigger = () => document.querySelector<HTMLElement>(`${triggerSelector}[aria-expanded="true"]`);
+    const startTop = trigger()?.getBoundingClientRect().top ?? 0;
+
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (target instanceof Element && (menuRef.current?.contains(target) || target.closest(triggerSelector))) return;
+      close();
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') close();
+    }
+    function onScroll(event: Event) {
+      if (event.target === document) {
+        if (window.scrollY > 0 && Math.abs(window.scrollY - startScroll) > 8) close();
+        return;
+      }
+      // Something else scrolled (the reader): close once the button has moved away.
+      const button = trigger();
+      if (!button || Math.abs(button.getBoundingClientRect().top - startTop) > 8) close();
+    }
+    function onResize() {
+      if (window.innerWidth !== startWidth) close();
+    }
+
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [open, close, menuRef, triggerSelector]);
+}
+
 export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[] }) {
   const router = useRouter();
   const [links, setLinks] = useState<LinkRow[]>(initialLinks);
@@ -95,6 +141,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   // Where the "..." dropdown hangs: just under (or, near the bottom, above) the button that opened it.
   const [menuPos, setMenuPos] = useState<{ right: number; top?: number; bottom?: number } | null>(null);
   const itemMenuRef = useRef<HTMLDivElement>(null);
+  const closeItemMenu = useCallback(() => setMenuLink(null), []);
   const [tagsLink, setTagsLink] = useState<LinkRow | null>(null);
   const [tagDraft, setTagDraft] = useState('');
   const [allTags, setAllTags] = useState<string[]>([]);
@@ -105,6 +152,11 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [researchLink, setResearchLink] = useState<LinkRow | null>(null);
   const [groupPickerOpen, setGroupPickerOpen] = useState(false);
+  const [deleteLink, setDeleteLink] = useState<LinkRow | null>(null);
+  // Where the date-group dropdown hangs: under (or, near the bottom, above) the heading that opened it.
+  const [groupPos, setGroupPos] = useState<{ left: number; top?: number; bottom?: number } | null>(null);
+  const groupMenuRef = useRef<HTMLDivElement>(null);
+  const closeGroupMenu = useCallback(() => setGroupPickerOpen(false), []);
   const [categoryMenuLink, setCategoryMenuLink] = useState<LinkRow | null>(null);
   const [editingLink, setEditingLink] = useState<LinkRow | null>(null);
   const [categoryDraft, setCategoryDraft] = useState('');
@@ -123,6 +175,25 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [passwordChanged, setPasswordChanged] = useState(false);
   const [readerLink, setReaderLink] = useState<LinkRow | null>(null);
   const closeReader = useCallback(() => setReaderLink(null), []);
+  const readerOpen = readerLink !== null;
+
+  // The reader gets its own history entry, so the browser's back button closes it and
+  // returns to the overview instead of leaving Instavol. Closing it any other way
+  // (back arrow, swipe, filter) removes that entry again.
+  useEffect(() => {
+    if (!readerOpen) return;
+    window.history.pushState(null, '');
+    let closedByBrowser = false;
+    function onPopState() {
+      closedByBrowser = true;
+      setReaderLink(null);
+    }
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      if (!closedByBrowser) window.history.back();
+    };
+  }, [readerOpen]);
   const topSentinel = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLElement>(null);
   const headerRef = useRef<HTMLElement>(null);
@@ -322,6 +393,29 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     return shareOrCopy(buildResearchPrompt(link, focus, formatDate(link.createdAt)), link.url, link.id, setPromptCopiedId);
   }
 
+  // Switches between light and dark; the choice is remembered on this device.
+  function toggleTheme() {
+    const root = document.documentElement;
+    const current = root.dataset.theme ?? (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const next = current === 'dark' ? 'light' : 'dark';
+    root.dataset.theme = next;
+    try {
+      localStorage.setItem('instavol-theme', next);
+    } catch {
+      // Private mode: the choice just isn't remembered.
+    }
+  }
+
+  // The logo goes back to the default home view: no search or filters, top of the list.
+  function goHome() {
+    setQ('');
+    setCategory('');
+    setTag('');
+    setReaderLink(null);
+    closeSettings();
+    window.scrollTo({ top: 0 });
+  }
+
   function toggleCategoryFilter(link: LinkRow) {
     setCategoryMenuLink(null);
     setCategory((current) => (current === link.category ? '' : (link.category ?? '')));
@@ -420,29 +514,9 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     section?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
   }
 
-  // The "..." menu closes on a tap outside it, on Escape, and when the page scrolls or resizes.
-  useEffect(() => {
-    if (!menuLink) return;
-    const close = () => setMenuLink(null);
-    function onPointerDown(event: PointerEvent) {
-      const target = event.target;
-      if (target instanceof Element && (itemMenuRef.current?.contains(target) || target.closest('[aria-haspopup="menu"]'))) return;
-      close();
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') close();
-    }
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('scroll', close, true);
-      window.removeEventListener('resize', close);
-    };
-  }, [menuLink]);
+  // The "..." and date-group dropdowns close on an outside tap, Escape, scrolling and rotating.
+  useDismissibleMenu(menuLink !== null, closeItemMenu, itemMenuRef, '[data-item-menu-trigger]');
+  useDismissibleMenu(groupPickerOpen, closeGroupMenu, groupMenuRef, '[data-group-trigger]');
 
   function closeSettings() {
     setSettingsOpen(false);
@@ -509,7 +583,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm('Weet je zeker dat je dit item wilt verwijderen?')) return;
+    setDeleteLink(null);
     setDeletingId(id);
     try {
       const res = await fetch(`/api/links/${id}`, { method: 'DELETE' });
@@ -544,6 +618,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
         aria-label={copied ? 'Gekopieerd' : 'Meer'}
         aria-haspopup="menu"
         aria-expanded={menuLink?.id === link.id}
+        data-item-menu-trigger
         title="Meer"
       >
         <ActionIcon name={copied ? 'done' : 'more'} />
@@ -566,6 +641,9 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     );
   }
   const groups = groupByDate(links);
+  const suggestedTags = tagsLink
+    ? allTags.filter((t) => !tagsLink.tags?.some((own) => own.toLocaleLowerCase('nl') === t.toLocaleLowerCase('nl')))
+    : [];
 
   return (
     <main ref={pageRef} className={styles.page} data-compact={compact}>
@@ -575,16 +653,27 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
       </div>
       <div className={styles.brand}>
         <h1>
-          <picture>
-            <source srcSet="/instavol-logo-dark.svg" media="(prefers-color-scheme: dark)" />
-            <img src="/instavol-logo-light.svg" alt="Instavol" className={styles.logo} />
-          </picture>
+          <button className={styles.logoButton} onClick={goHome} title="Terug naar het overzicht">
+            {/* eslint-disable-next-line @next/next/no-img-element -- small static SVG */}
+            <img src="/instavol-logo-light.svg" alt="Instavol" className={`${styles.logo} on-light`} />
+            {/* eslint-disable-next-line @next/next/no-img-element -- small static SVG */}
+            <img src="/instavol-logo-dark.svg" alt="" className={`${styles.logo} on-dark`} />
+          </button>
         </h1>
         <div className={styles.brandActions}>
           <button className={styles.iconButton} onClick={refreshLinks} disabled={refreshing} aria-label="Verversen" title="Verversen">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M20 12a8 8 0 1 1-2.34-5.66" />
               <path d="M20 4v4h-4" />
+            </svg>
+          </button>
+          <button className={styles.iconButton} onClick={toggleTheme} aria-label="Wissel tussen licht en donker" title="Licht / donker">
+            <svg className="on-light" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" />
+            </svg>
+            <svg className="on-dark" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
             </svg>
           </button>
           <div ref={settingsRef} className={styles.settings}>
@@ -735,8 +824,19 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
               <button
                 className={styles.groupButton}
                 aria-label={`${group.label}, kies een periode`}
-                aria-haspopup="dialog"
-                onClick={() => setGroupPickerOpen(true)}
+                aria-haspopup="menu"
+                aria-expanded={groupPickerOpen}
+                data-group-trigger
+                onClick={(event) => {
+                  if (groupPickerOpen) return setGroupPickerOpen(false);
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  const below = window.innerHeight - rect.bottom;
+                  setGroupPos({
+                    left: Math.max(8, rect.left),
+                    ...(below < 300 && rect.top > below ? { bottom: window.innerHeight - rect.top + 4 } : { top: rect.bottom + 4 }),
+                  });
+                  setGroupPickerOpen(true);
+                }}
               >
                 {group.label}
                 <svg width="10" height="10" viewBox="0 0 12 8" aria-hidden="true">
@@ -775,6 +875,13 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                         setReaderLink(link);
                       }}
                     >
+                      {!link.readingMinutes && (
+                        <svg className={styles.externalIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M14 4h6v6" />
+                          <path d="M20 4l-9 9" />
+                          <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
+                        </svg>
+                      )}
                       {link.title ?? link.url}
                     </a>
                     <div className={styles.meta}>
@@ -878,33 +985,48 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                 </p>
                 <p className={styles.sheetSubtitle}>{editingLink.title ?? domainFromUrl(editingLink.url)}</p>
               </div>
-              <form
-                className={styles.sheetForm}
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  saveCategory(categoryDraft);
-                }}
-              >
-                <input
-                  className={styles.sheetInput}
-                  aria-label="Nieuwe categorie"
-                  placeholder="Nieuwe categorie"
-                  enterKeyHint="done"
-                  autoCapitalize="sentences"
-                  value={categoryDraft}
-                  onChange={(event) => setCategoryDraft(event.target.value)}
-                />
-                <button type="submit" className={styles.sheetSave} disabled={!categoryDraft.trim() || savingCategory}>
-                  Bewaar
-                </button>
-              </form>
-              {allCategories
-                .filter((c) => c !== editingLink.category)
-                .map((c) => (
-                  <button key={c} className={styles.sheetOption} disabled={savingCategory} onClick={() => saveCategory(c)}>
-                    {c}
+              <div className={styles.pickerBody}>
+                <form
+                  className={styles.pickerForm}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    saveCategory(categoryDraft);
+                  }}
+                >
+                  <input
+                    className={styles.pickerInput}
+                    aria-label="Nieuwe categorie"
+                    placeholder="Nieuwe categorie"
+                    enterKeyHint="done"
+                    autoCapitalize="sentences"
+                    value={categoryDraft}
+                    onChange={(event) => setCategoryDraft(event.target.value)}
+                  />
+                  <button type="submit" className={styles.pickerSave} disabled={!categoryDraft.trim() || savingCategory}>
+                    Bewaar
                   </button>
-                ))}
+                </form>
+                {allCategories.length > 0 && (
+                  <section>
+                    <h3 className={styles.pickerLabel}>Kies een categorie</h3>
+                    <ul className={styles.chipList}>
+                      {allCategories.map((c) => (
+                        <li key={c}>
+                          <button
+                            className={`${styles.pickChip} ${c === editingLink.category ? styles.pickChipSelected : ''}`}
+                            aria-pressed={c === editingLink.category}
+                            disabled={savingCategory}
+                            onClick={() => saveCategory(c)}
+                          >
+                            {c}
+                            {c === editingLink.category && <span aria-hidden="true"> ✓</span>}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+              </div>
             </div>
             <button className={styles.sheetCancel} onClick={() => setEditingLink(null)}>
               Annuleren
@@ -913,37 +1035,26 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
         </div>
       )}
 
-      {groupPickerOpen && (
-        <div className={styles.sheetBackdrop} onClick={() => setGroupPickerOpen(false)}>
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="group-picker-title"
-            className={styles.sheet}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className={`${styles.sheetGroup} ${styles.sheetScroll}`}>
-              <div className={styles.sheetHeader}>
-                <p id="group-picker-title" className={styles.sheetTitle}>
-                  Ga naar
-                </p>
-              </div>
-              {groups.map((group) => (
-                <button
-                  key={group.label}
-                  className={styles.sheetOption}
-                  aria-label={`${group.label} (${group.items.length})`}
-                  onClick={() => jumpToGroup(group.label)}
-                >
-                  {group.label}
-                  <span className={styles.sheetCount}>{group.items.length}</span>
-                </button>
-              ))}
-            </div>
-            <button className={styles.sheetCancel} onClick={() => setGroupPickerOpen(false)}>
-              Annuleren
+      {groupPickerOpen && groupPos && (
+        <div
+          ref={groupMenuRef}
+          role="menu"
+          aria-label="Ga naar"
+          className={`${styles.popover} ${styles.itemMenu} ${styles.groupMenu}`}
+          style={{ ...groupPos, right: 'auto' }}
+        >
+          {groups.map((group) => (
+            <button
+              key={group.label}
+              className={`${styles.popoverItem} ${styles.menuOption}`}
+              role="menuitem"
+              aria-label={`${group.label} (${group.items.length})`}
+              onClick={() => jumpToGroup(group.label)}
+            >
+              <span>{group.label}</span>
+              <span className={styles.sheetCount}>{group.items.length}</span>
             </button>
-          </div>
+          ))}
         </div>
       )}
 
@@ -1000,6 +1111,12 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                     {readerLink.category}
                   </button>
                 )}
+                {readerLink.category && readerLink.tags?.length > 0 && (
+                  <svg className={styles.labelArrow} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M5 12h14" />
+                    <path d="M13 6l6 6-6 6" />
+                  </svg>
+                )}
                 {tagList(readerLink)}
               </>
             )
@@ -1018,6 +1135,10 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
           <button className={`${styles.popoverItem} ${styles.menuOption}`} role="menuitem" onClick={() => chooseFromMenu(openTags)}>
             <span>Tags toevoegen</span>
             <ActionIcon name="tag" />
+          </button>
+          <button className={`${styles.popoverItem} ${styles.menuOption}`} role="menuitem" onClick={() => chooseFromMenu(startEditingCategory)}>
+            <span>Categorie wijzigen</span>
+            <ActionIcon name="category" />
           </button>
           <button className={`${styles.popoverItem} ${styles.menuOption}`} role="menuitem" onClick={() => chooseFromMenu(handleShare)}>
             <span>Delen</span>
@@ -1042,11 +1163,42 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             className={`${styles.popoverItem} ${styles.menuOption} ${styles.menuDanger}`}
             role="menuitem"
             disabled={deletingId === menuLink.id}
-            onClick={() => chooseFromMenu((link) => handleDelete(link.id))}
+            onClick={() => chooseFromMenu(setDeleteLink)}
           >
             <span>Verwijderen</span>
             <ActionIcon name="delete" />
           </button>
+        </div>
+      )}
+
+      {deleteLink && (
+        <div className={styles.dialogBackdrop} onClick={() => setDeleteLink(null)}>
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-title"
+            aria-describedby="delete-text"
+            className={styles.dialog}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={styles.dialogBody}>
+              <p id="delete-title" className={styles.dialogTitle}>
+                Item verwijderen?
+              </p>
+              <p id="delete-text" className={styles.dialogText}>
+                Weet je zeker dat je dit item wilt verwijderen?
+              </p>
+              <p className={styles.dialogItem}>{deleteLink.title ?? domainFromUrl(deleteLink.url)}</p>
+            </div>
+            <div className={styles.dialogActions}>
+              <button className={styles.dialogButton} onClick={() => setDeleteLink(null)}>
+                Annuleren
+              </button>
+              <button className={`${styles.dialogButton} ${styles.dialogDanger}`} onClick={() => handleDelete(deleteLink.id)}>
+                Verwijderen
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1066,50 +1218,63 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                 </p>
                 <p className={styles.sheetSubtitle}>{tagsLink.title ?? domainFromUrl(tagsLink.url)}</p>
               </div>
-              {tagsLink.tags?.length > 0 && (
-                <ul className={`${readerStyles.tags} ${styles.tagEditorList}`} aria-label="Huidige tags">
-                  {tagsLink.tags.map((t) => (
-                    <li key={t}>
-                      <button
-                        className={readerStyles.tag}
-                        aria-label={`Tag ${t} verwijderen`}
-                        disabled={savingTags}
-                        onClick={() => saveTags(tagsLink, tagsLink.tags.filter((other) => other !== t))}
-                      >
-                        {t} ✕
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <form
-                className={styles.sheetForm}
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  addTag(tagsLink, tagDraft);
-                }}
-              >
-                <input
-                  className={styles.sheetInput}
-                  aria-label="Nieuwe tag"
-                  placeholder="Nieuwe tag"
-                  enterKeyHint="done"
-                  autoCapitalize="none"
-                  maxLength={40}
-                  value={tagDraft}
-                  onChange={(event) => setTagDraft(event.target.value)}
-                />
-                <button type="submit" className={styles.sheetSave} disabled={!tagDraft.trim() || savingTags}>
-                  Voeg toe
-                </button>
-              </form>
-              {allTags
-                .filter((t) => !tagsLink.tags?.some((own) => own.toLocaleLowerCase('nl') === t.toLocaleLowerCase('nl')))
-                .map((t) => (
-                  <button key={t} className={styles.sheetOption} disabled={savingTags} onClick={() => addTag(tagsLink, t)}>
-                    {t}
+              <div className={styles.pickerBody}>
+                <form
+                  className={styles.pickerForm}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    addTag(tagsLink, tagDraft);
+                  }}
+                >
+                  <input
+                    className={styles.pickerInput}
+                    aria-label="Nieuwe tag"
+                    placeholder="Nieuwe tag"
+                    enterKeyHint="done"
+                    autoCapitalize="none"
+                    maxLength={40}
+                    value={tagDraft}
+                    onChange={(event) => setTagDraft(event.target.value)}
+                  />
+                  <button type="submit" className={styles.pickerSave} disabled={!tagDraft.trim() || savingTags}>
+                    Voeg toe
                   </button>
-                ))}
+                </form>
+                {tagsLink.tags?.length > 0 && (
+                  <section>
+                    <h3 className={styles.pickerLabel}>Op dit artikel</h3>
+                    <ul className={styles.chipList} aria-label="Huidige tags">
+                      {tagsLink.tags.map((t) => (
+                        <li key={t}>
+                          <button
+                            className={`${styles.pickChip} ${styles.pickChipSelected}`}
+                            aria-label={`Tag ${t} verwijderen`}
+                            disabled={savingTags}
+                            onClick={() => saveTags(tagsLink, tagsLink.tags.filter((other) => other !== t))}
+                          >
+                            {t}
+                            <span aria-hidden="true"> ✕</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+                {suggestedTags.length > 0 && (
+                  <section>
+                    <h3 className={styles.pickerLabel}>Eerder gebruikt</h3>
+                    <ul className={styles.chipList}>
+                      {suggestedTags.map((t) => (
+                        <li key={t}>
+                          <button className={styles.pickChip} disabled={savingTags} onClick={() => addTag(tagsLink, t)}>
+                            {t}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+              </div>
             </div>
             <button className={styles.sheetCancel} onClick={() => setTagsLink(null)}>
               Klaar

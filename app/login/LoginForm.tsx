@@ -43,10 +43,10 @@ export default function LoginForm() {
           <img src="/instavol-icon.svg" alt="" className={styles.icon} />
         </div>
         <h1 className={styles.wordmark}>
-          <picture>
-            <source srcSet="/instavol-logo-wordmark-dark.svg" media="(prefers-color-scheme: dark)" />
-            <img src="/instavol-logo-wordmark-light.svg" alt="Instavol" />
-          </picture>
+          {/* eslint-disable-next-line @next/next/no-img-element -- small static SVG */}
+          <img src="/instavol-logo-wordmark-light.svg" alt="Instavol" className="on-light" />
+          {/* eslint-disable-next-line @next/next/no-img-element -- small static SVG */}
+          <img src="/instavol-logo-wordmark-dark.svg" alt="" className="on-dark" />
         </h1>
         <p className={styles.tagline}>Bewaar, vat samen, vind terug.</p>
       </div>

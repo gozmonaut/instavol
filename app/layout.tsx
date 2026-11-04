@@ -31,9 +31,15 @@ export const viewport: Viewport = {
   ],
 };
 
+// Applies the theme chosen with the header button before the first paint, so there is no flash.
+const themeScript = `try{var t=localStorage.getItem('instavol-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="nl" className={legible.variable}>
+    <html lang="nl" className={legible.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>{children}</body>
     </html>
   );

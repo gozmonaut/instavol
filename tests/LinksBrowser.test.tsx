@@ -120,6 +120,23 @@ describe('the category menu', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  test('"Categorie wijzigen" is also in the "..." menu', async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) =>
+      Promise.resolve(
+        url === '/api/categories'
+          ? { ok: true, json: async () => ({ categories: ['Tech', 'Koken'] }) }
+          : { ok: true, json: async () => ({ ...fixture[0], category: JSON.parse(String(init?.body)).category }) },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LinksBrowser initialLinks={fixture} />);
+    await chooseAction('Categorie wijzigen', moreButton(0));
+    expect(await screen.findByRole('button', { name: 'Tech' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(screen.getByRole('button', { name: 'Koken' }));
+    expect(fetchMock).toHaveBeenCalledWith('/api/links/1', expect.objectContaining({ body: JSON.stringify({ category: 'Koken' }) }));
+    expect(await screen.findByRole('button', { name: 'Categorie Koken' })).toBeInTheDocument();
+  });
+
   test('a new category can be typed and saved with Enter', async () => {
     const fetchMock = vi.fn((url: string, init?: RequestInit) =>
       Promise.resolve(
@@ -142,6 +159,100 @@ describe('the category menu', () => {
     );
     expect(await screen.findByRole('button', { name: 'Categorie Wetenschap' })).toBeInTheDocument();
   });
+});
+
+describe('browser back button in the reader', () => {
+  const article = { ...fixture[0], readingMinutes: 2 };
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ html: '<p>Tekst</p>' }) }));
+  });
+
+  test('opening the reader adds a history entry, and back closes the reader', async () => {
+    const push = vi.spyOn(window.history, 'pushState');
+    render(<LinksBrowser initialLinks={[article]} />);
+    await userEvent.click(screen.getByRole('link', { name: article.title! }));
+    expect(screen.getByRole('dialog', { name: article.title! })).toBeInTheDocument();
+    expect(push).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  test('closing with the back arrow removes the extra history entry again', async () => {
+    const back = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+    render(<LinksBrowser initialLinks={[article]} />);
+    await userEvent.click(screen.getByRole('link', { name: article.title! }));
+    await userEvent.click(screen.getByRole('button', { name: 'Terug' }));
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+});
+
+test('only items without a reader view show the external link icon before the title', () => {
+  const { container } = render(<LinksBrowser initialLinks={[fixture[0], { ...fixture[1], readingMinutes: 3 }]} />);
+  expect(container.querySelectorAll('svg[class*="externalIcon"]')).toHaveLength(1);
+  expect(screen.getByRole('link', { name: fixture[0].title! }).querySelector('svg')).not.toBeNull();
+  expect(screen.getByRole('link', { name: fixture[1].title! }).querySelector('svg')).toBeNull();
+});
+
+describe('light and dark mode button', () => {
+  afterEach(() => {
+    delete document.documentElement.dataset.theme;
+    localStorage.removeItem('instavol-theme');
+  });
+
+  test('switches the theme on <html> and remembers it', async () => {
+    render(<LinksBrowser initialLinks={fixture} />);
+    const button = screen.getByRole('button', { name: 'Wissel tussen licht en donker' });
+    document.documentElement.dataset.theme = 'light';
+    await userEvent.click(button);
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(localStorage.getItem('instavol-theme')).toBe('dark');
+    await userEvent.click(button);
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(localStorage.getItem('instavol-theme')).toBe('light');
+  });
+});
+
+describe('the "..." menu and scrolling', () => {
+  afterEach(() => {
+    Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+  });
+
+  test('rubber-banding at the top of the page (scroll events at scrollY 0) keeps the menu open', async () => {
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(moreButton(0));
+    act(() => {
+      document.dispatchEvent(new Event('scroll'));
+      window.dispatchEvent(new Event('scroll'));
+    });
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
+
+  test('really scrolling the page closes the menu', async () => {
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(moreButton(0));
+    Object.defineProperty(window, 'scrollY', { value: 120, configurable: true });
+    act(() => {
+      document.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+});
+
+test('clicking the logo clears the search and filters', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ links: fixture }) });
+  vi.stubGlobal('fetch', fetchMock);
+  window.scrollTo = vi.fn();
+  render(<LinksBrowser initialLinks={fixture} />);
+  await userEvent.type(screen.getByRole('searchbox'), 'Artikel A');
+  await userEvent.selectOptions(screen.getByRole('combobox'), 'Tech');
+  await userEvent.click(screen.getByRole('button', { name: 'Instavol' }));
+  expect(screen.getByRole('searchbox')).toHaveValue('');
+  expect(screen.getByRole('combobox')).toHaveValue('');
+  expect(window.scrollTo).toHaveBeenCalledWith({ top: 0 });
 });
 
 test('clicking retry calls the reprocess endpoint and updates the item', async () => {
@@ -213,21 +324,21 @@ describe('jumping between date groups', () => {
   test('tapping a heading lists all groups with their counts, and choosing one scrolls to it', async () => {
     const { container } = render(<LinksBrowser initialLinks={[fixture[0], older]} />);
     await userEvent.click(screen.getByRole('button', { name: 'Vandaag, kies een periode' }));
-    const dialog = screen.getByRole('dialog', { name: 'Ga naar' });
-    expect(dialog).toHaveTextContent('Vandaag');
-    expect(dialog).toHaveTextContent('Vorige week');
-    await userEvent.click(screen.getByRole('button', { name: 'Vorige week (1)' }));
+    const menu = screen.getByRole('menu', { name: 'Ga naar' });
+    expect(menu).toHaveTextContent('Vandaag');
+    expect(menu).toHaveTextContent('Vorige week');
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Vorige week (1)' }));
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
     expect(scrollIntoView.mock.contexts[0]).toBe(container.querySelector('section[data-group="Vorige week"]'));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
-  test('Annuleren closes the list without scrolling', async () => {
+  test('Escape closes the list without scrolling', async () => {
     render(<LinksBrowser initialLinks={[fixture[0], older]} />);
     await userEvent.click(screen.getByRole('button', { name: 'Vandaag, kies een periode' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Annuleren' }));
+    await userEvent.keyboard('{Escape}');
     expect(scrollIntoView).not.toHaveBeenCalled();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 });
 
@@ -437,9 +548,10 @@ describe('auto-refresh while items are pending', () => {
 test('clicking delete and confirming calls the delete endpoint and removes the item', async () => {
   const fetchMock = vi.fn().mockResolvedValue({ ok: true });
   vi.stubGlobal('fetch', fetchMock);
-  vi.spyOn(window, 'confirm').mockReturnValue(true);
   render(<LinksBrowser initialLinks={fixture} />);
   await chooseAction('Verwijderen', moreButton(0));
+  expect(fetchMock).not.toHaveBeenCalled();
+  await userEvent.click(within(screen.getByRole('alertdialog', { name: 'Item verwijderen?' })).getByRole('button', { name: 'Verwijderen' }));
   expect(fetchMock).toHaveBeenCalledWith('/api/links/1', expect.objectContaining({ method: 'DELETE' }));
   await waitFor(() => expect(screen.queryByText('Artikel A')).not.toBeInTheDocument());
   expect(screen.getByText('Artikel B')).toBeInTheDocument();
@@ -448,9 +560,10 @@ test('clicking delete and confirming calls the delete endpoint and removes the i
 test('cancelling the delete confirmation keeps the item and does not call the endpoint', async () => {
   const fetchMock = vi.fn();
   vi.stubGlobal('fetch', fetchMock);
-  vi.spyOn(window, 'confirm').mockReturnValue(false);
   render(<LinksBrowser initialLinks={fixture} />);
   await chooseAction('Verwijderen', moreButton(0));
+  await userEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Annuleren' }));
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   expect(fetchMock).not.toHaveBeenCalled();
   expect(screen.getByText('Artikel A')).toBeInTheDocument();
 });
@@ -616,10 +729,10 @@ describe('the reader', () => {
       Promise.resolve(init?.method === 'DELETE' ? { ok: true } : { ok: true, json: async () => ({ html: '<p>Tekst</p>' }) }),
     );
     vi.stubGlobal('fetch', fetchMock);
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<LinksBrowser initialLinks={[article]} />);
     await userEvent.click(screen.getByRole('link', { name: article.title! }));
     await chooseAction('Verwijderen', within(screen.getByRole('dialog')).getByRole('button', { name: 'Meer' }));
+    await userEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Verwijderen' }));
 
     expect(fetchMock).toHaveBeenCalledWith('/api/links/9', expect.objectContaining({ method: 'DELETE' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());

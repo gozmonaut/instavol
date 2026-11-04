@@ -15,8 +15,10 @@
   --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 8px rgba(0, 0, 0, 0.04);
 }
 
+/* The header's theme button sets data-theme on <html>; without it the device setting decides */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
     --background: #000000;
     --surface: #1c1c1e;
     --bar: rgba(0, 0, 0, 0.78);
@@ -29,6 +31,44 @@
     --accent-soft: rgba(10, 132, 255, 0.18);
     --danger: #ff453a;
     --card-shadow: none;
+  }
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --background: #000000;
+  --surface: #1c1c1e;
+  --bar: rgba(0, 0, 0, 0.78);
+  --fill: rgba(118, 118, 128, 0.24);
+  --separator: rgba(84, 84, 88, 0.6);
+  --text: #ffffff;
+  --text-secondary: rgba(235, 235, 245, 0.6);
+  --text-tertiary: rgba(235, 235, 245, 0.3);
+  --accent: #0a84ff;
+  --accent-soft: rgba(10, 132, 255, 0.18);
+  --danger: #ff453a;
+  --card-shadow: none;
+}
+
+/* Light and dark variants of one image or icon: .on-light and .on-dark show only in their own theme */
+:root[data-theme='light'] .on-dark,
+:root[data-theme='dark'] .on-light {
+  display: none !important;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .on-dark {
+    display: none !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .on-light {
+    display: none !important;
   }
 }
 

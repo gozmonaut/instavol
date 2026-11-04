@@ -101,6 +101,18 @@
   z-index: 110;
 }
 
+.groupMenu {
+  min-width: 200px;
+  max-height: 60dvh;
+  overflow-y: auto;
+  transform-origin: top left;
+  -webkit-overflow-scrolling: touch;
+}
+
+.groupMenu[style*='bottom'] {
+  transform-origin: bottom left;
+}
+
 .itemMenu[style*='bottom'] {
   transform-origin: bottom right;
 }
@@ -175,6 +187,21 @@
 }
 
 /* Logo artwork is 745×200 */
+/* Small grey arrow in the reader, from the category label towards the tags */
+.labelArrow {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.logoButton {
+  display: block;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .logo {
   display: block;
   height: 34px;
@@ -330,6 +357,14 @@
   overflow-wrap: anywhere;
 }
 
+/* Items without a reader view open the site itself; the icon says so */
+.externalIcon {
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: -1px;
+  color: var(--text-secondary);
+}
+
 .meta {
   grid-area: meta;
   display: flex;
@@ -375,13 +410,13 @@
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: calc(12rem / 17);
+  font-size: calc(13rem / 17);
   font-weight: 500;
   color: var(--accent);
   background: var(--accent-soft);
   border: none;
   border-radius: 999px;
-  padding: 2px 8px;
+  padding: 3px 10px;
   white-space: nowrap;
   font-family: inherit;
   cursor: pointer;
@@ -543,6 +578,111 @@
 .menuDanger,
 .menuDanger svg {
   color: var(--danger);
+}
+
+.pickerBody {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px;
+}
+
+.pickerForm {
+  display: flex;
+  gap: 8px;
+}
+
+.pickerInput {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  padding: 0 16px;
+  font: inherit;
+  font-size: max(16px, 1rem);
+  color: var(--text);
+  background: var(--fill);
+  border: none;
+  border-radius: 999px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.pickerInput:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.pickerSave {
+  flex-shrink: 0;
+  height: 44px;
+  padding: 0 18px;
+  font: inherit;
+  font-size: calc(16rem / 17);
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--accent);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: opacity 120ms, transform 120ms;
+}
+
+.pickerSave:active {
+  transform: scale(0.96);
+}
+
+.pickerSave:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.pickerLabel {
+  margin-bottom: 8px;
+  font-size: calc(13rem / 17);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.chipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pickChip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  height: 36px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: calc(16rem / 17);
+  color: var(--text);
+  background: var(--fill);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 120ms, transform 120ms;
+}
+
+.pickChip:active {
+  transform: scale(0.95);
+}
+
+.pickChip:disabled {
+  opacity: 0.5;
+}
+
+.pickChipSelected {
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
 }
 
 .tagEditorList {
@@ -714,6 +854,88 @@
   color: var(--text-tertiary);
 }
 
+/* Confirmation dialog, centered in the app like an iOS alert */
+.dialogBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.35);
+  animation: fadeIn 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.dialog {
+  width: 100%;
+  max-width: 300px;
+  overflow: hidden;
+  background: var(--surface);
+  border-radius: 14px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
+  animation: popIn 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.dialogBody {
+  padding: 20px 16px 16px;
+  text-align: center;
+}
+
+.dialogTitle {
+  font-size: calc(17rem / 17);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dialogText {
+  margin-top: 4px;
+  font-size: calc(15rem / 17);
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+
+.dialogItem {
+  margin-top: 8px;
+  font-size: calc(15rem / 17);
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dialogActions {
+  display: flex;
+  border-top: 0.5px solid var(--separator);
+}
+
+.dialogButton {
+  flex: 1;
+  height: 48px;
+  font: inherit;
+  font-size: calc(17rem / 17);
+  color: var(--accent);
+  background: var(--surface);
+  border: none;
+  cursor: pointer;
+}
+
+.dialogButton + .dialogButton {
+  font-weight: 600;
+  border-left: 0.5px solid var(--separator);
+}
+
+.dialogButton:active {
+  background: var(--fill);
+}
+
+.dialogDanger {
+  color: var(--danger);
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -739,7 +961,8 @@
 
   .sheetBackdrop,
   .sheet,
-  .popover {
+  .popover,
+  .dialog {
     animation: none;
   }
 }
