@@ -808,6 +808,18 @@
   }
 }
 
+/* Back: the reader slides out to the right and the overview shows again */
+.reader[data-closing] {
+  pointer-events: none;
+  animation: slideOut 280ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes slideOut {
+  to {
+    transform: translateX(100%);
+  }
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

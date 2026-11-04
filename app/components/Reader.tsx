@@ -11,6 +11,9 @@ type ContentState = { status: 'loading' } | { status: 'ready'; html: string; rec
 
 type Sheet = 'settings' | 'note' | null;
 
+// Matches the slideOut animation in Reader.module.css.
+const SLIDE_OUT_MS = 280;
+
 function formatPublished(value: Date | string): string {
   const date = typeof value === 'string' ? new Date(value) : value;
   return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'long' }).format(date);
@@ -269,6 +272,20 @@ export default function Reader({
     });
   }
 
+  // Going back slides the reader out to the right, over the overview, before it closes.
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(closeTimer.current), []);
+  function slideOut() {
+    if (closing) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      onClose();
+      return;
+    }
+    setClosing(true);
+    closeTimer.current = setTimeout(onClose, SLIDE_OUT_MS);
+  }
+
   // A swipe to the right goes back to the overview, like the back button. Mostly-horizontal
   // swipes only, and not from inside something that scrolls sideways (wide tables, code).
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
@@ -290,7 +307,7 @@ export default function Reader({
     const touch = event.changedTouches[0];
     const dx = touch.clientX - start.x;
     const dy = touch.clientY - start.y;
-    if (dx > 80 && dx > Math.abs(dy) * 2) onClose();
+    if (dx > 80 && dx > Math.abs(dy) * 2) slideOut();
   }
 
   // A recipe shows only the recipe: no summary, author, date or reading time.
@@ -327,9 +344,10 @@ export default function Reader({
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
       {...settingsAttributes(settings)}
+      data-closing={closing || undefined}
     >
       <div className={styles.bar}>
-        <button ref={backButton} className={styles.barIcon} onClick={onClose} aria-label="Terug" title="Terug">
+        <button ref={backButton} className={styles.barIcon} onClick={slideOut} aria-label="Terug" title="Terug">
           <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>

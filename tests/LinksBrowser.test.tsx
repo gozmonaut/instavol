@@ -188,7 +188,7 @@ describe('browser back button in the reader', () => {
     render(<LinksBrowser initialLinks={[article]} />);
     await userEvent.click(screen.getByRole('link', { name: article.title! }));
     await userEvent.click(screen.getByRole('button', { name: 'Terug' }));
-    expect(back).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(back).toHaveBeenCalledTimes(1));
   });
 });
 
@@ -692,7 +692,9 @@ describe('the reader', () => {
     render(<LinksBrowser initialLinks={[article]} />);
     await userEvent.click(screen.getByRole('link', { name: article.title! }));
     await userEvent.click(screen.getByRole('button', { name: 'Terug' }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // Slides out first, then closes.
+    expect(screen.getByRole('dialog')).toHaveAttribute('data-closing', 'true');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
     await userEvent.click(screen.getByRole('link', { name: article.title! }));
     await userEvent.keyboard('{Escape}');
