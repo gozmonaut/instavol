@@ -543,12 +543,10 @@ export default function Reader({
               }}
             />
           )}
-          <div className={styles.headerText}>
-            <h1 id="reader-title" className={styles.title}>
-              {link.title ?? domain}
-            </h1>
-            <p className={styles.meta}>{meta.join(' · ')}</p>
-          </div>
+          <h1 id="reader-title" className={styles.title}>
+            {link.title ?? domain}
+          </h1>
+          <p className={styles.meta}>{meta.join(' · ')}</p>
         </header>
         {showSummary && <p className={styles.summary}>{link.summary}</p>}
         {notes.length > 0 && (

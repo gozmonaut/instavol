@@ -294,20 +294,15 @@
   opacity: 0.5;
 }
 
-/* The card's image next to the title and meta */
+/* The card's image, with the title and meta flowing around it; flow-root keeps the
+   summary below from wrapping around it too */
 .header {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-}
-
-.headerText {
-  flex: 1;
-  min-width: 0;
+  display: flow-root;
 }
 
 .thumbnail {
-  flex: none;
+  float: left;
+  margin: 4px 14px 8px 0;
   width: calc(92rem / 17);
   height: calc(92rem / 17);
   object-fit: cover;
