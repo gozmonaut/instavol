@@ -292,10 +292,53 @@
   appearance: none;
 }
 
-.search {
+/* The field with a round cross at its right end that clears the search term */
+.searchWrap {
+  position: relative;
   flex: 1;
   min-width: 0;
-  padding: 0 14px;
+}
+
+.search {
+  width: 100%;
+  padding: 0 40px 0 14px;
+}
+
+/* Our own cross replaces the browser's, which Safari draws differently (or not at all) */
+.search::-webkit-search-cancel-button,
+.search::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
+.searchClear {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-top: -11px;
+  padding: 0;
+  color: var(--bar);
+  background: var(--text-tertiary);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* A bigger area to tap than the small cross itself */
+.searchClear::after {
+  content: '';
+  position: absolute;
+  inset: -11px;
+}
+
+.searchClear:active {
+  background: var(--text-secondary);
 }
 
 .search::placeholder {

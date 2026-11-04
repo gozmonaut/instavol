@@ -261,6 +261,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const topSentinel = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLElement>(null);
   const headerRef = useRef<HTMLElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const brandRef = useRef<HTMLDivElement>(null);
 
   // Date headings stick right below the search header (and the logo bar, when it shows), whose
@@ -870,21 +871,42 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
         </div>
         <header ref={headerRef} className={styles.header}>
           <div className={styles.controls}>
-            <input
-              type="search"
-              enterKeyHint="go"
-              autoCapitalize="none"
-              autoCorrect="off"
-              aria-label="Zoek of plak een link"
-              placeholder="Zoek of plak een link"
-              className={styles.search}
-              value={q}
-              onChange={(event) => setQ(event.target.value)}
-              onKeyDown={(event) => {
-                const url = parseShareUrl(q);
-                if (event.key === 'Enter' && url && !saving) handleSave(url);
-              }}
-            />
+            <div className={styles.searchWrap}>
+              <input
+                ref={searchRef}
+                type="search"
+                enterKeyHint="go"
+                autoCapitalize="none"
+                autoCorrect="off"
+                aria-label="Zoek of plak een link"
+                placeholder="Zoek op tekst of tag, of plak een link"
+                className={styles.search}
+                value={q}
+                onChange={(event) => setQ(event.target.value)}
+                onKeyDown={(event) => {
+                  const url = parseShareUrl(q);
+                  if (event.key === 'Enter' && url && !saving) handleSave(url);
+                }}
+              />
+              {q && (
+                <button
+                  type="button"
+                  className={styles.searchClear}
+                  aria-label="Zoekterm wissen"
+                  title="Wissen"
+                  // Keeps the keyboard open: the field must not lose focus when tapping the cross.
+                  onPointerDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    setQ('');
+                    searchRef.current?.focus();
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                </button>
+              )}
+            </div>
             <select
               aria-label="Categorie"
               className={styles.select}

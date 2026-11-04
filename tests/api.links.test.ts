@@ -36,6 +36,16 @@ test('q matches the summary column', async () => {
   expect(body.links.map((l: { url: string }) => l.url)).toEqual(['https://b.example']);
 });
 
+test('q also finds an item by one of its tags, or by part of a tag', async () => {
+  await db.insert(links).values({ url: 'https://a.example', title: 'Ander ding', tags: ['romeinen', 'geschiedenis'] });
+  await db.insert(links).values({ url: 'https://b.example', title: 'Niets', tags: ['koken'] });
+  await db.insert(links).values({ url: 'https://c.example', title: 'Zonder tags' });
+  const exact = await (await GET(new Request('https://x/api/links?q=ROMEINEN'))).json();
+  expect(exact.links.map((l: { url: string }) => l.url)).toEqual(['https://a.example']);
+  const part = await (await GET(new Request('https://x/api/links?q=geschied'))).json();
+  expect(part.links.map((l: { url: string }) => l.url)).toEqual(['https://a.example']);
+});
+
 test('q and category filters combine', async () => {
   await db.insert(links).values({ url: 'https://a.example', title: 'Interessant', category: 'Tech' });
   await db.insert(links).values({ url: 'https://b.example', title: 'Interessant', category: 'Koken' });

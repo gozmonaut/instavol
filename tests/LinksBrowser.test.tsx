@@ -352,6 +352,20 @@ describe('opening the app again', () => {
   });
 });
 
+describe('clearing the search term', () => {
+  test('the cross shows only with text, and clears it and keeps focus in the field', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => ({ links: fixture }) }));
+    render(<LinksBrowser initialLinks={fixture} />);
+    expect(screen.queryByRole('button', { name: 'Zoekterm wissen' })).not.toBeInTheDocument();
+    const field = screen.getByRole('searchbox');
+    await userEvent.type(field, 'romeinen');
+    await userEvent.click(screen.getByRole('button', { name: 'Zoekterm wissen' }));
+    expect(field).toHaveValue('');
+    expect(field).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'Zoekterm wissen' })).not.toBeInTheDocument();
+  });
+});
+
 test('clicking the logo clears the search and filters', async () => {
   const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ links: fixture }) });
   vi.stubGlobal('fetch', fetchMock);
