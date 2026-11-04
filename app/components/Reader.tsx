@@ -22,6 +22,8 @@ const SAFARI_EDGE_PX = 30;
 
 // A note longer than this many sentences is cut off behind "Lees meer".
 const NOTE_MAX_SENTENCES = 7;
+// Matches scroll-margin-top of .noteText: room for the top bar above a note scrolled to.
+const NOTE_SCROLL_MARGIN_PX = 72;
 
 function isStandalone(): boolean {
   if (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) return true;
@@ -661,13 +663,22 @@ function NoteText({ text }: { text: string }) {
   const paragraph = useRef<HTMLParagraphElement>(null);
   const sentences = useMemo(() => splitSentences(text), [text]);
   const long = sentences.length > NOTE_MAX_SENTENCES;
-  // Collapsing again takes you back to the start of the note, if that scrolled out of view.
+  // Collapsing again takes you back to the start of the note, if that scrolled out of view (or sits
+  // under the top bar). Done after the note has shrunk, and with block 'start': 'nearest' does nothing
+  // for a note taller than the screen.
+  const collapsed = useRef(false);
   function toggle() {
+    collapsed.current = expanded;
     setExpanded(!expanded);
-    if (!expanded) return;
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    paragraph.current?.scrollIntoView?.({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
   }
+  useEffect(() => {
+    if (!collapsed.current) return;
+    collapsed.current = false;
+    const element = paragraph.current;
+    if (!element || element.getBoundingClientRect().top >= NOTE_SCROLL_MARGIN_PX) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    element.scrollIntoView?.({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  }, [expanded]);
   const shown = long && !expanded ? sentences.slice(0, NOTE_MAX_SENTENCES).join('').trimEnd() : text;
   return (
     <>

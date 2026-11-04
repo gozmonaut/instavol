@@ -166,6 +166,8 @@ test('a note of more than 7 sentences is cut off behind "Lees meer"', async () =
   // Back at the start of that note.
   expect(scrollIntoView).toHaveBeenCalledTimes(1);
   expect(scrollIntoView.mock.contexts[0]).toHaveTextContent('Zin 1.');
+  // 'nearest' would do nothing for a note taller than the screen.
+  expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: 'start' }));
   expect(region).not.toHaveTextContent('Zin 8.');
 });
 
