@@ -149,6 +149,8 @@ test('a note of more than 7 sentences is cut off behind "Lees meer"', async () =
   const text = Array.from({ length: 9 }, (_, i) => `Zin ${i + 1}.`).join(' ');
   const short = { id: 'n2', text: 'Kort. Heel kort.', createdAt: '2026-11-01T12:00:00.000Z' };
   const long = { id: 'n1', text, createdAt: '2026-11-01T12:00:00.000Z' };
+  const scrollIntoView = vi.fn();
+  Element.prototype.scrollIntoView = scrollIntoView;
   render(<Reader link={{ ...link, notes: [short, long] }} domain="a.example" actions={null} onClose={vi.fn()} />);
 
   const region = screen.getByRole('region', { name: /Notities/ });
@@ -159,7 +161,11 @@ test('a note of more than 7 sentences is cut off behind "Lees meer"', async () =
 
   await user.click(screen.getByRole('button', { name: 'Lees meer' }));
   expect(region).toHaveTextContent('Zin 9.');
+  expect(scrollIntoView).not.toHaveBeenCalled();
   await user.click(screen.getByRole('button', { name: 'Minder' }));
+  // Back at the start of that note.
+  expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  expect(scrollIntoView.mock.contexts[0]).toHaveTextContent('Zin 1.');
   expect(region).not.toHaveTextContent('Zin 8.');
 });
 

@@ -658,17 +658,25 @@ function splitSentences(text: string): string[] {
 // The text of a note: the first few sentences, and the rest behind "Lees meer".
 function NoteText({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
+  const paragraph = useRef<HTMLParagraphElement>(null);
   const sentences = useMemo(() => splitSentences(text), [text]);
   const long = sentences.length > NOTE_MAX_SENTENCES;
+  // Collapsing again takes you back to the start of the note, if that scrolled out of view.
+  function toggle() {
+    setExpanded(!expanded);
+    if (!expanded) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    paragraph.current?.scrollIntoView?.({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
+  }
   const shown = long && !expanded ? sentences.slice(0, NOTE_MAX_SENTENCES).join('').trimEnd() : text;
   return (
     <>
-      <p className={styles.noteText}>
+      <p ref={paragraph} className={styles.noteText}>
         {shown}
         {long && !expanded && '…'}
       </p>
       {long && (
-        <button className={styles.noteMore} onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>
+        <button className={styles.noteMore} onClick={toggle} aria-expanded={expanded}>
           {expanded ? 'Minder' : 'Lees meer'}
         </button>
       )}

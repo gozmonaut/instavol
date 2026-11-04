@@ -541,6 +541,8 @@
   line-height: 1.45;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  /* Keeps the start of a note below the top bar when scrolled back to */
+  scroll-margin-top: calc(72px + env(safe-area-inset-top));
 }
 
 .noteMore {
