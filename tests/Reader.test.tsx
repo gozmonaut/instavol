@@ -55,6 +55,16 @@ test('settings change the reader right away and are remembered on this device', 
   expect(loadSettings().theme).toBe('auto');
 });
 
+test("shows the card's image next to the title, only when there is one", () => {
+  const { container, rerender } = render(<Reader link={link} domain="a.example" actions={null} onClose={vi.fn()} />);
+  expect(container.querySelector('img')).toBeNull();
+
+  rerender(
+    <Reader link={{ ...link, imageUrl: 'https://a.example/x.jpg' }} domain="a.example" actions={null} onClose={vi.fn()} />,
+  );
+  expect(container.querySelector('img')).toHaveAttribute('src', 'https://a.example/x.jpg');
+});
+
 test('Escape closes the settings first, then the reader', async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();

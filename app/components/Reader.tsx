@@ -529,10 +529,27 @@ export default function Reader({
       </div>
       <article className={styles.article} onClick={onArticleClick}>
         {labels && <div className={styles.labels}>{labels}</div>}
-        <h1 id="reader-title" className={styles.title}>
-          {link.title ?? domain}
-        </h1>
-        <p className={styles.meta}>{meta.join(' · ')}</p>
+        <header className={styles.header}>
+          {link.imageUrl && (
+            // The card's remote og:image; hidden when it fails to load (e.g. hotlinking blocked).
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={link.imageUrl}
+              alt=""
+              className={styles.thumbnail}
+              referrerPolicy="no-referrer"
+              onError={(event) => {
+                event.currentTarget.hidden = true;
+              }}
+            />
+          )}
+          <div className={styles.headerText}>
+            <h1 id="reader-title" className={styles.title}>
+              {link.title ?? domain}
+            </h1>
+            <p className={styles.meta}>{meta.join(' · ')}</p>
+          </div>
+        </header>
         {showSummary && <p className={styles.summary}>{link.summary}</p>}
         {notes.length > 0 && (
           <section className={styles.notes} aria-labelledby="reader-notes-title">

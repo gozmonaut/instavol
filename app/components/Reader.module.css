@@ -294,6 +294,27 @@
   opacity: 0.5;
 }
 
+/* The card's image next to the title and meta */
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.headerText {
+  flex: 1;
+  min-width: 0;
+}
+
+.thumbnail {
+  flex: none;
+  width: calc(92rem / 17);
+  height: calc(92rem / 17);
+  object-fit: cover;
+  background: var(--fill);
+  border-radius: 10px;
+}
+
 .title {
   font-family: var(--reader-font);
   font-size: calc(30rem / 17 * var(--reader-scale));
