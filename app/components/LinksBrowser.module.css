@@ -197,6 +197,17 @@
   transition: border-color var(--snappy), box-shadow var(--snappy), transform var(--snappy);
 }
 
+/* While the reader is open or sliding away: solid bars in the same colour, without blur.
+   Safari skips the blur while the reader moves over them, which let the cards show through. */
+.page[data-reader-open='true'] .header,
+.page[data-reader-open='true'] .header::before,
+.page[data-reader-open='true'] .groupHeading,
+.page[data-reader-open='true'][data-compact='true'][data-header-level='2'] .topBar {
+  background: var(--background);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
 /* With everything slid away, the status-bar strip above the search bar stays put */
 .page[data-header-level='0'] .header {
   box-shadow: none;

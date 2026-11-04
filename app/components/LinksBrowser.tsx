@@ -53,6 +53,8 @@ function buildShareText(link: LinkRow): string {
 
 // The search bar only slides away once the logo has scrolled out of view, and ignores tiny
 // scroll movements (finger jitter, rubber-banding).
+// How long the overview's bars stay solid after the reader closed (its slide-out is already over).
+const READER_SHOWN_TAIL_MS = 400;
 const HEADER_HIDE_AFTER_PX = 120;
 const HEADER_SCROLL_SLACK_PX = 6;
 // A scroll up after a pause this long (or after scrolling down) counts as a new time.
@@ -207,6 +209,14 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [readerLink, setReaderLink] = useState<LinkRow | null>(null);
   const closeReader = useCallback(() => setReaderLink(null), []);
   const readerOpen = readerLink !== null;
+  // True while the reader is open and a moment after it closed: the bars on the overview then get a
+  // solid background, because Safari skips their blur while the reader slides over them, which let
+  // the cards underneath show through.
+  const [readerShown, setReaderShown] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setReaderShown(readerOpen), readerOpen ? 0 : READER_SHOWN_TAIL_MS);
+    return () => clearTimeout(timer);
+  }, [readerOpen]);
 
   // The reader gets its own history entry, so the browser's back button closes it and
   // returns to the overview instead of leaving Instavol. Closing it any other way
@@ -761,7 +771,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     : [];
 
   return (
-    <main ref={pageRef} className={styles.page} data-compact={compact} data-header-level={headerLevel}>
+    <main ref={pageRef} className={styles.page} data-compact={compact} data-header-level={headerLevel} data-reader-open={readerOpen || readerShown}>
       <div ref={topSentinel} className={styles.sentinel} aria-hidden="true" />
       <div ref={pullIndicatorRef} className={styles.pullIndicator} data-refreshing={refreshing} role="status" aria-label={refreshing ? 'Verversen' : undefined}>
         <span className={styles.spinner} aria-hidden="true" />

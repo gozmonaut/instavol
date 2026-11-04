@@ -331,6 +331,20 @@ describe('top bar on scroll', () => {
   });
 });
 
+test('while the reader is open, and a moment after, the overview bars are marked solid', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ html: '<p>Tekst</p>' }) }));
+  const article = { ...fixture[0], readingMinutes: 3 };
+  render(<LinksBrowser initialLinks={[article]} />);
+  const page = screen.getByRole('main');
+  expect(page).toHaveAttribute('data-reader-open', 'false');
+  await userEvent.click(screen.getByRole('link', { name: article.title! }));
+  expect(page).toHaveAttribute('data-reader-open', 'true');
+  await userEvent.keyboard('{Escape}');
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(page).toHaveAttribute('data-reader-open', 'true');
+  await waitFor(() => expect(page).toHaveAttribute('data-reader-open', 'false'));
+});
+
 test('clicking the logo clears the search and filters', async () => {
   const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ links: fixture }) });
   vi.stubGlobal('fetch', fetchMock);
