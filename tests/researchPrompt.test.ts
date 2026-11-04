@@ -1,4 +1,4 @@
-import { buildResearchPrompt, RESEARCH_FOCUSES } from '@/lib/researchPrompt';
+import { buildPassagePrompt, buildResearchPrompt, RESEARCH_FOCUSES } from '@/lib/researchPrompt';
 import type { LinkRow } from '@/lib/schema';
 
 const article: LinkRow = {
@@ -11,6 +11,7 @@ const article: LinkRow = {
   errorMessage: null,
   tags: [],
   notes: [],
+  highlights: [],
   imageUrl: null,
   byline: null,
   publishedAt: null,
@@ -64,4 +65,18 @@ test('leaves out missing title, category and summary instead of printing empty f
   expect(prompt).not.toContain('Samenvatting');
   expect(prompt).toContain('Bewaard op: 28 okt 2026, 16:20');
   expect(prompt).toMatch(/^2\. Andere perspectieven:/m);
+});
+
+test('a passage prompt quotes the selected text and names the article', () => {
+  const prompt = buildPassagePrompt(article, 'Frontex krijgt meer taken.\nOok bij terugkeer.');
+  expect(prompt).toContain('> Frontex krijgt meer taken.\n> Ook bij terugkeer.');
+  expect(prompt).toContain('Titel: Frontex soll zur Abschiebeagentur werden');
+  expect(prompt).toContain('Bron: www.tagesschau.de – https://www.tagesschau.de/frontex');
+  expect(prompt).toContain('Antwoord in het Nederlands');
+});
+
+test('a very long passage is cut off', () => {
+  const prompt = buildPassagePrompt(article, 'a'.repeat(5000));
+  expect(prompt).toContain(`> ${'a'.repeat(4000)}…`);
+  expect(prompt).not.toContain('a'.repeat(4001));
 });

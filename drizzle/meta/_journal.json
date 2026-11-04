@@ -36,6 +36,13 @@
       "when": 1793551076743,
       "tag": "0004_heavy_odin",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793801895776,
+      "tag": "0005_highlights",
+      "breakpoints": true
     }
   ]
 }

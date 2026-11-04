@@ -3,6 +3,10 @@ import { pgTable, uuid, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-c
 
 export type LinkNote = { id: string; text: string; createdAt: string };
 
+// A passage the user marked in the reader: the text, plus a little text on both sides to find the right
+// spot again when the same sentence occurs more than once (see lib/highlights.ts).
+export type LinkHighlight = { id: string; text: string; prefix: string; suffix: string; createdAt: string };
+
 export const links = pgTable('links', {
   id: uuid('id').primaryKey().defaultRandom(),
   url: text('url').notNull(),
@@ -14,6 +18,8 @@ export const links = pgTable('links', {
   tags: text('tags').array().notNull().default(sql`'{}'::text[]`),
   // The user's own notes, oldest first (added and removed via /api/links/[id]/notes).
   notes: jsonb('notes').$type<LinkNote[]>().notNull().default(sql`'[]'::jsonb`),
+  // Passages marked in the reader, oldest first (added and removed via /api/links/[id]/highlights).
+  highlights: jsonb('highlights').$type<LinkHighlight[]>().notNull().default(sql`'[]'::jsonb`),
   errorMessage: text('error_message'),
   imageUrl: text('image_url'),
   byline: text('byline'),

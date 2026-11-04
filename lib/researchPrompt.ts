@@ -57,3 +57,33 @@ export function buildResearchPrompt(link: LinkRow, focus: ResearchFocus, savedOn
     'zeg dat dan en werk met de samenvatting hierboven.',
   ].join('\n');
 }
+
+const MAX_PASSAGE_LENGTH = 4000;
+
+// Prompt to paste into a chat app for one passage the reader selected in an article.
+export function buildPassagePrompt(link: LinkRow, passage: string): string {
+  const text = passage.replace(/\s+\n/g, '\n').trim();
+  const quoted = (text.length > MAX_PASSAGE_LENGTH ? `${text.slice(0, MAX_PASSAGE_LENGTH)}…` : text)
+    .split('\n')
+    .map((line) => `> ${line}`)
+    .join('\n');
+
+  return [
+    'Ik lees een artikel en wil deze passage verder onderzoeken:',
+    '',
+    quoted,
+    '',
+    link.title && `Titel: ${link.title}`,
+    `Bron: ${domainFromUrl(link.url)} – ${link.url}`,
+    '',
+    'Help me met:',
+    '1. Uitleg: wat wordt hier bedoeld, en welke achtergrond heb ik nodig?',
+    '2. Klopt het: wat is onderbouwd, wat ontbreekt of is omstreden?',
+    '3. Verder lezen: 2 à 3 betrouwbare bronnen, met link.',
+    '',
+    'Antwoord in het Nederlands, ook als het artikel in een andere taal is.',
+    'Zeg duidelijk wat je zeker weet en wat niet.',
+  ]
+    .filter((line) => line !== null && line !== undefined)
+    .join('\n');
+}

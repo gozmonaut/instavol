@@ -19,6 +19,7 @@ const fixture: LinkRow[] = [
     errorMessage: null,
     tags: [],
     notes: [],
+    highlights: [],
     imageUrl: null,
     byline: null,
     publishedAt: null,
@@ -36,6 +37,7 @@ const fixture: LinkRow[] = [
     errorMessage: 'Kon pagina niet ophalen',
     tags: [],
     notes: [],
+    highlights: [],
     imageUrl: null,
     byline: null,
     publishedAt: null,
@@ -384,14 +386,16 @@ describe('research with Claude', () => {
 });
 
 describe('logging out', () => {
-  test('asks for confirmation and then calls the logout endpoint', async () => {
+  test('asks for confirmation in a centered dialog and then calls the logout endpoint', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<LinksBrowser initialLinks={fixture} />);
     await userEvent.click(screen.getByRole('button', { name: 'Instellingen' }));
     await userEvent.click(screen.getByRole('menuitem', { name: 'Uitloggen' }));
-    expect(confirm).toHaveBeenCalledWith('Weet je zeker dat je wilt uitloggen?');
+    const dialog = screen.getByRole('alertdialog', { name: 'Uitloggen?' });
+    expect(dialog).toHaveTextContent('Weet je zeker dat je wilt uitloggen?');
+    expect(fetchMock).not.toHaveBeenCalled();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Uitloggen' }));
     expect(fetchMock).toHaveBeenCalledWith('/api/logout', expect.objectContaining({ method: 'POST' }));
     expect(routerReplace).toHaveBeenCalledWith('/login');
   });
@@ -399,10 +403,11 @@ describe('logging out', () => {
   test('cancelling keeps you logged in', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     render(<LinksBrowser initialLinks={fixture} />);
     await userEvent.click(screen.getByRole('button', { name: 'Instellingen' }));
     await userEvent.click(screen.getByRole('menuitem', { name: 'Uitloggen' }));
+    await userEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Annuleren' }));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
@@ -770,6 +775,13 @@ describe('tags', () => {
     await userEvent.click(within(sheet).getByRole('button', { name: 'Klaar' }));
     const tagList = await screen.findByRole('list', { name: 'Tags' });
     expect(within(tagList).getByRole('button', { name: 'koken' })).toBeInTheDocument();
+  });
+
+  test('the "+" after the tags on a card opens the tag editor', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => ({ tags: [] }) }));
+    render(<LinksBrowser initialLinks={[{ ...fixture[0], tags: ['weekend'] }, fixture[1]]} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Tags toevoegen' }));
+    expect(screen.getByRole('dialog', { name: 'Tags' })).toBeInTheDocument();
   });
 
   test('tapping a tag on a card filters on it, and tapping the filter stops it', async () => {

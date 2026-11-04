@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Reader from '@/app/components/Reader';
 import { loadSettings } from '@/app/components/ReaderSettings';
@@ -16,6 +16,7 @@ const link: LinkRow = {
   errorMessage: null,
   tags: [],
   notes: [],
+  highlights: [],
   imageUrl: null,
   byline: null,
   publishedAt: null,
@@ -131,4 +132,87 @@ test('a note can be added from the reader and is shown above the article', async
 
   rerender(<Reader link={{ ...link, notes: [note] }} domain="a.example" actions={null} onChange={onChange} onClose={vi.fn()} />);
   expect(screen.getByRole('region', { name: 'Notitie' })).toHaveTextContent('Minder zout');
+});
+
+describe('sending a selected passage to a chat app', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'share');
+    document.getSelection()?.removeAllRanges();
+  });
+
+  function select(node: Node) {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const selection = document.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    act(() => {
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+  }
+
+  test('selecting article text shows "Onderzoek", which shares a prompt with the passage', async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    renderReader();
+    select(await screen.findByText('Tekst'));
+    await userEvent.click(screen.getByRole('button', { name: 'Onderzoek' }));
+    const { text } = share.mock.calls[0][0];
+    expect(text).toContain('> Tekst');
+    expect(text).toContain('Titel: Artikel A');
+  });
+
+  test('a selection outside the article shows nothing', async () => {
+    renderReader();
+    await screen.findByText('Tekst');
+    select(screen.getByRole('button', { name: 'Weergave' }));
+    expect(screen.queryByRole('button', { name: 'Onderzoek' })).not.toBeInTheDocument();
+  });
+});
+
+describe('highlighting text', () => {
+  afterEach(() => {
+    document.getSelection()?.removeAllRanges();
+  });
+
+  function select(node: Node) {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const selection = document.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    act(() => {
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+  }
+
+  test('"Highlight" saves the selection, and a tap on the marked text offers to remove it', async () => {
+    const withHighlight = {
+      ...link,
+      highlights: [{ id: 'h1', text: 'Tekst', prefix: '', suffix: '', createdAt: '2026-11-04T10:00:00.000Z' }],
+    };
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') return Promise.resolve({ ok: true, json: async () => withHighlight });
+      if (init?.method === 'DELETE') return Promise.resolve({ ok: true, json: async () => ({ ...link, highlights: [] }) });
+      return Promise.resolve({ ok: true, json: async () => ({ html: '<p>Tekst</p>' }) });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const onChange = vi.fn();
+    const { rerender } = render(<Reader link={link} domain="a.example" actions={null} onChange={onChange} onClose={vi.fn()} />);
+
+    select(await screen.findByText('Tekst'));
+    await userEvent.click(screen.getByRole('button', { name: 'Highlight' }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/links/1/highlights',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ text: 'Tekst', prefix: '', suffix: '' }) }),
+    );
+    expect(onChange).toHaveBeenCalledWith(withHighlight);
+
+    rerender(<Reader link={withHighlight} domain="a.example" actions={null} onChange={onChange} onClose={vi.fn()} />);
+    const mark = document.querySelector('mark[data-highlight-id="h1"]')!;
+    expect(mark).toHaveTextContent('Tekst');
+    await userEvent.click(mark);
+    await userEvent.click(screen.getByRole('button', { name: 'Highlight weg' }));
+    expect(fetchMock).toHaveBeenCalledWith('/api/links/1/highlights/h1', expect.objectContaining({ method: 'DELETE' }));
+  });
 });

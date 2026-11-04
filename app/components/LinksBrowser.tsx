@@ -56,6 +56,8 @@ const ACTION_ICON_PATHS = {
   delete: ['M4 7h16', 'M10 11v6', 'M14 11v6', 'M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12', 'M9 7V4h6v3'],
   done: ['M5 12.5l4.5 4.5L19 7.5'],
   category: ['M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'],
+  password: ['M12 15a4 4 0 1 1-8 0 4 4 0 0 1 8 0z', 'M11 12l9-9', 'M17 6l3 3'],
+  logout: ['M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3', 'M10 17l-5-5 5-5', 'M5 12h11'],
   tag: ['M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z', 'M7.5 7.5h.01'],
 } as const;
 
@@ -153,6 +155,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [researchLink, setResearchLink] = useState<LinkRow | null>(null);
   const [groupPickerOpen, setGroupPickerOpen] = useState(false);
   const [deleteLink, setDeleteLink] = useState<LinkRow | null>(null);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   // Where the date-group dropdown hangs: under (or, near the bottom, above) the heading that opened it.
   const [groupPos, setGroupPos] = useState<{ left: number; top?: number; bottom?: number } | null>(null);
   const groupMenuRef = useRef<HTMLDivElement>(null);
@@ -575,9 +578,13 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     }
   }
 
-  async function handleLogout() {
+  function handleLogout() {
     closeSettings();
-    if (!window.confirm('Weet je zeker dat je wilt uitloggen?')) return;
+    setLogoutConfirmOpen(true);
+  }
+
+  async function confirmLogout() {
+    setLogoutConfirmOpen(false);
     await fetch('/api/logout', { method: 'POST' });
     router.replace('/login');
   }
@@ -626,7 +633,8 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     );
   }
 
-  function tagList(link: LinkRow) {
+  // On a card, a "+" after the tags opens the tag editor.
+  function tagList(link: LinkRow, withAdd = false) {
     if (!link.tags?.length) return null;
     return (
       <ul className={readerStyles.tags} aria-label="Tags">
@@ -637,6 +645,15 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             </button>
           </li>
         ))}
+        {withAdd && (
+          <li>
+            <button className={`${readerStyles.tag} ${styles.tagAdd}`} aria-label="Tags toevoegen" title="Tags toevoegen" onClick={() => openTags(link)}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
+          </li>
+        )}
       </ul>
     );
   }
@@ -694,69 +711,75 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
               <div className={styles.popover} role={passwordSheetOpen ? 'dialog' : 'menu'} aria-label="Instellingen">
                 {!passwordSheetOpen ? (
                   <>
-                    <button className={styles.popoverItem} role="menuitem" onClick={openPasswordSheet}>
-                      Wachtwoord wijzigen
+                    <button className={`${styles.popoverItem} ${styles.menuOption}`} role="menuitem" onClick={openPasswordSheet}>
+                      <span>Wachtwoord wijzigen</span>
+                      <ActionIcon name="password" />
                     </button>
-                    <button className={styles.popoverItem} role="menuitem" onClick={handleLogout}>
-                      Uitloggen
+                    <button className={`${styles.popoverItem} ${styles.menuOption} ${styles.menuDanger}`} role="menuitem" onClick={handleLogout}>
+                      <span>Uitloggen</span>
+                      <ActionIcon name="logout" />
                     </button>
                   </>
                 ) : (
                   <div className={styles.popoverForm}>
-                    <p className={styles.sheetTitle}>Wachtwoord wijzigen</p>
-                    {passwordChanged && <p className={styles.sheetSubtitle}>Je wachtwoord is gewijzigd</p>}
-                      {!passwordChanged && (
-                        <form
-                          className={styles.passwordForm}
-                          onSubmit={(event) => {
-                            event.preventDefault();
-                            savePassword();
-                          }}
-                        >
-                          <input
-                            className={styles.sheetInput}
-                            type="password"
-                            aria-label="Huidig wachtwoord"
-                            placeholder="Huidig wachtwoord"
-                            autoComplete="current-password"
-                            required
-                            value={currentPassword}
-                            onChange={(event) => setCurrentPassword(event.target.value)}
-                          />
-                          <input
-                            className={styles.sheetInput}
-                            type="password"
-                            aria-label="Nieuw wachtwoord"
-                            placeholder="Nieuw wachtwoord (minstens 8 tekens)"
-                            autoComplete="new-password"
-                            minLength={8}
-                            required
-                            value={newPassword}
-                            onChange={(event) => setNewPassword(event.target.value)}
-                          />
-                          <input
-                            className={styles.sheetInput}
-                            type="password"
-                            aria-label="Herhaal nieuw wachtwoord"
-                            placeholder="Herhaal nieuw wachtwoord"
-                            autoComplete="new-password"
-                            required
-                            value={repeatPassword}
-                            onChange={(event) => setRepeatPassword(event.target.value)}
-                          />
-                          {passwordError && (
-                            <p className={styles.passwordError} role="alert">
-                              {passwordError}
-                            </p>
-                          )}
-                          <button type="submit" className={styles.sheetSave} disabled={savingPassword}>
-                            Bewaar
-                          </button>
-                        </form>
-                      )}
-                    <button type="button" className={styles.popoverItem} onClick={closeSettings}>
-                      {passwordChanged ? 'Sluiten' : 'Annuleren'}
-                    </button>
+                    <div className={styles.sheetHeader}>
+                      <p className={styles.sheetTitle}>Wachtwoord wijzigen</p>
+                      {passwordChanged && <p className={styles.sheetSubtitle}>Je wachtwoord is gewijzigd</p>}
+                    </div>
+                    {!passwordChanged && (
+                      <form
+                        className={styles.passwordBody}
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          savePassword();
+                        }}
+                      >
+                      <input
+                        className={styles.pickerInput}
+                        type="password"
+                        aria-label="Huidig wachtwoord"
+                        placeholder="Huidig wachtwoord"
+                        autoComplete="current-password"
+                        required
+                        value={currentPassword}
+                        onChange={(event) => setCurrentPassword(event.target.value)}
+                      />
+                      <input
+                        className={styles.pickerInput}
+                        type="password"
+                        aria-label="Nieuw wachtwoord"
+                        placeholder="Nieuw wachtwoord (minstens 8 tekens)"
+                        autoComplete="new-password"
+                        minLength={8}
+                        required
+                        value={newPassword}
+                        onChange={(event) => setNewPassword(event.target.value)}
+                      />
+                      <input
+                        className={styles.pickerInput}
+                        type="password"
+                        aria-label="Herhaal nieuw wachtwoord"
+                        placeholder="Herhaal nieuw wachtwoord"
+                        autoComplete="new-password"
+                        required
+                        value={repeatPassword}
+                        onChange={(event) => setRepeatPassword(event.target.value)}
+                      />
+                        {passwordError && (
+                          <p className={styles.passwordError} role="alert">
+                            {passwordError}
+                          </p>
+                        )}
+                        <button type="submit" className={styles.pickerSave} disabled={savingPassword}>
+                          Bewaar
+                        </button>
+                      </form>
+                    )}
+                    <div className={styles.dialogActions}>
+                      <button type="button" className={styles.dialogButton} onClick={closeSettings}>
+                        {passwordChanged ? 'Sluiten' : 'Annuleren'}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -875,6 +898,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                         setReaderLink(link);
                       }}
                     >
+                      {link.title ?? link.url}
                       {!link.readingMinutes && (
                         <svg className={styles.externalIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <path d="M14 4h6v6" />
@@ -882,7 +906,6 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                           <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
                         </svg>
                       )}
-                      {link.title ?? link.url}
                     </a>
                     <div className={styles.meta}>
                       <span>{domainFromUrl(link.url)}</span>
@@ -932,7 +955,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                       <p className={`${styles.status} ${styles.failed}`}>Mislukt: {link.errorMessage}</p>
                     )}
                   </div>
-                  {tagList(link)}
+                  {tagList(link, true)}
                 </li>
               ))}
             </ul>
@@ -1168,6 +1191,36 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             <span>Verwijderen</span>
             <ActionIcon name="delete" />
           </button>
+        </div>
+      )}
+
+      {logoutConfirmOpen && (
+        <div className={styles.dialogBackdrop} onClick={() => setLogoutConfirmOpen(false)}>
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="logout-title"
+            aria-describedby="logout-text"
+            className={styles.dialog}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={styles.dialogBody}>
+              <p id="logout-title" className={styles.dialogTitle}>
+                Uitloggen?
+              </p>
+              <p id="logout-text" className={styles.dialogText}>
+                Weet je zeker dat je wilt uitloggen?
+              </p>
+            </div>
+            <div className={styles.dialogActions}>
+              <button className={styles.dialogButton} onClick={() => setLogoutConfirmOpen(false)}>
+                Annuleren
+              </button>
+              <button className={`${styles.dialogButton} ${styles.dialogDanger}`} onClick={confirmLogout}>
+                Uitloggen
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
