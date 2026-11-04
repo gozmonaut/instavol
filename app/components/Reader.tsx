@@ -13,6 +13,8 @@ type Sheet = 'settings' | 'note' | null;
 
 // Matches the slideOut animation in Reader.module.css.
 const SLIDE_OUT_MS = 280;
+// How long a swipe that wasn't far enough takes to spring back.
+const DRAG_FINISH_MS = 260;
 
 function formatPublished(value: Date | string): string {
   const date = typeof value === 'string' ? new Date(value) : value;
@@ -286,28 +288,55 @@ export default function Reader({
     closeTimer.current = setTimeout(onClose, SLIDE_OUT_MS);
   }
 
-  // A swipe to the right goes back to the overview, like the back button. Mostly-horizontal
-  // swipes only, and not from inside something that scrolls sideways (wide tables, code).
-  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  // Swiping right drags the reader along with the finger, showing the overview underneath, like
+  // going back in an iOS app. Let go past a third of the screen (or with a quick flick) and it
+  // slides away; otherwise it springs back. Mostly-horizontal drags only, and not from inside
+  // something that scrolls sideways (wide tables, code) or while text is selected.
+  const swipe = useRef<{ x: number; y: number; time: number; dragging: boolean | null; dx: number } | null>(null);
+  function setReaderOffset(dx: number, transition: string) {
+    const reader = readerRef.current;
+    if (!reader) return;
+    reader.style.transition = transition;
+    reader.style.transform = dx ? `translateX(${dx}px)` : '';
+    reader.dataset.dragging = dx ? 'true' : '';
+  }
   function onTouchStart(event: TouchEvent<HTMLDivElement>) {
-    swipeStart.current = null;
-    if (event.touches.length !== 1 || sheetRef.current) return;
+    swipe.current = null;
+    if (event.touches.length !== 1 || sheetRef.current || closing) return;
     for (let el = event.target as HTMLElement | null; el && el !== event.currentTarget; el = el.parentElement) {
       if (el.scrollWidth > el.clientWidth && getComputedStyle(el).overflowX !== 'visible') return;
     }
     const touch = event.touches[0];
-    swipeStart.current = { x: touch.clientX, y: touch.clientY };
+    swipe.current = { x: touch.clientX, y: touch.clientY, time: Date.now(), dragging: null, dx: 0 };
   }
-  function onTouchEnd(event: TouchEvent<HTMLDivElement>) {
-    const start = swipeStart.current;
-    swipeStart.current = null;
-    if (!start || sheetRef.current) return;
-    // Dragging a selection handle sideways is not a swipe back.
-    if (document.getSelection()?.isCollapsed === false) return;
-    const touch = event.changedTouches[0];
-    const dx = touch.clientX - start.x;
-    const dy = touch.clientY - start.y;
-    if (dx > 80 && dx > Math.abs(dy) * 2) slideOut();
+  function onTouchMove(event: TouchEvent<HTMLDivElement>) {
+    const state = swipe.current;
+    if (!state || state.dragging === false) return;
+    const touch = event.touches[0];
+    const dx = touch.clientX - state.x;
+    const dy = touch.clientY - state.y;
+    if (state.dragging === null) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      // Decide once: a sideways drag to the right, or something else (scrolling, selecting).
+      state.dragging = dx > 0 && dx > Math.abs(dy) * 1.5 && document.getSelection()?.isCollapsed !== false;
+      if (!state.dragging) return;
+    }
+    state.dx = Math.max(0, dx);
+    setReaderOffset(state.dx, 'none');
+  }
+  function onTouchEnd() {
+    const state = swipe.current;
+    swipe.current = null;
+    if (!state?.dragging) return;
+    const width = readerRef.current?.offsetWidth || window.innerWidth;
+    const speed = state.dx / Math.max(1, Date.now() - state.time);
+    if (state.dx > width / 3 || (speed > 0.5 && state.dx > 40)) {
+      // The slide-out animation continues from where the finger let go (see data-closing in the CSS).
+      setClosing(true);
+      closeTimer.current = setTimeout(onClose, SLIDE_OUT_MS);
+    } else {
+      setReaderOffset(0, `transform ${DRAG_FINISH_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`);
+    }
   }
 
   // A recipe shows only the recipe: no summary, author, date or reading time.
@@ -342,7 +371,9 @@ export default function Reader({
       ref={readerRef}
       data-reader
       onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchEnd}
       {...settingsAttributes(settings)}
       data-closing={closing || undefined}
     >

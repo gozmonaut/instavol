@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Reader from '@/app/components/Reader';
 import { loadSettings } from '@/app/components/ReaderSettings';
@@ -200,5 +200,45 @@ describe('highlighting text', () => {
     select(document.querySelector('mark[data-highlight-id="h1"]')!);
     expect(screen.getByRole('button', { name: 'Highlight weg' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Highlight' })).not.toBeInTheDocument();
+  });
+});
+
+describe('swiping back', () => {
+  function swipe(reader: HTMLElement, toX: number, toY = 100) {
+    fireEvent.touchStart(reader, { touches: [{ clientX: 20, clientY: 100 }] });
+    fireEvent.touchMove(reader, { touches: [{ clientX: 40, clientY: 100 }] });
+    fireEvent.touchMove(reader, { touches: [{ clientX: toX, clientY: toY }] });
+    fireEvent.touchEnd(reader, { changedTouches: [{ clientX: toX, clientY: toY }] });
+  }
+
+  test('the reader follows the finger, and far enough slides it away and closes it', async () => {
+    const onClose = vi.fn();
+    const reader = renderReader(onClose);
+    fireEvent.touchStart(reader, { touches: [{ clientX: 20, clientY: 100 }] });
+    fireEvent.touchMove(reader, { touches: [{ clientX: 120, clientY: 105 }] });
+    expect(reader.style.transform).toBe('translateX(100px)');
+    fireEvent.touchMove(reader, { touches: [{ clientX: 700, clientY: 105 }] });
+    fireEvent.touchEnd(reader, { changedTouches: [{ clientX: 700, clientY: 105 }] });
+    expect(reader).toHaveAttribute('data-closing', 'true');
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  test('a short, slow drag springs back without closing', async () => {
+    const onClose = vi.fn();
+    const reader = renderReader(onClose);
+    const now = Date.now();
+    vi.spyOn(Date, 'now').mockReturnValueOnce(now).mockReturnValue(now + 1000);
+    swipe(reader, 60);
+    vi.mocked(Date.now).mockRestore();
+    expect(reader.style.transform).toBe('');
+    expect(reader).not.toHaveAttribute('data-closing');
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test('scrolling down is not a swipe', () => {
+    const reader = renderReader();
+    swipe(reader, 30, 400);
+    expect(reader.style.transform).toBe('');
   });
 });

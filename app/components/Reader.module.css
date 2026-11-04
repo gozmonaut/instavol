@@ -814,6 +814,16 @@
   animation: slideOut 280ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
+/* While swiping back, and after letting go: a shadow on the left edge over the overview;
+   the rest of the slide-out continues from the finger, easing out */
+.reader[data-dragging='true'] {
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.18);
+}
+
+.reader[data-closing][data-dragging='true'] {
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 @keyframes slideOut {
   to {
     transform: translateX(100%);
