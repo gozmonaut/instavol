@@ -144,6 +144,25 @@ test('a note can be added from the reader and is shown above the article', async
   expect(screen.getByRole('region', { name: 'Notitie' })).toHaveTextContent('Minder zout');
 });
 
+test('a note of more than 7 sentences is cut off behind "Lees meer"', async () => {
+  const user = userEvent.setup();
+  const text = Array.from({ length: 9 }, (_, i) => `Zin ${i + 1}.`).join(' ');
+  const short = { id: 'n2', text: 'Kort. Heel kort.', createdAt: '2026-11-01T12:00:00.000Z' };
+  const long = { id: 'n1', text, createdAt: '2026-11-01T12:00:00.000Z' };
+  render(<Reader link={{ ...link, notes: [short, long] }} domain="a.example" actions={null} onClose={vi.fn()} />);
+
+  const region = screen.getByRole('region', { name: /Notities/ });
+  expect(region).toHaveTextContent('Zin 7.…');
+  expect(region).not.toHaveTextContent('Zin 8.');
+  // Only the long note gets the button.
+  expect(screen.getAllByRole('button', { name: 'Lees meer' })).toHaveLength(1);
+
+  await user.click(screen.getByRole('button', { name: 'Lees meer' }));
+  expect(region).toHaveTextContent('Zin 9.');
+  await user.click(screen.getByRole('button', { name: 'Minder' }));
+  expect(region).not.toHaveTextContent('Zin 8.');
+});
+
 describe('highlighting text', () => {
   afterEach(() => {
     document.getSelection()?.removeAllRanges();

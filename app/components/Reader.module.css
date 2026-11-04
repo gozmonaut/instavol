@@ -543,6 +543,17 @@
   overflow-wrap: anywhere;
 }
 
+.noteMore {
+  min-height: 32px;
+  padding: 0 4px 0 0;
+  font: inherit;
+  font-size: calc(15rem / 17 * var(--reader-scale));
+  color: var(--accent, currentColor);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
 .noteFooter {
   display: flex;
   align-items: center;

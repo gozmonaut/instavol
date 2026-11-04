@@ -20,6 +20,9 @@ const BAR_SCROLL_SLACK_PX = 6;
 // Width of the strip along the left edge where Safari starts its own back gesture.
 const SAFARI_EDGE_PX = 30;
 
+// A note longer than this many sentences is cut off behind "Lees meer".
+const NOTE_MAX_SENTENCES = 7;
+
 function isStandalone(): boolean {
   if (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) return true;
   return (navigator as Navigator & { standalone?: boolean }).standalone === true;
@@ -557,7 +560,7 @@ export default function Reader({
             <ul className={styles.noteList}>
               {notes.map((note) => (
                 <li key={note.id} className={styles.note}>
-                  <p className={styles.noteText}>{note.text}</p>
+                  <NoteText text={note.text} />
                   <div className={styles.noteFooter}>
                     <time dateTime={note.createdAt}>{formatNoteDate(note.createdAt)}</time>
                     <button
@@ -640,6 +643,36 @@ export default function Reader({
         />
       )}
     </div>
+  );
+}
+
+// Splits a note into sentences. The pieces keep their own whitespace (line breaks included),
+// so joining them gives back the original text.
+function splitSentences(text: string): string[] {
+  if (typeof Intl.Segmenter === 'function') {
+    return Array.from(new Intl.Segmenter('nl', { granularity: 'sentence' }).segment(text), (part) => part.segment);
+  }
+  return text.match(/[^.!?\n]*[.!?]+\s*|[^.!?]+$/g) ?? [text];
+}
+
+// The text of a note: the first few sentences, and the rest behind "Lees meer".
+function NoteText({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const sentences = useMemo(() => splitSentences(text), [text]);
+  const long = sentences.length > NOTE_MAX_SENTENCES;
+  const shown = long && !expanded ? sentences.slice(0, NOTE_MAX_SENTENCES).join('').trimEnd() : text;
+  return (
+    <>
+      <p className={styles.noteText}>
+        {shown}
+        {long && !expanded && '…'}
+      </p>
+      {long && (
+        <button className={styles.noteMore} onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>
+          {expanded ? 'Minder' : 'Lees meer'}
+        </button>
+      )}
+    </>
   );
 }
 
