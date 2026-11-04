@@ -56,12 +56,14 @@ function buildShareText(link: LinkRow): string {
 // How far left the overview starts, and how dark, when the reader is swiped back (like iOS).
 const SWIPE_PARALLAX_PERCENT = 30;
 const SWIPE_DIM = 0.12;
+// Being away from the app at least this long (ms) fetches the newly saved items when it opens again.
+const RESUME_REFRESH_AFTER_MS = 10_000;
 // How long the overview's bars stay solid after the reader closed (its slide-out is already over).
 const READER_SHOWN_TAIL_MS = 400;
 const HEADER_HIDE_AFTER_PX = 120;
 const HEADER_SCROLL_SLACK_PX = 6;
-// A scroll up after a pause this long (or after scrolling down) counts as a new time.
-const HEADER_SCROLL_PAUSE_MS = 250;
+// Within this distance of the top the page looks as it does at the top.
+const HEADER_TOP_PX = 4;
 
 const ACTION_ICON_PATHS = {
   share: ['M12 15V4', 'M8 8l4-4 4 4', 'M7 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1'],
@@ -198,7 +200,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [savingCategory, setSavingCategory] = useState(false);
   const [promptCopiedId, setPromptCopiedId] = useState<string | null>(null);
   const [compact, setCompact] = useState(false);
-  // What the top bar shows while scrolled: 0 nothing, 1 the search bar, 2 also the logo.
+  // What the top bar shows while scrolled: 0 nothing, 1 the page as at the top, 2 logo bar and search bar.
   const [headerLevel, setHeaderLevel] = useState<0 | 1 | 2>(1);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [passwordSheetOpen, setPasswordSheetOpen] = useState(false);
@@ -285,54 +287,33 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, []);
-  // Scrolling down slides the search bar away. Scrolling up brings it back; scrolling up a second
-  // time (a new swipe, or after a pause or after scrolling down) also brings back the logo bar. Near the top, and
-  // while typing in the search field, the page looks as it does at the top.
+  // Scrolling down slides the logo bar and search bar away; any scroll up brings both back right
+  // away. At the very top the page looks as it does there, and while typing in the search field the
+  // search bar stays.
   useEffect(() => {
     let lastY = window.scrollY;
-    let lastEventAt = 0;
-    let direction = 0;
-    let movingUp = false;
     let frame = 0;
     function check() {
       frame = 0;
-      const now = Date.now();
-      const paused = now - lastEventAt > HEADER_SCROLL_PAUSE_MS;
-      lastEventAt = now;
-      if (paused) movingUp = false;
       const y = window.scrollY;
       const dy = y - lastY;
       const typing = document.activeElement instanceof HTMLInputElement && document.activeElement.type === 'search';
-      if (y < HEADER_HIDE_AFTER_PX || typing) {
+      if (typing || y <= HEADER_TOP_PX) {
         setHeaderLevel(1);
         lastY = y;
         return;
       }
       if (Math.abs(dy) <= HEADER_SCROLL_SLACK_PX) return;
-      const next = dy > 0 ? 1 : -1;
-      if (next !== direction) movingUp = false;
-      direction = next;
       lastY = y;
-      if (next > 0) {
-        setHeaderLevel(0);
-      } else if (!movingUp) {
-        movingUp = true;
-        setHeaderLevel((level) => (level === 0 ? 1 : 2));
-      }
+      if (dy < 0) setHeaderLevel(2);
+      else if (y >= HEADER_HIDE_AFTER_PX) setHeaderLevel(0);
     }
     function onScroll() {
       if (!frame) frame = requestAnimationFrame(check);
     }
-    // On a phone every new swipe counts as a new time, even while the page still glides on from
-    // the previous one (then there is no pause between them).
-    function onTouchStart() {
-      movingUp = false;
-    }
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('touchstart', onTouchStart, { passive: true });
     return () => {
       window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('touchstart', onTouchStart);
       cancelAnimationFrame(frame);
     };
   }, []);
@@ -426,6 +407,41 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
       window.removeEventListener('touchcancel', onTouchEnd);
     };
   }, [refreshLinks]);
+
+  // Opening the app again (it stays alive in the background on a phone) fetches the items saved in
+  // the meantime, quietly and with the current search and filters. Only after being away a while,
+  // so switching apps for a second doesn't reload anything.
+  useEffect(() => {
+    let hiddenAt = 0;
+    function refreshQuietly() {
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+      if (category) params.set('category', category);
+      if (tag) params.set('tag', tag);
+      fetch(`/api/links?${params.toString()}`, { cache: 'no-store' })
+        .then((res) => res.json())
+        .then((data) => setLinks(data.links))
+        .catch(() => {});
+    }
+    function onVisibilityChange() {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+      } else if (hiddenAt && Date.now() - hiddenAt > RESUME_REFRESH_AFTER_MS) {
+        hiddenAt = 0;
+        refreshQuietly();
+      }
+    }
+    // Coming back to a page the browser kept as it was (Safari's back/forward cache).
+    function onPageShow(event: PageTransitionEvent) {
+      if (event.persisted) refreshQuietly();
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pageshow', onPageShow);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('pageshow', onPageShow);
+    };
+  }, [q, category, tag]);
 
   // Refresh while items are being processed, so title/summary appear without a reload.
   const hasPending = links.some((link) => link.status === 'pending');

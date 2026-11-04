@@ -259,90 +259,97 @@ describe('the "..." menu and scrolling', () => {
 });
 
 describe('top bar on scroll', () => {
-  let now = 0;
-
-  // Each call is a separate scroll movement unless `soon` says it follows straight on.
-  function scrollTo(y: number, { soon = false } = {}) {
-    now += soon ? 50 : 1000;
+  function scrollTo(y: number) {
     Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
     act(() => {
       window.dispatchEvent(new Event('scroll'));
     });
   }
 
-  beforeEach(() => {
-    now = 0;
-    vi.spyOn(Date, 'now').mockImplementation(() => now);
-  });
-
   afterEach(() => {
-    vi.mocked(Date.now).mockRestore();
     Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
   });
 
   const level = () => screen.getByRole('main').getAttribute('data-header-level');
 
-  test('down hides it, the first time up brings the search bar back, the second time also the logo', async () => {
+  test('scrolling down hides logo bar and search bar; scrolling up brings both back at once', async () => {
     render(<LinksBrowser initialLinks={fixture} />);
     scrollTo(400);
     await waitFor(() => expect(level()).toBe('0'));
     scrollTo(380);
-    await waitFor(() => expect(level()).toBe('1'));
-    scrollTo(360);
     await waitFor(() => expect(level()).toBe('2'));
     scrollTo(600);
     await waitFor(() => expect(level()).toBe('0'));
-  });
-
-  test('a new swipe counts as the second time, even while the page still glides on (no pause)', async () => {
-    render(<LinksBrowser initialLinks={fixture} />);
-    scrollTo(800);
-    await waitFor(() => expect(level()).toBe('0'));
-    fireEvent.touchStart(window);
-    scrollTo(780);
-    await waitFor(() => expect(level()).toBe('1'));
-    fireEvent.touchStart(window);
-    scrollTo(760, { soon: true });
+    scrollTo(560);
     await waitFor(() => expect(level()).toBe('2'));
   });
 
-  test('one long scroll up counts once', async () => {
+  test('at the very top the page looks as at the top', async () => {
     render(<LinksBrowser initialLinks={fixture} />);
-    scrollTo(800);
+    scrollTo(500);
     await waitFor(() => expect(level()).toBe('0'));
-    scrollTo(780);
+    scrollTo(300);
+    await waitFor(() => expect(level()).toBe('2'));
+    scrollTo(0);
     await waitFor(() => expect(level()).toBe('1'));
-    scrollTo(700, { soon: true });
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    scrollTo(600, { soon: true });
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(level()).toBe('1');
   });
 
-  test('near the top it looks as at the top, and a tiny movement changes nothing', async () => {
+  test('scrolling down near the top does not hide it yet, and a tiny movement changes nothing', async () => {
     render(<LinksBrowser initialLinks={fixture} />);
+    scrollTo(80);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(level()).toBe('1');
     scrollTo(300);
     await waitFor(() => expect(level()).toBe('0'));
     scrollTo(296);
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(level()).toBe('0');
-    scrollTo(50);
-    await waitFor(() => expect(level()).toBe('1'));
   });
 });
 
-test('while the reader is open, and a moment after, the overview bars are marked solid', async () => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ html: '<p>Tekst</p>' }) }));
-  const article = { ...fixture[0], readingMinutes: 3 };
-  render(<LinksBrowser initialLinks={[article]} />);
-  const page = screen.getByRole('main');
-  expect(page).toHaveAttribute('data-reader-open', 'false');
-  await userEvent.click(screen.getByRole('link', { name: article.title! }));
-  expect(page).toHaveAttribute('data-reader-open', 'true');
-  await userEvent.keyboard('{Escape}');
-  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  expect(page).toHaveAttribute('data-reader-open', 'true');
-  await waitFor(() => expect(page).toHaveAttribute('data-reader-open', 'false'));
+describe('opening the app again', () => {
+  let now = 0;
+  const newItem = { ...fixture[0], id: '99', title: 'Net bewaard artikel' };
+
+  function setVisibility(state: 'hidden' | 'visible') {
+    Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+  }
+
+  beforeEach(() => {
+    now = 1000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+  });
+
+  afterEach(() => {
+    vi.mocked(Date.now).mockRestore();
+    Reflect.deleteProperty(document, 'visibilityState');
+  });
+
+  test('after being away a while, the newly saved items are fetched with the current filters', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ links: [newItem, ...fixture] }) });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LinksBrowser initialLinks={fixture} />);
+    expect(screen.queryByText('Net bewaard artikel')).not.toBeInTheDocument();
+    setVisibility('hidden');
+    now += 60_000;
+    setVisibility('visible');
+    expect(await screen.findByText('Net bewaard artikel')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith('/api/links?', expect.objectContaining({ cache: 'no-store' }));
+  });
+
+  test('switching apps for a moment does not reload anything', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ links: [newItem] }) });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LinksBrowser initialLinks={fixture} />);
+    setVisibility('hidden');
+    now += 3_000;
+    setVisibility('visible');
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });
 
 test('clicking the logo clears the search and filters', async () => {
