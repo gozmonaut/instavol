@@ -57,6 +57,16 @@ test('q also finds an item by the text of one of its notes', async () => {
   expect(rice.links.map((l: { url: string }) => l.url)).toEqual(['https://a.example']);
 });
 
+test('q also finds an item by its category, or by part of it', async () => {
+  await db.insert(links).values({ url: 'https://a.example', title: 'Ander ding', category: 'Koken' });
+  await db.insert(links).values({ url: 'https://b.example', title: 'Niets', category: 'Tech' });
+  await db.insert(links).values({ url: 'https://c.example', title: 'Zonder categorie' });
+  const body = await (await GET(new Request('https://x/api/links?q=KOKEN'))).json();
+  expect(body.links.map((l: { url: string }) => l.url)).toEqual(['https://a.example']);
+  const part = await (await GET(new Request('https://x/api/links?q=oke'))).json();
+  expect(part.links.map((l: { url: string }) => l.url)).toEqual(['https://a.example']);
+});
+
 test('q and category filters combine', async () => {
   await db.insert(links).values({ url: 'https://a.example', title: 'Interessant', category: 'Tech' });
   await db.insert(links).values({ url: 'https://b.example', title: 'Interessant', category: 'Koken' });

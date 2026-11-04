@@ -86,40 +86,17 @@ test('selecting a category fetches /api/links?category=...', async () => {
   await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('category=Tech')));
 });
 
-describe('the category menu', () => {
-  test('"Filter op" filters on the category, and the same menu can turn the filter off again', async () => {
+describe('the category label on a card', () => {
+  test('tapping it filters on that category straight away, tapping it again shows everything', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ links: [fixture[0]] }) });
     vi.stubGlobal('fetch', fetchMock);
     render(<LinksBrowser initialLinks={fixture} />);
     await userEvent.click(screen.getByRole('button', { name: 'Categorie Tech' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Filter op Tech' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('combobox')).toHaveValue('Tech');
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('category=Tech')));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Categorie Tech' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Toon alle categorieën' }));
     expect(screen.getByRole('combobox')).toHaveValue('');
-  });
-
-  test('"Categorie wijzigen" lists existing categories; picking one saves it on the item', async () => {
-    const fetchMock = vi.fn((url: string, init?: RequestInit) =>
-      Promise.resolve(
-        url === '/api/categories'
-          ? { ok: true, json: async () => ({ categories: ['Tech', 'Politiek', 'Koken'] }) }
-          : { ok: true, json: async () => ({ ...fixture[0], category: JSON.parse(String(init?.body)).category }) },
-      ),
-    );
-    vi.stubGlobal('fetch', fetchMock);
-    render(<LinksBrowser initialLinks={fixture} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Categorie Tech' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Categorie wijzigen' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Politiek' }));
-    expect(fetchMock).toHaveBeenCalledWith(
-      '/api/links/1',
-      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ category: 'Politiek' }) }),
-    );
-    expect(await screen.findByRole('button', { name: 'Categorie Politiek' })).toBeInTheDocument();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   test('"Categorie wijzigen" is also in the "..." menu', async () => {
@@ -149,9 +126,8 @@ describe('the category menu', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
     render(<LinksBrowser initialLinks={fixture} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Categorie Tech' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Categorie wijzigen' }));
-    const input = screen.getByLabelText('Nieuwe categorie');
+    await chooseAction('Categorie wijzigen', moreButton(0));
+    const input = await screen.findByLabelText('Nieuwe categorie');
     expect(input).toHaveValue('Tech');
     await userEvent.clear(input);
     await userEvent.type(input, 'Wetenschap{Enter}');

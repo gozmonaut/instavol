@@ -193,7 +193,6 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [groupPos, setGroupPos] = useState<{ left: number; top?: number; bottom?: number } | null>(null);
   const groupMenuRef = useRef<HTMLDivElement>(null);
   const closeGroupMenu = useCallback(() => setGroupPickerOpen(false), []);
-  const [categoryMenuLink, setCategoryMenuLink] = useState<LinkRow | null>(null);
   const [editingLink, setEditingLink] = useState<LinkRow | null>(null);
   const [categoryDraft, setCategoryDraft] = useState('');
   const [allCategories, setAllCategories] = useState<string[]>([]);
@@ -552,7 +551,6 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   }
 
   function toggleCategoryFilter(link: LinkRow) {
-    setCategoryMenuLink(null);
     setCategory((current) => (current === link.category ? '' : (link.category ?? '')));
   }
 
@@ -613,7 +611,6 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   }
 
   function startEditingCategory(link: LinkRow) {
-    setCategoryMenuLink(null);
     setEditingLink(link);
     setCategoryDraft(link.category ?? '');
     // The filtered list may not contain every category, so ask the server for all of them.
@@ -879,7 +876,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                 autoCapitalize="none"
                 autoCorrect="off"
                 aria-label="Zoek of plak een link"
-                placeholder="Zoek op tekst, tag of notitie, of plak een link"
+                placeholder="Zoek"
                 className={styles.search}
                 value={q}
                 onChange={(event) => setQ(event.target.value)}
@@ -980,9 +977,8 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                         <button
                           className={styles.chip}
                           aria-label={`Categorie ${link.category}`}
-                          aria-haspopup="dialog"
                           aria-pressed={category === link.category}
-                          onClick={() => setCategoryMenuLink(link)}
+                          onClick={() => toggleCategoryFilter(link)}
                         >
                           {link.category}
                         </button>
@@ -1065,35 +1061,6 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             </ul>
           </section>
         ))
-      )}
-
-      {categoryMenuLink && (
-        <div className={styles.sheetBackdrop} onClick={() => setCategoryMenuLink(null)}>
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="category-menu-title"
-            className={styles.sheet}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className={styles.sheetGroup}>
-              <div className={styles.sheetHeader}>
-                <p id="category-menu-title" className={styles.sheetTitle}>
-                  {categoryMenuLink.category}
-                </p>
-              </div>
-              <button className={styles.sheetOption} onClick={() => toggleCategoryFilter(categoryMenuLink)}>
-                {category === categoryMenuLink.category ? 'Toon alle categorieën' : `Filter op ${categoryMenuLink.category}`}
-              </button>
-              <button className={styles.sheetOption} onClick={() => startEditingCategory(categoryMenuLink)}>
-                Categorie wijzigen
-              </button>
-            </div>
-            <button className={styles.sheetCancel} onClick={() => setCategoryMenuLink(null)}>
-              Annuleren
-            </button>
-          </div>
-        </div>
       )}
 
       {editingLink && (

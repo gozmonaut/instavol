@@ -20,6 +20,8 @@ export async function getLinks(filters: { q?: string; category?: string; tag?: s
           ? or(
               ilike(links.title, pattern),
               ilike(links.summary, pattern),
+              // Also finds items by their category (part of it is enough).
+              ilike(links.category, pattern),
               // Also finds items by one of their tags (part of a tag is enough).
               sql`exists (select 1 from unnest(${links.tags}) as tag where tag ilike ${pattern})`,
               // And by the text of one of their notes.
