@@ -251,14 +251,21 @@ describe('swiping back in the home-screen app', () => {
   });
 });
 
-test('in Safari the reader does not drag along: swiping back is left to Safari itself', () => {
+test('in Safari a swipe from the left edge is left to Safari itself', () => {
   const reader = renderReader();
-  fireEvent.touchStart(reader, { touches: [{ clientX: 80, clientY: 100 }] });
+  fireEvent.touchStart(reader, { touches: [{ clientX: 5, clientY: 100 }] });
   fireEvent.touchMove(reader, { touches: [{ clientX: 100, clientY: 100 }] });
   fireEvent.touchMove(reader, { touches: [{ clientX: 250, clientY: 100 }] });
   expect(reader.style.transform).toBe('');
 });
 
+test('in Safari a swipe that starts further in drags the reader too', () => {
+  const reader = renderReader();
+  fireEvent.touchStart(reader, { touches: [{ clientX: 80, clientY: 100 }] });
+  fireEvent.touchMove(reader, { touches: [{ clientX: 100, clientY: 100 }] });
+  fireEvent.touchMove(reader, { touches: [{ clientX: 250, clientY: 100 }] });
+  expect(reader.style.transform).toBe('translateX(170px)');
+});
 test('scrolling down hides the top bar, scrolling up brings it back', async () => {
   const reader = renderReader();
   const bar = screen.getByRole('button', { name: 'Terug' }).parentElement!;

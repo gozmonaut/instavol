@@ -17,6 +17,9 @@ const SLIDE_OUT_MS = 170;
 const BAR_HIDE_AFTER_PX = 60;
 const BAR_SCROLL_SLACK_PX = 6;
 
+// Width of the strip along the left edge where Safari starts its own back gesture.
+const SAFARI_EDGE_PX = 30;
+
 function isStandalone(): boolean {
   if (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) return true;
   return (navigator as Navigator & { standalone?: boolean }).standalone === true;
@@ -327,8 +330,8 @@ export default function Reader({
     closeTimer.current = setTimeout(onClose, SLIDE_OUT_MS);
   }
 
-  // In the home-screen app, swiping right drags the reader along with the finger, showing the
-  // overview underneath, like going back in an iOS app. Let go past a third of the screen (or with a quick flick) and it
+  // Swiping right drags the reader along with the finger, showing the overview underneath, like
+  // going back in an iOS app. Let go past a third of the screen (or with a quick flick) and it
   // slides away; otherwise it springs back. Mostly-horizontal drags only, and not from inside
   // something that scrolls sideways (wide tables, code) or while text is selected.
   const swipe = useRef<{ x: number; y: number; time: number; dragging: boolean | null; dx: number } | null>(null);
@@ -345,12 +348,12 @@ export default function Reader({
     for (let el = event.target as HTMLElement | null; el && el !== event.currentTarget; el = el.parentElement) {
       if (el.scrollWidth > el.clientWidth && getComputedStyle(el).overflowX !== 'visible') return;
     }
-    // In Safari, swiping back is Safari's own gesture, which already slides in a picture of the
-    // overview (the reader has its own history entry). Dragging the reader as well showed the
-    // overview twice, so in Safari the reader leaves it to Safari. The home-screen app has no such
-    // gesture, so there the reader follows the finger itself.
-    if (!isStandalone()) return;
     const touch = event.touches[0];
+    // In Safari, a swipe that starts at the very left edge is Safari's own back gesture, which already
+    // slides in a picture of the overview (the reader has its own history entry). Dragging the reader
+    // as well would show the overview twice, so edge swipes are left to Safari. Swipes that start further
+    // in drag the reader, in Safari and in the home-screen app alike.
+    if (!isStandalone() && touch.clientX < SAFARI_EDGE_PX) return;
     swipe.current = { x: touch.clientX, y: touch.clientY, time: Date.now(), dragging: null, dx: 0 };
   }
   function onTouchMove(event: TouchEvent<HTMLDivElement>) {
