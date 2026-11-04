@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LinkRow } from '@/lib/schema';
 import { groupByDate } from '@/lib/dateGroups';
 import { RESEARCH_FOCUSES, buildResearchPrompt, type ResearchFocus } from '@/lib/researchPrompt';
@@ -16,8 +16,6 @@ const POLL_TIMEOUT_MS = 2 * 60 * 1000;
 const COPIED_FEEDBACK_MS = 2000;
 const PULL_THRESHOLD_PX = 70;
 const PULL_RESISTANCE = 0.5;
-const LONG_PRESS_MS = 500;
-const LONG_PRESS_SLOP_PX = 10;
 
 // Safari has its own pull-to-refresh; a home-screen web app (standalone) has none.
 function isStandalone(): boolean {
@@ -319,48 +317,6 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     return shareOrCopy(buildResearchPrompt(link, focus, formatDate(link.createdAt)), link.url, link.id, setPromptCopiedId);
   }
 
-  // A short tap on a chip filters; holding it opens its menu. iOS would otherwise show its own
-  // callout on a long press, so that is suppressed (see .pressable in the CSS).
-  const press = useRef<{ timer: number; x: number; y: number; fired: boolean }>({ timer: 0, x: 0, y: 0, fired: false });
-  function pressProps(onLong: () => void, onTap: () => void) {
-    function cancel() {
-      window.clearTimeout(press.current.timer);
-    }
-    return {
-      onPointerDown(event: PointerEvent) {
-        cancel();
-        press.current = {
-          x: event.clientX,
-          y: event.clientY,
-          fired: false,
-          timer: window.setTimeout(() => {
-            press.current.fired = true;
-            navigator.vibrate?.(10);
-            onLong();
-          }, LONG_PRESS_MS),
-        };
-      },
-      onPointerMove(event: PointerEvent) {
-        const { x, y } = press.current;
-        if (Math.hypot(event.clientX - x, event.clientY - y) > LONG_PRESS_SLOP_PX) cancel();
-      },
-      onPointerUp: cancel,
-      onPointerCancel: cancel,
-      onPointerLeave: cancel,
-      onContextMenu(event: MouseEvent) {
-        event.preventDefault();
-      },
-      onClick() {
-        cancel();
-        if (press.current.fired) {
-          press.current.fired = false;
-          return;
-        }
-        onTap();
-      },
-    };
-  }
-
   function toggleCategoryFilter(link: LinkRow) {
     setCategoryMenuLink(null);
     setCategory((current) => (current === link.category ? '' : (link.category ?? '')));
@@ -539,11 +495,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
       <ul className={readerStyles.tags} aria-label="Tags">
         {link.tags.map((t) => (
           <li key={t}>
-            <button
-              className={`${readerStyles.tag} ${styles.pressable}`}
-              aria-pressed={tag === t}
-              {...pressProps(() => setTagsLink(link), () => toggleTagFilter(t))}
-            >
+            <button className={readerStyles.tag} aria-pressed={tag === t} onClick={() => toggleTagFilter(t)}>
               {t}
             </button>
           </li>
@@ -665,10 +617,11 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                     <div className={styles.cardTop}>
                       {link.category && (
                         <button
-                          className={`${styles.chip} ${styles.pressable}`}
+                          className={styles.chip}
                           aria-label={`Categorie ${link.category}`}
+                          aria-haspopup="dialog"
                           aria-pressed={category === link.category}
-                          {...pressProps(() => setCategoryMenuLink(link), () => toggleCategoryFilter(link))}
+                          onClick={() => setCategoryMenuLink(link)}
                         >
                           {link.category}
                         </button>
@@ -975,16 +928,13 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
               <>
                 {readerLink.category && (
                   <button
-                    className={`${styles.chip} ${styles.pressable}`}
+                    className={styles.chip}
                     aria-label={`Categorie ${readerLink.category}`}
                     aria-pressed={category === readerLink.category}
-                    {...pressProps(
-                      () => setCategoryMenuLink(readerLink),
-                      () => {
-                        setReaderLink(null);
-                        toggleCategoryFilter(readerLink);
-                      },
-                    )}
+                    onClick={() => {
+                      setReaderLink(null);
+                      toggleCategoryFilter(readerLink);
+                    }}
                   >
                     {readerLink.category}
                   </button>
