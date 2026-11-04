@@ -46,6 +46,17 @@ test('q also finds an item by one of its tags, or by part of a tag', async () =>
   expect(part.links.map((l: { url: string }) => l.url)).toEqual(['https://a.example']);
 });
 
+test('q also finds an item by the text of one of its notes', async () => {
+  const note = (text: string) => ({ id: crypto.randomUUID(), text, createdAt: '2026-11-04T10:00:00.000Z' });
+  await db.insert(links).values({ url: 'https://a.example', title: 'Ander ding', notes: [note('Minder zout gebruiken'), note('Lekker met rijst')] });
+  await db.insert(links).values({ url: 'https://b.example', title: 'Niets', notes: [note('Iets anders')] });
+  await db.insert(links).values({ url: 'https://c.example', title: 'Zonder notities' });
+  const body = await (await GET(new Request('https://x/api/links?q=ZOUT'))).json();
+  expect(body.links.map((l: { url: string }) => l.url)).toEqual(['https://a.example']);
+  const rice = await (await GET(new Request('https://x/api/links?q=met%20rijst'))).json();
+  expect(rice.links.map((l: { url: string }) => l.url)).toEqual(['https://a.example']);
+});
+
 test('q and category filters combine', async () => {
   await db.insert(links).values({ url: 'https://a.example', title: 'Interessant', category: 'Tech' });
   await db.insert(links).values({ url: 'https://b.example', title: 'Interessant', category: 'Koken' });

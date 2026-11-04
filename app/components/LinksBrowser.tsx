@@ -879,7 +879,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                 autoCapitalize="none"
                 autoCorrect="off"
                 aria-label="Zoek of plak een link"
-                placeholder="Zoek op tekst of tag, of plak een link"
+                placeholder="Zoek op tekst, tag of notitie, of plak een link"
                 className={styles.search}
                 value={q}
                 onChange={(event) => setQ(event.target.value)}
