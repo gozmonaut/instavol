@@ -53,6 +53,9 @@ function buildShareText(link: LinkRow): string {
 
 // The search bar only slides away once the logo has scrolled out of view, and ignores tiny
 // scroll movements (finger jitter, rubber-banding).
+// How far left the overview starts, and how dark, when the reader is swiped back (like iOS).
+const SWIPE_PARALLAX_PERCENT = 30;
+const SWIPE_DIM = 0.12;
 // How long the overview's bars stay solid after the reader closed (its slide-out is already over).
 const READER_SHOWN_TAIL_MS = 400;
 const HEADER_HIDE_AFTER_PX = 120;
@@ -208,6 +211,24 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [passwordChanged, setPasswordChanged] = useState(false);
   const [readerLink, setReaderLink] = useState<LinkRow | null>(null);
   const closeReader = useCallback(() => setReaderLink(null), []);
+  const swipeDimRef = useRef<HTMLDivElement>(null);
+  // While the reader is swiped back, the overview underneath follows it like in iOS: it slides in from
+  // 30% to the left and a dark layer over it fades away. Set straight on the elements, every frame.
+  const followReaderSwipe = useCallback((progress: number | null, transition: string) => {
+    const page = pageRef.current;
+    if (!page) return;
+    const offset = progress === null ? '' : `${-SWIPE_PARALLAX_PERCENT * (1 - progress)}% 0`;
+    const moving = page.querySelectorAll<HTMLElement>(`:scope > section, :scope > .${styles.topBar}, :scope > .${styles.empty}`);
+    for (const element of moving) {
+      element.style.transition = progress === null ? '' : transition.replace('transform', 'translate');
+      element.style.translate = offset;
+    }
+    const dim = swipeDimRef.current;
+    if (dim) {
+      dim.style.transition = progress === null ? '' : transition.replace('transform', 'opacity');
+      dim.style.opacity = progress === null ? '0' : String(SWIPE_DIM * (1 - progress));
+    }
+  }, []);
   const readerOpen = readerLink !== null;
   // True while the reader is open and a moment after it closed: the bars on the overview then get a
   // solid background, because Safari skips their blur while the reader slides over them, which let
@@ -1155,8 +1176,10 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
         </div>
       )}
 
+      <div ref={swipeDimRef} className={styles.swipeDim} aria-hidden="true" />
       {readerLink && (
         <Reader
+          onSwipe={followReaderSwipe}
           key={readerLink.id}
           link={readerLink}
           domain={domainFromUrl(readerLink.url)}

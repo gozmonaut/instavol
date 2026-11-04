@@ -25,8 +25,10 @@ function isStandalone(): boolean {
   return (navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
 
-// How long a swipe that wasn't far enough takes to spring back.
-const DRAG_FINISH_MS = 260;
+// Letting go faster than this (pixels per millisecond) counts as a flick, measured over the last
+// moves before letting go.
+const SWIPE_FLICK_SPEED = 0.3;
+const SWIPE_VELOCITY_WINDOW_MS = 100;
 
 function formatPublished(value: Date | string): string {
   const date = typeof value === 'string' ? new Date(value) : value;
@@ -94,6 +96,7 @@ export default function Reader({
   labels,
   onChange,
   onClose,
+  onSwipe,
 }: {
   link: LinkRow;
   domain: string;
@@ -101,6 +104,9 @@ export default function Reader({
   labels?: ReactNode;
   onChange?: (link: LinkRow) => void;
   onClose: () => void;
+  // While swiping back: how far the reader has gone (0 to 1, null when done) and the CSS transition
+  // used for it (on `transform`), so the overview underneath can follow.
+  onSwipe?: (progress: number | null, transition: string) => void;
 }) {
   const [content, setContent] = useState<ContentState>({ status: 'loading' });
   const backButton = useRef<HTMLButtonElement>(null);
@@ -330,21 +336,35 @@ export default function Reader({
     closeTimer.current = setTimeout(onClose, SLIDE_OUT_MS);
   }
 
-  // Swiping right drags the reader along with the finger, showing the overview underneath, like
-  // going back in an iOS app. Let go past a third of the screen (or with a quick flick) and it
-  // slides away; otherwise it springs back. Mostly-horizontal drags only, and not from inside
-  // something that scrolls sideways (wide tables, code) or while text is selected.
-  const swipe = useRef<{ x: number; y: number; time: number; dragging: boolean | null; dx: number } | null>(null);
-  function setReaderOffset(dx: number, transition: string) {
+  // Swiping right drags the reader along with the finger, like going back in an iOS app: the overview
+  // underneath slides in from a little to the left and brightens (via onSwipe), a sideways drag never
+  // scrolls the article, and letting go continues at the finger's speed. Past half the screen or with
+  // a flick to the right it slides away; otherwise it springs back. Not from inside something that
+  // scrolls sideways (wide tables, code), and not while text is selected.
+  const swipe = useRef<{
+    x: number;
+    y: number;
+    dragging: boolean | null;
+    dx: number;
+    samples: { x: number; t: number }[];
+  } | null>(null);
+  const swipeDone = useRef(false);
+  const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+
+  // Puts the reader `dx` pixels to the right, with the overview behind it following.
+  function showSwipe(dx: number, transition: string) {
     const reader = readerRef.current;
     if (!reader) return;
+    const progress = Math.min(1, dx / (reader.offsetWidth || window.innerWidth));
     reader.style.transition = transition;
     reader.style.transform = dx ? `translateX(${dx}px)` : '';
     reader.dataset.dragging = dx ? 'true' : '';
+    if (!reduceMotion()) onSwipe?.(progress, transition);
   }
+
   function onTouchStart(event: TouchEvent<HTMLDivElement>) {
     swipe.current = null;
-    if (event.touches.length !== 1 || sheetRef.current || closing) return;
+    if (event.touches.length !== 1 || sheetRef.current || closing || swipeDone.current) return;
     for (let el = event.target as HTMLElement | null; el && el !== event.currentTarget; el = el.parentElement) {
       if (el.scrollWidth > el.clientWidth && getComputedStyle(el).overflowX !== 'visible') return;
     }
@@ -354,35 +374,70 @@ export default function Reader({
     // as well would show the overview twice, so edge swipes are left to Safari. Swipes that start further
     // in drag the reader, in Safari and in the home-screen app alike.
     if (!isStandalone() && touch.clientX < SAFARI_EDGE_PX) return;
-    swipe.current = { x: touch.clientX, y: touch.clientY, time: Date.now(), dragging: null, dx: 0 };
+    swipe.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      dragging: null,
+      dx: 0,
+      samples: [{ x: touch.clientX, t: Date.now() }],
+    };
   }
-  function onTouchMove(event: TouchEvent<HTMLDivElement>) {
-    const state = swipe.current;
-    if (!state || state.dragging === false) return;
-    const touch = event.touches[0];
-    const dx = touch.clientX - state.x;
-    const dy = touch.clientY - state.y;
-    if (state.dragging === null) {
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-      // Decide once: a sideways drag to the right, or something else (scrolling, selecting).
-      state.dragging = dx > 0 && dx > Math.abs(dy) * 1.5 && document.getSelection()?.isCollapsed !== false;
-      if (!state.dragging) return;
+
+  // A native listener, not React's: only a non-passive listener may stop the article from scrolling
+  // up and down while it is being dragged sideways.
+  useEffect(() => {
+    const reader = readerRef.current;
+    if (!reader) return;
+    function onTouchMove(event: globalThis.TouchEvent) {
+      const state = swipe.current;
+      if (!state || state.dragging === false) return;
+      const touch = event.touches[0];
+      const dx = touch.clientX - state.x;
+      const dy = touch.clientY - state.y;
+      if (state.dragging === null) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        // Decide once: a sideways drag to the right, or something else (scrolling, selecting).
+        state.dragging = dx > 0 && dx > Math.abs(dy) * 1.2 && document.getSelection()?.isCollapsed !== false;
+        if (!state.dragging) return;
+      }
+      if (event.cancelable) event.preventDefault();
+      state.dx = Math.max(0, dx);
+      state.samples.push({ x: touch.clientX, t: Date.now() });
+      if (state.samples.length > 5) state.samples.shift();
+      showSwipe(state.dx, 'none');
     }
-    state.dx = Math.max(0, dx);
-    setReaderOffset(state.dx, 'none');
-  }
+    reader.addEventListener('touchmove', onTouchMove, { passive: false });
+    return () => reader.removeEventListener('touchmove', onTouchMove);
+  });
+
   function onTouchEnd() {
     const state = swipe.current;
     swipe.current = null;
     if (!state?.dragging) return;
     const width = readerRef.current?.offsetWidth || window.innerWidth;
-    const speed = state.dx / Math.max(1, Date.now() - state.time);
-    if (state.dx > width / 3 || (speed > 0.5 && state.dx > 40)) {
-      // The slide-out animation continues from where the finger let go (see data-closing in the CSS).
-      setClosing(true);
-      closeTimer.current = setTimeout(onClose, SLIDE_OUT_MS);
+    // The finger's speed just before letting go, in pixels per millisecond; a finger that stood
+    // still for a moment first counts as slow.
+    const now = Date.now();
+    const recent = state.samples.filter((sample) => now - sample.t <= SWIPE_VELOCITY_WINDOW_MS);
+    const first = recent[0];
+    const last = recent[recent.length - 1];
+    const velocity = recent.length < 2 ? 0 : (last.x - first.x) / Math.max(16, last.t - first.t);
+    const away = velocity > SWIPE_FLICK_SPEED || (velocity > -SWIPE_FLICK_SPEED && state.dx > width / 2);
+    const distance = away ? width - state.dx : state.dx;
+    const duration = Math.round(Math.min(340, Math.max(160, distance / Math.max(Math.abs(velocity), 1))));
+    const transition = `transform ${duration}ms cubic-bezier(0.2, 0.8, 0.2, 1)`;
+    if (away) {
+      swipeDone.current = true;
+      readerRef.current!.style.pointerEvents = 'none';
+      showSwipe(width, transition);
+      closeTimer.current = setTimeout(() => {
+        onSwipe?.(null, 'none');
+        onClose();
+      }, duration);
     } else {
-      setReaderOffset(0, `transform ${DRAG_FINISH_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`);
+      // Springs back; the overview goes back under it, then is left alone again.
+      showSwipe(0, transition);
+      closeTimer.current = setTimeout(() => onSwipe?.(null, 'none'), duration);
     }
   }
 
@@ -418,7 +473,6 @@ export default function Reader({
       ref={readerRef}
       data-reader
       onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       onTouchCancel={onTouchEnd}
       {...settingsAttributes(settings)}

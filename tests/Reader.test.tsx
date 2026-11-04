@@ -204,49 +204,64 @@ describe('highlighting text', () => {
 });
 
 describe('swiping back in the home-screen app', () => {
+  let now = 0;
+
   beforeEach(() => {
     Object.defineProperty(navigator, 'standalone', { value: true, configurable: true });
+    // Every reading of the clock is 50 ms later: a calm, steady swipe.
+    now = 0;
+    vi.spyOn(Date, 'now').mockImplementation(() => (now += 50));
   });
 
   afterEach(() => {
     Reflect.deleteProperty(navigator, 'standalone');
+    vi.mocked(Date.now).mockRestore();
   });
 
-  function swipe(reader: HTMLElement, toX: number, toY = 100) {
-    fireEvent.touchStart(reader, { touches: [{ clientX: 60, clientY: 100 }] });
-    fireEvent.touchMove(reader, { touches: [{ clientX: 80, clientY: 100 }] });
-    fireEvent.touchMove(reader, { touches: [{ clientX: toX, clientY: toY }] });
-    fireEvent.touchEnd(reader, { changedTouches: [{ clientX: toX, clientY: toY }] });
+  function drag(reader: HTMLElement, points: [number, number][]) {
+    fireEvent.touchStart(reader, { touches: [{ clientX: points[0][0], clientY: points[0][1] }] });
+    for (const [x, y] of points.slice(1)) fireEvent.touchMove(reader, { touches: [{ clientX: x, clientY: y }] });
+    const [x, y] = points[points.length - 1];
+    fireEvent.touchEnd(reader, { changedTouches: [{ clientX: x, clientY: y }] });
   }
 
-  test('the reader follows the finger, and far enough slides it away and closes it', async () => {
+  test('the reader follows the finger, the overview follows it, and past half way it slides away and closes', async () => {
     const onClose = vi.fn();
-    const reader = renderReader(onClose);
+    const onSwipe = vi.fn();
+    render(<Reader link={link} domain="a.example" actions={null} onClose={onClose} onSwipe={onSwipe} />);
+    const reader = screen.getByRole('dialog', { name: 'Artikel A' });
     fireEvent.touchStart(reader, { touches: [{ clientX: 60, clientY: 100 }] });
     fireEvent.touchMove(reader, { touches: [{ clientX: 160, clientY: 105 }] });
     expect(reader.style.transform).toBe('translateX(100px)');
+    expect(onSwipe).toHaveBeenLastCalledWith(100 / window.innerWidth, 'none');
     fireEvent.touchMove(reader, { touches: [{ clientX: 700, clientY: 105 }] });
     fireEvent.touchEnd(reader, { changedTouches: [{ clientX: 700, clientY: 105 }] });
-    expect(reader).toHaveAttribute('data-closing', 'true');
+    expect(reader.style.transform).toBe(`translateX(${window.innerWidth}px)`);
     await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(onSwipe).toHaveBeenLastCalledWith(null, 'none');
   });
 
   test('a short, slow drag springs back without closing', async () => {
     const onClose = vi.fn();
     const reader = renderReader(onClose);
-    const now = Date.now();
-    vi.spyOn(Date, 'now').mockReturnValueOnce(now).mockReturnValue(now + 1000);
-    swipe(reader, 100);
-    vi.mocked(Date.now).mockRestore();
+    drag(reader, [[60, 100], [80, 100], [100, 100], [110, 100]]);
     expect(reader.style.transform).toBe('');
-    expect(reader).not.toHaveAttribute('data-closing');
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    await new Promise((resolve) => setTimeout(resolve, 400));
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test('a quick flick closes it even when it is short', async () => {
+    const onClose = vi.fn();
+    const reader = renderReader(onClose);
+    now = 0;
+    vi.mocked(Date.now).mockImplementation(() => (now += 10));
+    drag(reader, [[60, 100], [90, 100], [140, 100], [200, 100]]);
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
   test('scrolling down is not a swipe', () => {
     const reader = renderReader();
-    swipe(reader, 70, 400);
+    drag(reader, [[60, 100], [62, 140], [70, 400]]);
     expect(reader.style.transform).toBe('');
   });
 });

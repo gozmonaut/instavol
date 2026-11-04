@@ -197,6 +197,16 @@
   transition: border-color var(--snappy), box-shadow var(--snappy), transform var(--snappy);
 }
 
+/* Darkens the overview under the reader while it is swiped back; fully clear otherwise */
+.swipeDim {
+  position: fixed;
+  inset: 0;
+  z-index: 89;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* While the reader is open or sliding away: solid bars in the same colour, without blur.
    Safari skips the blur while the reader moves over them, which let the cards show through. */
 .page[data-reader-open='true'] .header,
