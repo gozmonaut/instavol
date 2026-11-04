@@ -305,9 +305,9 @@
 /* The AI summary, set apart from the article text */
 .summary {
   margin-top: 20px;
-  padding: 14px 16px;
-  font-size: calc(15rem / 17 * var(--reader-scale));
-  line-height: 1.45;
+  padding: 16px 18px;
+  font-size: calc(18rem / 17 * var(--reader-scale));
+  line-height: 1.5;
   background: var(--fill);
   border-radius: 12px;
 }
@@ -811,7 +811,7 @@
 /* Back: the reader slides out to the right and the overview shows again */
 .reader[data-closing] {
   pointer-events: none;
-  animation: slideOut 280ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  animation: slideOut 170ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 /* While swiping back, and after letting go: a shadow on the left edge over the overview;

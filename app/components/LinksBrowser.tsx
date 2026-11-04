@@ -576,12 +576,23 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     };
   }, [settingsOpen]);
 
+  // Escape closes the password dialog (a tap beside it doesn't, so typed text isn't lost by accident).
+  useEffect(() => {
+    if (!passwordSheetOpen) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') closeSettings();
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [passwordSheetOpen]);
+
   function openPasswordSheet() {
     setCurrentPassword('');
     setNewPassword('');
     setRepeatPassword('');
     setPasswordError(null);
     setPasswordChanged(false);
+    setSettingsOpen(false);
     setPasswordSheetOpen(true);
   }
 
@@ -741,80 +752,15 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
               </svg>
             </button>
             {settingsOpen && (
-              <div className={styles.popover} role={passwordSheetOpen ? 'dialog' : 'menu'} aria-label="Instellingen">
-                {!passwordSheetOpen ? (
-                  <>
-                    <button className={`${styles.popoverItem} ${styles.menuOption}`} role="menuitem" onClick={openPasswordSheet}>
-                      <span>Wachtwoord wijzigen</span>
-                      <ActionIcon name="password" />
-                    </button>
-                    <button className={`${styles.popoverItem} ${styles.menuOption} ${styles.menuDanger}`} role="menuitem" onClick={handleLogout}>
-                      <span>Uitloggen</span>
-                      <ActionIcon name="logout" />
-                    </button>
-                  </>
-                ) : (
-                  <div className={styles.popoverForm}>
-                    <div className={styles.sheetHeader}>
-                      <p className={styles.sheetTitle}>Wachtwoord wijzigen</p>
-                      {passwordChanged && <p className={styles.sheetSubtitle}>Je wachtwoord is gewijzigd</p>}
-                    </div>
-                    {!passwordChanged && (
-                      <form
-                        className={styles.passwordBody}
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          savePassword();
-                        }}
-                      >
-                      <input
-                        className={styles.pickerInput}
-                        type="password"
-                        aria-label="Huidig wachtwoord"
-                        placeholder="Huidig wachtwoord"
-                        autoComplete="current-password"
-                        required
-                        value={currentPassword}
-                        onChange={(event) => setCurrentPassword(event.target.value)}
-                      />
-                      <input
-                        className={styles.pickerInput}
-                        type="password"
-                        aria-label="Nieuw wachtwoord"
-                        placeholder="Nieuw wachtwoord (minstens 8 tekens)"
-                        autoComplete="new-password"
-                        minLength={8}
-                        required
-                        value={newPassword}
-                        onChange={(event) => setNewPassword(event.target.value)}
-                      />
-                      <input
-                        className={styles.pickerInput}
-                        type="password"
-                        aria-label="Herhaal nieuw wachtwoord"
-                        placeholder="Herhaal nieuw wachtwoord"
-                        autoComplete="new-password"
-                        required
-                        value={repeatPassword}
-                        onChange={(event) => setRepeatPassword(event.target.value)}
-                      />
-                        {passwordError && (
-                          <p className={styles.passwordError} role="alert">
-                            {passwordError}
-                          </p>
-                        )}
-                        <button type="submit" className={styles.pickerSave} disabled={savingPassword}>
-                          Bewaar
-                        </button>
-                      </form>
-                    )}
-                    <div className={styles.dialogActions}>
-                      <button type="button" className={styles.dialogButton} onClick={closeSettings}>
-                        {passwordChanged ? 'Sluiten' : 'Annuleren'}
-                      </button>
-                    </div>
-                  </div>
-                )}
+              <div className={styles.popover} role="menu" aria-label="Instellingen">
+                <button className={`${styles.popoverItem} ${styles.menuOption}`} role="menuitem" onClick={openPasswordSheet}>
+                  <span>Wachtwoord wijzigen</span>
+                  <ActionIcon name="password" />
+                </button>
+                <button className={`${styles.popoverItem} ${styles.menuOption} ${styles.menuDanger}`} role="menuitem" onClick={handleLogout}>
+                  <span>Uitloggen</span>
+                  <ActionIcon name="logout" />
+                </button>
               </div>
             )}
           </div>
@@ -941,7 +887,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                       )}
                     </a>
                     <div className={styles.meta}>
-                      <span>{domainFromUrl(link.url)}</span>
+                      <span>{domainFromUrl(link.url).replace(/^www\./, '')}</span>
                       {link.readingMinutes && (
                         <>
                           <span aria-hidden="true">·</span>
@@ -1224,6 +1170,81 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             <span>Verwijderen</span>
             <ActionIcon name="delete" />
           </button>
+        </div>
+      )}
+
+      {passwordSheetOpen && (
+        <div className={styles.dialogBackdrop}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="password-title"
+            className={`${styles.dialog} ${styles.dialogWide}`}
+          >
+            <div className={styles.dialogBody}>
+              <p id="password-title" className={styles.dialogTitle}>
+                Wachtwoord wijzigen
+              </p>
+              {passwordChanged && <p className={styles.dialogText}>Je wachtwoord is gewijzigd</p>}
+            </div>
+            {!passwordChanged && (
+              <form
+                id="password-form"
+                className={styles.passwordBody}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  savePassword();
+                }}
+              >
+                <input
+                  className={styles.pickerInput}
+                  type="password"
+                  aria-label="Huidig wachtwoord"
+                  placeholder="Huidig wachtwoord"
+                  autoComplete="current-password"
+                  required
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                />
+                <input
+                  className={styles.pickerInput}
+                  type="password"
+                  aria-label="Nieuw wachtwoord"
+                  placeholder="Nieuw wachtwoord (minstens 8 tekens)"
+                  autoComplete="new-password"
+                  minLength={8}
+                  required
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                />
+                <input
+                  className={styles.pickerInput}
+                  type="password"
+                  aria-label="Herhaal nieuw wachtwoord"
+                  placeholder="Herhaal nieuw wachtwoord"
+                  autoComplete="new-password"
+                  required
+                  value={repeatPassword}
+                  onChange={(event) => setRepeatPassword(event.target.value)}
+                />
+                {passwordError && (
+                  <p className={styles.passwordError} role="alert">
+                    {passwordError}
+                  </p>
+                )}
+              </form>
+            )}
+            <div className={styles.dialogActions}>
+              <button type="button" className={styles.dialogButton} onClick={closeSettings}>
+                {passwordChanged ? 'Sluiten' : 'Annuleren'}
+              </button>
+              {!passwordChanged && (
+                <button type="submit" form="password-form" className={styles.dialogButton} disabled={savingPassword}>
+                  Bewaar
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

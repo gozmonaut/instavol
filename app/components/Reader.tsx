@@ -12,7 +12,7 @@ type ContentState = { status: 'loading' } | { status: 'ready'; html: string; rec
 type Sheet = 'settings' | 'note' | null;
 
 // Matches the slideOut animation in Reader.module.css.
-const SLIDE_OUT_MS = 280;
+const SLIDE_OUT_MS = 170;
 // Width of the strip along the left edge where Safari starts its own back gesture.
 const SAFARI_EDGE_PX = 30;
 

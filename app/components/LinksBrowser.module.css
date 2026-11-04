@@ -349,8 +349,10 @@
 .cardMain {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  /* The empty 1fr row takes up extra thumbnail height, so meta stays right below a short title */
-  grid-template-rows: auto auto auto 1fr auto;
+  /* The empty row takes up extra thumbnail height, so meta stays right below a short title.
+     minmax(0, 1fr), not 1fr: a plain 1fr row also grew by the hidden lines of a clamped
+     title, which left empty space above the summary. */
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   grid-template-areas:
     'chip chip'
     'thumb title'
@@ -362,9 +364,10 @@
 
 .thumbnail {
   grid-area: thumb;
-  width: 72px;
-  height: 72px;
-  margin-right: 12px;
+  /* About as tall as a 3-line title plus the source line; follows the iPhone text size */
+  width: calc(92rem / 17);
+  height: calc(92rem / 17);
+  margin-right: 14px;
   object-fit: cover;
   background: var(--fill);
   border-radius: 10px;
@@ -372,7 +375,11 @@
 
 .cardTitle {
   grid-area: title;
-  display: block;
+  /* At most 3 lines, so the title never grows much taller than the thumbnail next to it */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   -webkit-tap-highlight-color: transparent;
   font-size: calc(19rem / 17);
   font-weight: 600;
@@ -426,12 +433,24 @@
 .meta {
   grid-area: meta;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   margin-top: 6px;
   font-size: calc(13rem / 17);
   color: var(--text-secondary);
+}
+
+/* One line: the source shortens with "…" when it must, the reading time and notes stay whole */
+.meta > * {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.meta > :first-child {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* "2 notities": a small yellow label, like the notes in the reader */
@@ -935,6 +954,10 @@
   animation: popIn 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+.dialogWide {
+  max-width: 340px;
+}
+
 .dialogBody {
   padding: 20px 16px 16px;
   text-align: center;
@@ -984,6 +1007,10 @@
 .dialogButton + .dialogButton {
   font-weight: 600;
   border-left: 0.5px solid var(--separator);
+}
+
+.dialogButton:disabled {
+  opacity: 0.4;
 }
 
 .dialogButton:active {

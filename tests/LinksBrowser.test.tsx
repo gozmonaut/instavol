@@ -681,6 +681,16 @@ describe('changing the password', () => {
     expect(await screen.findByText('Je wachtwoord is gewijzigd')).toBeInTheDocument();
   });
 
+  test('opens as a dialog in the middle of the page (the menu closes) and Escape closes it', async () => {
+    render(<LinksBrowser initialLinks={fixture} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Instellingen' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Wachtwoord wijzigen' }));
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Wachtwoord wijzigen' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   test('different new passwords are caught before anything is sent', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
