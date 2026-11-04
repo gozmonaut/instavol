@@ -171,7 +171,7 @@
   font-weight: 600;
 }
 
-/* Buttons just below selected or highlighted text: send it to a chat app, or highlight it */
+/* Small Highlight button just below selected or highlighted text */
 .passageBar {
   position: fixed;
   z-index: 3;
@@ -184,19 +184,19 @@
 .passageButton {
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 38px;
-  padding: 0 16px;
+  gap: 5px;
+  height: 30px;
+  padding: 0 12px;
   font: inherit;
   font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  font-size: calc(15rem / 17);
+  font-size: calc(13rem / 17);
   font-weight: 600;
   white-space: nowrap;
   color: #ffffff;
   background: var(--accent);
   border: none;
   border-radius: 999px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.18);
   cursor: pointer;
   -webkit-user-select: none;
   user-select: none;

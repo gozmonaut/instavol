@@ -773,14 +773,22 @@ describe('tags', () => {
     expect(fetchMock).toHaveBeenLastCalledWith('/api/links/1', expect.objectContaining({ body: JSON.stringify({ tags: ['weekend', 'koken'] }) }));
 
     await userEvent.click(within(sheet).getByRole('button', { name: 'Klaar' }));
-    const tagList = await screen.findByRole('list', { name: 'Tags' });
+    const [tagList] = await screen.findAllByRole('list', { name: 'Tags' });
     expect(within(tagList).getByRole('button', { name: 'koken' })).toBeInTheDocument();
   });
 
   test('the "+" after the tags on a card opens the tag editor', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => ({ tags: [] }) }));
     render(<LinksBrowser initialLinks={[{ ...fixture[0], tags: ['weekend'] }, fixture[1]]} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Tags toevoegen' }));
+    await userEvent.click(screen.getAllByRole('button', { name: 'Tags toevoegen' })[0]);
+    expect(screen.getByRole('dialog', { name: 'Tags' })).toBeInTheDocument();
+  });
+
+  test('a card without tags also shows the "+"', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => ({ tags: [] }) }));
+    render(<LinksBrowser initialLinks={fixture} />);
+    expect(screen.getAllByRole('button', { name: 'Tags toevoegen' })).toHaveLength(fixture.length);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Tags toevoegen' })[0]);
     expect(screen.getByRole('dialog', { name: 'Tags' })).toBeInTheDocument();
   });
 

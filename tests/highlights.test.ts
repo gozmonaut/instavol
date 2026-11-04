@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { applyHighlights, clearHighlights, findHighlight, selectionToHighlight } from '@/lib/highlights';
+import { applyHighlights, clearHighlights, findHighlight, planHighlight, selectionToHighlight } from '@/lib/highlights';
 import type { LinkHighlight } from '@/lib/schema';
 
 function body(html: string): HTMLElement {
@@ -74,4 +74,35 @@ test('selectionToHighlight ignores a selection outside the body', () => {
   const range = document.createRange();
   range.selectNodeContents(outside);
   expect(selectionToHighlight(root, range)).toBeNull();
+});
+
+describe('planHighlight', () => {
+  const text = 'Een twee drie vier vijf zes.';
+  const at = (word: string) => ({ start: text.indexOf(word), end: text.indexOf(word) + word.length });
+  const highlight = (id: string, words: string): LinkHighlight => ({ ...make(words), id });
+
+  test('a selection within a highlight can only remove it', () => {
+    const root = body(`<p>${text}</p>`);
+    applyHighlights(root, [highlight('h1', 'twee drie vier')]);
+    expect(planHighlight(root, at('drie'))).toEqual({ kind: 'inside', id: 'h1' });
+    expect(planHighlight(root, at('twee drie vier'))).toEqual({ kind: 'inside', id: 'h1' });
+  });
+
+  test('a selection overlapping highlights merges with them', () => {
+    const root = body(`<p>${text}</p>`);
+    applyHighlights(root, [highlight('h1', 'twee drie'), highlight('h2', 'vijf')]);
+    const merged = at('drie vier vijf zes');
+    expect(planHighlight(root, merged)).toEqual({
+      kind: 'add',
+      start: text.indexOf('twee'),
+      end: merged.end,
+      replaces: ['h1', 'h2'],
+    });
+  });
+
+  test('a selection apart from highlights is just added', () => {
+    const root = body(`<p>${text}</p>`);
+    applyHighlights(root, [highlight('h1', 'twee')]);
+    expect(planHighlight(root, at('vijf'))).toEqual({ kind: 'add', ...at('vijf'), replaces: [] });
+  });
 });

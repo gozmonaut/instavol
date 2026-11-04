@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type ReactNode, type TouchEvent } from 'react';
 import { splitIngredient } from '@/lib/recipe';
-import { applyHighlights, selectionToHighlight } from '@/lib/highlights';
-import { buildPassagePrompt } from '@/lib/researchPrompt';
+import { applyHighlights, highlightAt, planHighlight, selectionOffsets } from '@/lib/highlights';
 import type { LinkNote, LinkRow } from '@/lib/schema';
 import styles from './Reader.module.css';
 import { ReaderSettingsSheet, loadSettings, saveSettings, settingsAttributes, type ReaderSettings } from './ReaderSettings';
@@ -95,13 +94,13 @@ export default function Reader({
   const sheetRef = useRef<Sheet>(null);
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const readerRef = useRef<HTMLDivElement>(null);
-  const articleRef = useRef<HTMLElement>(null);
   // Text selected in the article, with where the "Onderzoek" button goes (just below the selection).
-  const [passage, setPassage] = useState<{ text: string; top: number; left: number; canHighlight: boolean } | null>(null);
-  const [passageCopied, setPassageCopied] = useState(false);
+  // Text selected in the article body, with where the Highlight button goes (just below it), and,
+  // when the selection lies within a highlight, which one (the button then takes it away).
+  const [passage, setPassage] = useState<{ top: number; left: number; insideId: string | null } | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  // The selected range, kept because tapping a button can clear the live selection first.
-  const selectedRange = useRef<Range | null>(null);
+  // The selected stretch of text, kept because tapping a button can clear the live selection first.
+  const selectedOffsets = useRef<{ start: number; end: number } | null>(null);
   // A tapped highlight in the article, with where its "Highlight weg" button goes.
   const [activeMark, setActiveMark] = useState<{ id: string; top: number; left: number } | null>(null);
   const [savingHighlight, setSavingHighlight] = useState(false);
@@ -171,35 +170,28 @@ export default function Reader({
     };
   }, [onClose]);
 
-  // Follows the text selection in the article: a selection shows the "Onderzoek" button below it.
+  // Follows the text selection in the article body: a selection shows the Highlight button below it.
   // When the selection disappears the button waits a moment, so a tap on it still counts.
   useEffect(() => {
     let hideTimer: ReturnType<typeof setTimeout> | undefined;
     function update() {
       const selection = document.getSelection();
-      const text = selection?.toString().trim() ?? '';
-      const article = articleRef.current;
-      if (
-        selection &&
-        !selection.isCollapsed &&
-        text &&
-        article?.contains(selection.anchorNode) &&
-        article.contains(selection.focusNode)
-      ) {
+      const body = bodyRef.current;
+      const offsets =
+        selection && !selection.isCollapsed && body ? selectionOffsets(body, selection.getRangeAt(0)) : null;
+      if (selection && body && offsets) {
         clearTimeout(hideTimer);
         setActiveMark(null);
-        selectedRange.current = selection.getRangeAt(0).cloneRange();
+        selectedOffsets.current = offsets;
+        const plan = planHighlight(body, offsets);
         const rect = selection.getRangeAt(0).getBoundingClientRect?.();
         const bottom = rect?.bottom ?? 0;
         const center = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
-        const fitsBelow = bottom + 56 < window.innerHeight;
+        const fitsBelow = bottom + 48 < window.innerHeight;
         setPassage({
-          text,
-          top: fitsBelow ? bottom + 10 : Math.max(8, (rect?.top ?? 0) - 50),
-          left: Math.min(Math.max(center, 110), window.innerWidth - 110),
-          canHighlight: Boolean(
-            bodyRef.current && bodyRef.current.contains(selection.anchorNode) && bodyRef.current.contains(selection.focusNode),
-          ),
+          top: fitsBelow ? bottom + 8 : Math.max(8, (rect?.top ?? 0) - 42),
+          left: Math.min(Math.max(center, 70), window.innerWidth - 70),
+          insideId: plan.kind === 'inside' ? plan.id : null,
         });
         return;
       }
@@ -219,16 +211,20 @@ export default function Reader({
     };
   }, []);
 
+  // Highlights the selected text; overlapping highlights are merged into it, so nothing is
+  // highlighted twice (see planHighlight).
   async function addHighlight() {
-    const range = selectedRange.current;
-    const data = range && bodyRef.current ? selectionToHighlight(bodyRef.current, range) : null;
-    if (!data || savingHighlight) return;
+    const body = bodyRef.current;
+    const offsets = selectedOffsets.current;
+    if (!body || !offsets || savingHighlight) return;
+    const plan = planHighlight(body, offsets);
+    if (plan.kind === 'inside') return;
     setSavingHighlight(true);
     try {
       const res = await fetch(`/api/links/${link.id}/highlights`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...highlightAt(body, plan.start, plan.end), replaces: plan.replaces }),
       });
       if (res.ok) {
         document.getSelection()?.removeAllRanges();
@@ -247,6 +243,8 @@ export default function Reader({
       const res = await fetch(`/api/links/${link.id}/highlights/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setActiveMark(null);
+        document.getSelection()?.removeAllRanges();
+        setPassage(null);
         onChange?.(await res.json());
       }
     } finally {
@@ -263,30 +261,12 @@ export default function Reader({
       return;
     }
     const rect = mark.getBoundingClientRect();
-    const fitsBelow = rect.bottom + 56 < window.innerHeight;
+    const fitsBelow = rect.bottom + 48 < window.innerHeight;
     setActiveMark({
       id: mark.dataset.highlightId!,
-      top: fitsBelow ? rect.bottom + 10 : Math.max(8, rect.top - 50),
-      left: Math.min(Math.max(event.clientX || rect.left + rect.width / 2, 80), window.innerWidth - 80),
+      top: fitsBelow ? rect.bottom + 8 : Math.max(8, rect.top - 42),
+      left: Math.min(Math.max(event.clientX || rect.left + rect.width / 2, 70), window.innerWidth - 70),
     });
-  }
-
-  // Sends the passage, with the article's title and link, to a chat app via the share sheet;
-  // where sharing isn't supported it's copied instead.
-  async function sharePassage() {
-    if (!passage) return;
-    const text = buildPassagePrompt(link, passage.text);
-    if (navigator.share) {
-      try {
-        await navigator.share({ text });
-      } catch {
-        // Share sheet closed; nothing to do.
-      }
-      return;
-    }
-    await navigator.clipboard.writeText(text);
-    setPassageCopied(true);
-    setTimeout(() => setPassageCopied(false), 2000);
   }
 
   // A swipe to the right goes back to the overview, like the back button. Mostly-horizontal
@@ -397,7 +377,7 @@ export default function Reader({
           {actions}
         </div>
       </div>
-      <article ref={articleRef} className={styles.article} onClick={onArticleClick}>
+      <article className={styles.article} onClick={onArticleClick}>
         {labels && <div className={styles.labels}>{labels}</div>}
         <h1 id="reader-title" className={styles.title}>
           {link.title ?? domain}
@@ -447,50 +427,40 @@ export default function Reader({
           <div ref={bodyRef} className={styles.body} dangerouslySetInnerHTML={{ __html: html }} />
         )}
       </article>
-      {passage && (
-        <div className={styles.passageBar} style={{ top: passage.top, left: passage.left }}>
-          <button
-            className={styles.passageButton}
-            // Keeps the selection while tapping (desktop browsers clear it on mousedown).
-            onPointerDown={(event) => event.preventDefault()}
-            onClick={sharePassage}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />
-            </svg>
-            {passageCopied ? 'Gekopieerd' : 'Onderzoek'}
-          </button>
-          {passage.canHighlight && (
+      {(passage ?? activeMark) && (
+        <div
+          className={styles.passageBar}
+          style={passage ? { top: passage.top, left: passage.left } : { top: activeMark!.top, left: activeMark!.left }}
+        >
+          {passage && !passage.insideId ? (
             <button
               className={styles.passageButton}
               disabled={savingHighlight}
+              // Keeps the selection while tapping (desktop browsers clear it on mousedown).
               onPointerDown={(event) => event.preventDefault()}
               onClick={addHighlight}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M9 11l-5 5v4h4l5-5" />
                 <path d="M15 5l4 4-8 8-4-4z" />
               </svg>
               Highlight
             </button>
+          ) : (
+            <button
+              className={styles.passageButton}
+              disabled={savingHighlight}
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => removeHighlight(passage?.insideId ?? activeMark!.id)}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M9 11l-5 5v4h4l5-5" />
+                <path d="M15 5l4 4-8 8-4-4z" />
+                <path d="M3 3l18 18" />
+              </svg>
+              Highlight weg
+            </button>
           )}
-        </div>
-      )}
-      {!passage && activeMark && (
-        <div className={styles.passageBar} style={{ top: activeMark.top, left: activeMark.left }}>
-          <button
-            className={styles.passageButton}
-            disabled={savingHighlight}
-            onPointerDown={(event) => event.preventDefault()}
-            onClick={() => removeHighlight(activeMark.id)}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M9 11l-5 5v4h4l5-5" />
-              <path d="M15 5l4 4-8 8-4-4z" />
-              <path d="M3 3l18 18" />
-            </svg>
-            Highlight weg
-          </button>
         </div>
       )}
       {sheet === 'settings' && <ReaderSettingsSheet settings={settings} onChange={changeSettings} onClose={closeSheet} />}

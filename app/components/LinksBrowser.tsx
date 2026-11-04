@@ -633,12 +633,12 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     );
   }
 
-  // On a card, a "+" after the tags opens the tag editor.
+  // On a card, a "+" after the tags (or on its own, without tags) opens the tag editor.
   function tagList(link: LinkRow, withAdd = false) {
-    if (!link.tags?.length) return null;
+    if (!link.tags?.length && !withAdd) return null;
     return (
       <ul className={readerStyles.tags} aria-label="Tags">
-        {link.tags.map((t) => (
+        {(link.tags ?? []).map((t) => (
           <li key={t}>
             <button className={readerStyles.tag} aria-pressed={tag === t} onClick={() => toggleTagFilter(t)}>
               {t}

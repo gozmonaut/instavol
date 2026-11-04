@@ -134,42 +134,6 @@ test('a note can be added from the reader and is shown above the article', async
   expect(screen.getByRole('region', { name: 'Notitie' })).toHaveTextContent('Minder zout');
 });
 
-describe('sending a selected passage to a chat app', () => {
-  afterEach(() => {
-    Reflect.deleteProperty(navigator, 'share');
-    document.getSelection()?.removeAllRanges();
-  });
-
-  function select(node: Node) {
-    const range = document.createRange();
-    range.selectNodeContents(node);
-    const selection = document.getSelection()!;
-    selection.removeAllRanges();
-    selection.addRange(range);
-    act(() => {
-      document.dispatchEvent(new Event('selectionchange'));
-    });
-  }
-
-  test('selecting article text shows "Onderzoek", which shares a prompt with the passage', async () => {
-    const share = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
-    renderReader();
-    select(await screen.findByText('Tekst'));
-    await userEvent.click(screen.getByRole('button', { name: 'Onderzoek' }));
-    const { text } = share.mock.calls[0][0];
-    expect(text).toContain('> Tekst');
-    expect(text).toContain('Titel: Artikel A');
-  });
-
-  test('a selection outside the article shows nothing', async () => {
-    renderReader();
-    await screen.findByText('Tekst');
-    select(screen.getByRole('button', { name: 'Weergave' }));
-    expect(screen.queryByRole('button', { name: 'Onderzoek' })).not.toBeInTheDocument();
-  });
-});
-
 describe('highlighting text', () => {
   afterEach(() => {
     document.getSelection()?.removeAllRanges();
@@ -204,7 +168,7 @@ describe('highlighting text', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Highlight' }));
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/links/1/highlights',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ text: 'Tekst', prefix: '', suffix: '' }) }),
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ text: 'Tekst', prefix: '', suffix: '', replaces: [] }) }),
     );
     expect(onChange).toHaveBeenCalledWith(withHighlight);
 
@@ -214,5 +178,27 @@ describe('highlighting text', () => {
     await userEvent.click(mark);
     await userEvent.click(screen.getByRole('button', { name: 'Highlight weg' }));
     expect(fetchMock).toHaveBeenCalledWith('/api/links/1/highlights/h1', expect.objectContaining({ method: 'DELETE' }));
+  });
+
+  test('selecting article text shows only a Highlight button; a selection outside the body shows nothing', async () => {
+    renderReader();
+    select(await screen.findByText('Tekst'));
+    expect(screen.getByRole('button', { name: 'Highlight' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Onderzoek' })).not.toBeInTheDocument();
+    select(screen.getByRole('heading', { name: 'Artikel A' }));
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    expect(screen.queryByRole('button', { name: 'Highlight' })).not.toBeInTheDocument();
+  });
+
+  test('selecting text that is already highlighted offers to remove it instead of highlighting it again', async () => {
+    const withHighlight = {
+      ...link,
+      highlights: [{ id: 'h1', text: 'Tekst', prefix: '', suffix: '', createdAt: '2026-11-04T10:00:00.000Z' }],
+    };
+    render(<Reader link={withHighlight} domain="a.example" actions={null} onClose={vi.fn()} />);
+    await screen.findByText('Tekst');
+    select(document.querySelector('mark[data-highlight-id="h1"]')!);
+    expect(screen.getByRole('button', { name: 'Highlight weg' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Highlight' })).not.toBeInTheDocument();
   });
 });

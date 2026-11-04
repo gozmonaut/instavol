@@ -73,25 +73,67 @@ export function applyHighlights(root: Element, highlights: LinkHighlight[]): voi
   }
 }
 
-// A selection inside the body, as the text to store and where to find it again; null when the
-// selection is empty or reaches outside the body.
-export function selectionToHighlight(root: Element, range: Range): Pick<LinkHighlight, 'text' | 'prefix' | 'suffix'> | null {
+// Where a selection inside the body starts and ends in the body's text, without the white space
+// around it; null when the selection is empty or reaches outside the body.
+export function selectionOffsets(root: Element, range: Range): { start: number; end: number } | null {
   if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) return null;
   const before = document.createRange();
   before.selectNodeContents(root);
   before.setEnd(range.startContainer, range.startOffset);
   const start = before.toString().length;
-  const end = start + range.toString().length;
-  const fullText = root.textContent ?? '';
-  const text = fullText.slice(start, end);
-  const lead = text.length - text.trimStart().length;
+  const text = (root.textContent ?? '').slice(start, start + range.toString().length);
   const trimmed = text.trim();
   if (!trimmed) return null;
-  const from = start + lead;
-  const to = from + trimmed.length;
+  const from = start + (text.length - text.trimStart().length);
+  return { start: from, end: from + trimmed.length };
+}
+
+// The text between two offsets, with a little text on both sides to find it again later.
+export function highlightAt(root: Element, start: number, end: number): Pick<LinkHighlight, 'text' | 'prefix' | 'suffix'> {
+  const fullText = root.textContent ?? '';
   return {
-    text: trimmed,
-    prefix: fullText.slice(Math.max(0, from - CONTEXT_LENGTH), from),
-    suffix: fullText.slice(to, to + CONTEXT_LENGTH),
+    text: fullText.slice(start, end),
+    prefix: fullText.slice(Math.max(0, start - CONTEXT_LENGTH), start),
+    suffix: fullText.slice(end, end + CONTEXT_LENGTH),
+  };
+}
+
+export function selectionToHighlight(root: Element, range: Range): Pick<LinkHighlight, 'text' | 'prefix' | 'suffix'> | null {
+  const offsets = selectionOffsets(root, range);
+  return offsets ? highlightAt(root, offsets.start, offsets.end) : null;
+}
+
+// Where each highlight shown in the body starts and ends in the body's text.
+export function markedRanges(root: Element): { id: string; start: number; end: number }[] {
+  const ranges = new Map<string, { id: string; start: number; end: number }>();
+  for (const mark of Array.from(root.querySelectorAll<HTMLElement>('mark[data-highlight-id]'))) {
+    const before = document.createRange();
+    before.selectNodeContents(root);
+    before.setEndBefore(mark);
+    const start = before.toString().length;
+    const end = start + (mark.textContent ?? '').length;
+    const id = mark.dataset.highlightId!;
+    const known = ranges.get(id);
+    ranges.set(id, known ? { id, start: Math.min(known.start, start), end: Math.max(known.end, end) } : { id, start, end });
+  }
+  return Array.from(ranges.values());
+}
+
+// What highlighting a selection means: a selection that lies within one highlight can only take that
+// highlight away again; otherwise it becomes a highlight, merged with any highlight it overlaps,
+// so the same text is never highlighted twice.
+export function planHighlight(
+  root: Element,
+  selection: { start: number; end: number },
+): { kind: 'inside'; id: string } | { kind: 'add'; start: number; end: number; replaces: string[] } {
+  const ranges = markedRanges(root);
+  const around = ranges.find((r) => r.start <= selection.start && r.end >= selection.end);
+  if (around) return { kind: 'inside', id: around.id };
+  const overlapping = ranges.filter((r) => r.start < selection.end && r.end > selection.start);
+  return {
+    kind: 'add',
+    start: Math.min(selection.start, ...overlapping.map((r) => r.start)),
+    end: Math.max(selection.end, ...overlapping.map((r) => r.end)),
+    replaces: overlapping.map((r) => r.id),
   };
 }
