@@ -92,6 +92,9 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [category, setCategory] = useState('');
   const [tag, setTag] = useState('');
   const [menuLink, setMenuLink] = useState<LinkRow | null>(null);
+  // Where the "..." dropdown hangs: just under (or, near the bottom, above) the button that opened it.
+  const [menuPos, setMenuPos] = useState<{ right: number; top?: number; bottom?: number } | null>(null);
+  const itemMenuRef = useRef<HTMLDivElement>(null);
   const [tagsLink, setTagsLink] = useState<LinkRow | null>(null);
   const [tagDraft, setTagDraft] = useState('');
   const [allTags, setAllTags] = useState<string[]>([]);
@@ -109,7 +112,9 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [savingCategory, setSavingCategory] = useState(false);
   const [promptCopiedId, setPromptCopiedId] = useState<string | null>(null);
   const [compact, setCompact] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [passwordSheetOpen, setPasswordSheetOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
@@ -194,7 +199,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     }
 
     function onTouchStart(event: TouchEvent) {
-      const inSheet = event.target instanceof Element && event.target.closest(`.${styles.sheetBackdrop}, [data-reader]`);
+      const inSheet = event.target instanceof Element && event.target.closest(`.${styles.sheetBackdrop}, .${styles.popover}, [data-reader]`);
       if (window.scrollY > 0 || event.touches.length !== 1 || inSheet) return;
       startY = event.touches[0].clientY;
       distance = 0;
@@ -415,6 +420,52 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     section?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
   }
 
+  // The "..." menu closes on a tap outside it, on Escape, and when the page scrolls or resizes.
+  useEffect(() => {
+    if (!menuLink) return;
+    const close = () => setMenuLink(null);
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (target instanceof Element && (itemMenuRef.current?.contains(target) || target.closest('[aria-haspopup="menu"]'))) return;
+      close();
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') close();
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [menuLink]);
+
+  function closeSettings() {
+    setSettingsOpen(false);
+    setPasswordSheetOpen(false);
+  }
+
+  // The settings menu closes on a tap outside it or on Escape.
+  useEffect(() => {
+    if (!settingsOpen) return;
+    function onPointerDown(event: PointerEvent) {
+      if (event.target instanceof Node && !settingsRef.current?.contains(event.target)) closeSettings();
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') closeSettings();
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [settingsOpen]);
+
   function openPasswordSheet() {
     setCurrentPassword('');
     setNewPassword('');
@@ -451,6 +502,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   }
 
   async function handleLogout() {
+    closeSettings();
     if (!window.confirm('Weet je zeker dat je wilt uitloggen?')) return;
     await fetch('/api/logout', { method: 'POST' });
     router.replace('/login');
@@ -479,9 +531,19 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     return (
       <button
         className={className}
-        onClick={() => setMenuLink(link)}
+        onClick={(event) => {
+          if (menuLink?.id === link.id) return setMenuLink(null);
+          const rect = event.currentTarget.getBoundingClientRect();
+          const below = window.innerHeight - rect.bottom;
+          setMenuPos({
+            right: Math.max(8, window.innerWidth - rect.right),
+            ...(below < 300 && rect.top > below ? { bottom: window.innerHeight - rect.top + 4 } : { top: rect.bottom + 4 }),
+          });
+          setMenuLink(link);
+        }}
         aria-label={copied ? 'Gekopieerd' : 'Meer'}
-        aria-haspopup="dialog"
+        aria-haspopup="menu"
+        aria-expanded={menuLink?.id === link.id}
         title="Meer"
       >
         <ActionIcon name={copied ? 'done' : 'more'} />
@@ -525,20 +587,92 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
               <path d="M20 4v4h-4" />
             </svg>
           </button>
-          <button className={styles.iconButton} onClick={openPasswordSheet} aria-label="Wachtwoord wijzigen" title="Wachtwoord wijzigen">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="8" cy="15" r="4" />
-              <path d="M11 12l9-9" />
-              <path d="M17 6l3 3" />
-            </svg>
-          </button>
-          <button className={styles.iconButton} onClick={handleLogout} aria-label="Uitloggen" title="Uitloggen">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
-              <path d="M10 17l-5-5 5-5" />
-              <path d="M5 12h11" />
-            </svg>
-          </button>
+          <div ref={settingsRef} className={styles.settings}>
+            <button
+              className={styles.iconButton}
+              onClick={() => (settingsOpen ? closeSettings() : setSettingsOpen(true))}
+              aria-label="Instellingen"
+              title="Instellingen"
+              aria-haspopup="menu"
+              aria-expanded={settingsOpen}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
+            {settingsOpen && (
+              <div className={styles.popover} role={passwordSheetOpen ? 'dialog' : 'menu'} aria-label="Instellingen">
+                {!passwordSheetOpen ? (
+                  <>
+                    <button className={styles.popoverItem} role="menuitem" onClick={openPasswordSheet}>
+                      Wachtwoord wijzigen
+                    </button>
+                    <button className={styles.popoverItem} role="menuitem" onClick={handleLogout}>
+                      Uitloggen
+                    </button>
+                  </>
+                ) : (
+                  <div className={styles.popoverForm}>
+                    <p className={styles.sheetTitle}>Wachtwoord wijzigen</p>
+                    {passwordChanged && <p className={styles.sheetSubtitle}>Je wachtwoord is gewijzigd</p>}
+                      {!passwordChanged && (
+                        <form
+                          className={styles.passwordForm}
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            savePassword();
+                          }}
+                        >
+                          <input
+                            className={styles.sheetInput}
+                            type="password"
+                            aria-label="Huidig wachtwoord"
+                            placeholder="Huidig wachtwoord"
+                            autoComplete="current-password"
+                            required
+                            value={currentPassword}
+                            onChange={(event) => setCurrentPassword(event.target.value)}
+                          />
+                          <input
+                            className={styles.sheetInput}
+                            type="password"
+                            aria-label="Nieuw wachtwoord"
+                            placeholder="Nieuw wachtwoord (minstens 8 tekens)"
+                            autoComplete="new-password"
+                            minLength={8}
+                            required
+                            value={newPassword}
+                            onChange={(event) => setNewPassword(event.target.value)}
+                          />
+                          <input
+                            className={styles.sheetInput}
+                            type="password"
+                            aria-label="Herhaal nieuw wachtwoord"
+                            placeholder="Herhaal nieuw wachtwoord"
+                            autoComplete="new-password"
+                            required
+                            value={repeatPassword}
+                            onChange={(event) => setRepeatPassword(event.target.value)}
+                          />
+                          {passwordError && (
+                            <p className={styles.passwordError} role="alert">
+                              {passwordError}
+                            </p>
+                          )}
+                          <button type="submit" className={styles.sheetSave} disabled={savingPassword}>
+                            Bewaar
+                          </button>
+                        </form>
+                      )}
+                    <button type="button" className={styles.popoverItem} onClick={closeSettings}>
+                      {passwordChanged ? 'Sluiten' : 'Annuleren'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <header ref={headerRef} className={styles.header}>
@@ -813,79 +947,6 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
         </div>
       )}
 
-      {passwordSheetOpen && (
-        <div className={styles.sheetBackdrop} onClick={() => setPasswordSheetOpen(false)}>
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="password-title"
-            className={styles.sheet}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className={styles.sheetGroup}>
-              <div className={styles.sheetHeader}>
-                <p id="password-title" className={styles.sheetTitle}>
-                  Wachtwoord wijzigen
-                </p>
-                {passwordChanged && <p className={styles.sheetSubtitle}>Je wachtwoord is gewijzigd</p>}
-              </div>
-              {!passwordChanged && (
-                <form
-                  className={styles.passwordForm}
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    savePassword();
-                  }}
-                >
-                  <input
-                    className={styles.sheetInput}
-                    type="password"
-                    aria-label="Huidig wachtwoord"
-                    placeholder="Huidig wachtwoord"
-                    autoComplete="current-password"
-                    required
-                    value={currentPassword}
-                    onChange={(event) => setCurrentPassword(event.target.value)}
-                  />
-                  <input
-                    className={styles.sheetInput}
-                    type="password"
-                    aria-label="Nieuw wachtwoord"
-                    placeholder="Nieuw wachtwoord (minstens 8 tekens)"
-                    autoComplete="new-password"
-                    minLength={8}
-                    required
-                    value={newPassword}
-                    onChange={(event) => setNewPassword(event.target.value)}
-                  />
-                  <input
-                    className={styles.sheetInput}
-                    type="password"
-                    aria-label="Herhaal nieuw wachtwoord"
-                    placeholder="Herhaal nieuw wachtwoord"
-                    autoComplete="new-password"
-                    required
-                    value={repeatPassword}
-                    onChange={(event) => setRepeatPassword(event.target.value)}
-                  />
-                  {passwordError && (
-                    <p className={styles.passwordError} role="alert">
-                      {passwordError}
-                    </p>
-                  )}
-                  <button type="submit" className={styles.sheetSave} disabled={savingPassword}>
-                    Bewaar
-                  </button>
-                </form>
-              )}
-            </div>
-            <button className={styles.sheetCancel} onClick={() => setPasswordSheetOpen(false)}>
-              {passwordChanged ? 'Sluiten' : 'Annuleren'}
-            </button>
-          </div>
-        </div>
-      )}
-
       {researchLink && (
         <div className={styles.sheetBackdrop} onClick={() => setResearchLink(null)}>
           <div
@@ -946,56 +1007,46 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
         />
       )}
 
-      {menuLink && (
-        <div className={styles.sheetBackdrop} onClick={() => setMenuLink(null)}>
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="item-menu-title"
-            className={styles.sheet}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className={styles.sheetGroup}>
-              <div className={styles.sheetHeader}>
-                <p id="item-menu-title" className={styles.sheetSubtitle}>
-                  {menuLink.title ?? domainFromUrl(menuLink.url)}
-                </p>
-              </div>
-              <button className={`${styles.sheetOption} ${styles.menuOption}`} onClick={() => chooseFromMenu(openTags)}>
-                <span>Tags toevoegen</span>
-                <ActionIcon name="tag" />
-              </button>
-              <button className={`${styles.sheetOption} ${styles.menuOption}`} onClick={() => chooseFromMenu(handleShare)}>
-                <span>Delen</span>
-                <ActionIcon name="share" />
-              </button>
-              <button className={`${styles.sheetOption} ${styles.menuOption}`} onClick={() => chooseFromMenu(setResearchLink)}>
-                <span>AI-onderzoek</span>
-                <ActionIcon name="research" />
-              </button>
-              {menuLink.status !== 'done' && (
-                <button
-                  className={`${styles.sheetOption} ${styles.menuOption}`}
-                  disabled={retryingId === menuLink.id}
-                  onClick={() => chooseFromMenu((link) => handleRetry(link.id))}
-                >
-                  <span>Opnieuw verwerken</span>
-                  <ActionIcon name="retry" />
-                </button>
-              )}
-              <button
-                className={`${styles.sheetOption} ${styles.menuOption} ${styles.menuDanger}`}
-                disabled={deletingId === menuLink.id}
-                onClick={() => chooseFromMenu((link) => handleDelete(link.id))}
-              >
-                <span>Verwijderen</span>
-                <ActionIcon name="delete" />
-              </button>
-            </div>
-            <button className={styles.sheetCancel} onClick={() => setMenuLink(null)}>
-              Annuleren
+      {menuLink && menuPos && (
+        <div
+          ref={itemMenuRef}
+          role="menu"
+          aria-label={menuLink.title ?? domainFromUrl(menuLink.url)}
+          className={`${styles.popover} ${styles.itemMenu}`}
+          style={menuPos}
+        >
+          <button className={`${styles.popoverItem} ${styles.menuOption}`} role="menuitem" onClick={() => chooseFromMenu(openTags)}>
+            <span>Tags toevoegen</span>
+            <ActionIcon name="tag" />
+          </button>
+          <button className={`${styles.popoverItem} ${styles.menuOption}`} role="menuitem" onClick={() => chooseFromMenu(handleShare)}>
+            <span>Delen</span>
+            <ActionIcon name="share" />
+          </button>
+          <button className={`${styles.popoverItem} ${styles.menuOption}`} role="menuitem" onClick={() => chooseFromMenu(setResearchLink)}>
+            <span>AI-onderzoek</span>
+            <ActionIcon name="research" />
+          </button>
+          {menuLink.status !== 'done' && (
+            <button
+              className={`${styles.popoverItem} ${styles.menuOption}`}
+              role="menuitem"
+              disabled={retryingId === menuLink.id}
+              onClick={() => chooseFromMenu((link) => handleRetry(link.id))}
+            >
+              <span>Opnieuw verwerken</span>
+              <ActionIcon name="retry" />
             </button>
-          </div>
+          )}
+          <button
+            className={`${styles.popoverItem} ${styles.menuOption} ${styles.menuDanger}`}
+            role="menuitem"
+            disabled={deletingId === menuLink.id}
+            onClick={() => chooseFromMenu((link) => handleDelete(link.id))}
+          >
+            <span>Verwijderen</span>
+            <ActionIcon name="delete" />
+          </button>
         </div>
       )}
 

@@ -31,14 +31,89 @@
   transform: translateY(-8px) scale(0.94);
 }
 
-/* Refresh and logout sit together on the right; only the last one hangs into the margin */
+/* Refresh and settings sit together on the right; only the last one hangs into the margin */
 .brandActions {
   display: flex;
   align-items: center;
 }
 
-.brandActions .iconButton:not(:last-child) {
+.brandActions > .iconButton {
   margin-right: 0;
+}
+
+/* Settings gear with a dropdown that hangs from it, instead of a sheet from the bottom */
+.settings {
+  position: relative;
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: -10px;
+  z-index: 30;
+  width: max-content;
+  min-width: 220px;
+  max-width: min(320px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18), 0 0 0 0.5px var(--separator);
+  overflow: hidden;
+  transform-origin: top right;
+  animation: popIn 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.popoverItem {
+  height: 48px;
+  padding: 0 16px;
+  text-align: left;
+  font: inherit;
+  font-size: calc(17rem / 17);
+  color: var(--accent);
+  background: var(--surface);
+  border: none;
+  cursor: pointer;
+}
+
+.popoverItem + .popoverItem {
+  border-top: 0.5px solid var(--separator);
+}
+
+.popoverItem:active {
+  background: var(--fill);
+}
+
+.popoverForm {
+  display: flex;
+  flex-direction: column;
+  width: min(320px, calc(100vw - 32px));
+}
+
+.popoverForm > .sheetTitle,
+.popoverForm > .sheetSubtitle {
+  padding: 12px 16px 0;
+}
+
+.itemMenu {
+  position: fixed;
+  left: auto;
+  z-index: 110;
+}
+
+.itemMenu[style*='bottom'] {
+  transform-origin: bottom right;
+}
+
+.popoverItem:disabled {
+  opacity: 0.4;
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
 }
 
 .iconButton:disabled {
@@ -455,7 +530,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 20px;
+  padding: 0 16px;
   color: var(--text);
   text-align: left;
 }
@@ -663,7 +738,8 @@
   }
 
   .sheetBackdrop,
-  .sheet {
+  .sheet,
+  .popover {
     animation: none;
   }
 }

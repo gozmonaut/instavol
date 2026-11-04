@@ -45,11 +45,11 @@ const fixture: LinkRow[] = [
   },
 ];
 
-// Card and reader actions sit behind the "..." button; the menu is the last dialog on the page.
+// Card and reader actions sit behind the "..." button; the menu is a dropdown under the button.
 async function chooseAction(name: string, opener: HTMLElement) {
   await userEvent.click(opener);
-  const menu = screen.getAllByRole('dialog').at(-1)!;
-  await userEvent.click(within(menu).getByRole('button', { name }));
+  const menu = screen.getByRole('menu');
+  await userEvent.click(within(menu).getByRole('menuitem', { name }));
 }
 
 function moreButton(index = 0) {
@@ -61,10 +61,11 @@ test('renders links, and only offers retry for non-done items', async () => {
   expect(screen.getByText('Artikel A')).toBeInTheDocument();
   expect(screen.getByText('Samenvatting A')).toBeInTheDocument();
   await userEvent.click(moreButton(0));
-  expect(screen.queryByRole('button', { name: 'Opnieuw verwerken' })).not.toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: 'Annuleren' }));
+  expect(screen.queryByRole('menuitem', { name: 'Opnieuw verwerken' })).not.toBeInTheDocument();
+  await userEvent.keyboard('{Escape}');
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   await userEvent.click(moreButton(1));
-  expect(screen.getByRole('button', { name: 'Opnieuw verwerken' })).toBeInTheDocument();
+  expect(screen.getByRole('menuitem', { name: 'Opnieuw verwerken' })).toBeInTheDocument();
 });
 
 test('typing in search fetches /api/links?q=... and replaces the list', async () => {
@@ -277,7 +278,8 @@ describe('logging out', () => {
     vi.stubGlobal('fetch', fetchMock);
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<LinksBrowser initialLinks={fixture} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Uitloggen' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Instellingen' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Uitloggen' }));
     expect(confirm).toHaveBeenCalledWith('Weet je zeker dat je wilt uitloggen?');
     expect(fetchMock).toHaveBeenCalledWith('/api/logout', expect.objectContaining({ method: 'POST' }));
     expect(routerReplace).toHaveBeenCalledWith('/login');
@@ -288,7 +290,8 @@ describe('logging out', () => {
     vi.stubGlobal('fetch', fetchMock);
     vi.spyOn(window, 'confirm').mockReturnValue(false);
     render(<LinksBrowser initialLinks={fixture} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Uitloggen' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Instellingen' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Uitloggen' }));
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
@@ -502,7 +505,8 @@ test('the refresh button refetches the list', async () => {
 
 describe('changing the password', () => {
   async function fillIn(current: string, next: string, repeat: string) {
-    await userEvent.click(screen.getByRole('button', { name: 'Wachtwoord wijzigen' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Instellingen' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Wachtwoord wijzigen' }));
     await userEvent.type(screen.getByLabelText('Huidig wachtwoord'), current);
     await userEvent.type(screen.getByLabelText('Nieuw wachtwoord'), next);
     await userEvent.type(screen.getByLabelText('Herhaal nieuw wachtwoord'), repeat);
