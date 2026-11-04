@@ -244,6 +244,44 @@ describe('the "..." menu and scrolling', () => {
   });
 });
 
+describe('search bar on scroll', () => {
+  function scrollTo(y: number) {
+    Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
+    act(() => {
+      window.dispatchEvent(new Event('scroll'));
+    });
+  }
+
+  afterEach(() => {
+    Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+  });
+
+  test('scrolling down hides it, scrolling up brings it back, and near the top it always shows', async () => {
+    render(<LinksBrowser initialLinks={fixture} />);
+    const page = screen.getByRole('main');
+    scrollTo(400);
+    await waitFor(() => expect(page).toHaveAttribute('data-header-hidden', 'true'));
+    scrollTo(380);
+    await waitFor(() => expect(page).toHaveAttribute('data-header-hidden', 'false'));
+    scrollTo(600);
+    await waitFor(() => expect(page).toHaveAttribute('data-header-hidden', 'true'));
+    scrollTo(50);
+    await waitFor(() => expect(page).toHaveAttribute('data-header-hidden', 'false'));
+  });
+
+  test('a tiny scroll down does not hide it', async () => {
+    render(<LinksBrowser initialLinks={fixture} />);
+    const page = screen.getByRole('main');
+    scrollTo(300);
+    await waitFor(() => expect(page).toHaveAttribute('data-header-hidden', 'true'));
+    scrollTo(290);
+    await waitFor(() => expect(page).toHaveAttribute('data-header-hidden', 'false'));
+    scrollTo(294);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(page).toHaveAttribute('data-header-hidden', 'false');
+  });
+});
+
 test('clicking the logo clears the search and filters', async () => {
   const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ links: fixture }) });
   vi.stubGlobal('fetch', fetchMock);

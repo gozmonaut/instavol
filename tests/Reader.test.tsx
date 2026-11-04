@@ -205,8 +205,8 @@ describe('highlighting text', () => {
 
 describe('swiping back', () => {
   function swipe(reader: HTMLElement, toX: number, toY = 100) {
-    fireEvent.touchStart(reader, { touches: [{ clientX: 20, clientY: 100 }] });
-    fireEvent.touchMove(reader, { touches: [{ clientX: 40, clientY: 100 }] });
+    fireEvent.touchStart(reader, { touches: [{ clientX: 60, clientY: 100 }] });
+    fireEvent.touchMove(reader, { touches: [{ clientX: 80, clientY: 100 }] });
     fireEvent.touchMove(reader, { touches: [{ clientX: toX, clientY: toY }] });
     fireEvent.touchEnd(reader, { changedTouches: [{ clientX: toX, clientY: toY }] });
   }
@@ -214,8 +214,8 @@ describe('swiping back', () => {
   test('the reader follows the finger, and far enough slides it away and closes it', async () => {
     const onClose = vi.fn();
     const reader = renderReader(onClose);
-    fireEvent.touchStart(reader, { touches: [{ clientX: 20, clientY: 100 }] });
-    fireEvent.touchMove(reader, { touches: [{ clientX: 120, clientY: 105 }] });
+    fireEvent.touchStart(reader, { touches: [{ clientX: 60, clientY: 100 }] });
+    fireEvent.touchMove(reader, { touches: [{ clientX: 160, clientY: 105 }] });
     expect(reader.style.transform).toBe('translateX(100px)');
     fireEvent.touchMove(reader, { touches: [{ clientX: 700, clientY: 105 }] });
     fireEvent.touchEnd(reader, { changedTouches: [{ clientX: 700, clientY: 105 }] });
@@ -228,7 +228,7 @@ describe('swiping back', () => {
     const reader = renderReader(onClose);
     const now = Date.now();
     vi.spyOn(Date, 'now').mockReturnValueOnce(now).mockReturnValue(now + 1000);
-    swipe(reader, 60);
+    swipe(reader, 100);
     vi.mocked(Date.now).mockRestore();
     expect(reader.style.transform).toBe('');
     expect(reader).not.toHaveAttribute('data-closing');
@@ -236,9 +236,16 @@ describe('swiping back', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  test('in Safari, a swipe from the very left edge is left to Safari\'s own back gesture', () => {
+    const reader = renderReader();
+    fireEvent.touchStart(reader, { touches: [{ clientX: 5, clientY: 100 }] });
+    fireEvent.touchMove(reader, { touches: [{ clientX: 150, clientY: 100 }] });
+    expect(reader.style.transform).toBe('');
+  });
+
   test('scrolling down is not a swipe', () => {
     const reader = renderReader();
-    swipe(reader, 30, 400);
+    swipe(reader, 70, 400);
     expect(reader.style.transform).toBe('');
   });
 });

@@ -170,13 +170,24 @@
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
   border-bottom: 0.5px solid transparent;
-  transition: border-color var(--snappy), box-shadow var(--snappy);
+  transition: border-color var(--snappy), box-shadow var(--snappy), transform var(--snappy);
+}
+
+/* Scrolling down slides the search bar up out of view; the status-bar strip above it stays put */
+.page[data-header-hidden='true'] .header {
+  transform: translateY(calc(-1 * var(--header-height, 62px)));
+  box-shadow: none;
+}
+
+.page[data-header-hidden='true'] .header::before {
+  transform: translateY(var(--header-height, 62px));
 }
 
 /* Covers the status-bar area above the sticky bar in home-screen mode (zero height in Safari) */
 .header::before {
   content: '';
   position: absolute;
+  transition: transform var(--snappy);
   left: 0;
   right: 0;
   bottom: 100%;
@@ -301,11 +312,17 @@
   opacity: 0.5;
 }
 
+/* With the search bar away, date headings stick right below the status bar */
+.page[data-header-hidden='true'] .groupHeading {
+  top: env(safe-area-inset-top);
+}
+
 /* Date heading that sticks right below the sticky search header, like the iOS Notes app;
    the next group's heading pushes it away because each heading is sticky within its own section */
 .groupHeading {
   position: sticky;
   top: calc(env(safe-area-inset-top) + var(--header-height, 62px));
+  transition: top var(--snappy);
   z-index: 5;
   margin: 0 -16px;
   padding: 12px 16px 6px;

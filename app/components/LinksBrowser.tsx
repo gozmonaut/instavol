@@ -49,6 +49,11 @@ function buildShareText(link: LinkRow): string {
   return [link.title, meta, summary, link.url].filter(Boolean).join('\n');
 }
 
+// The search bar only slides away once the logo has scrolled out of view, and ignores tiny
+// scroll movements (finger jitter, rubber-banding).
+const HEADER_HIDE_AFTER_PX = 120;
+const HEADER_SCROLL_SLACK_PX = 6;
+
 const ACTION_ICON_PATHS = {
   share: ['M12 15V4', 'M8 8l4-4 4 4', 'M7 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1'],
   research: ['M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z', 'M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z'],
@@ -167,6 +172,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [savingCategory, setSavingCategory] = useState(false);
   const [promptCopiedId, setPromptCopiedId] = useState<string | null>(null);
   const [compact, setCompact] = useState(false);
+  const [headerHidden, setHeaderHidden] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [passwordSheetOpen, setPasswordSheetOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
@@ -220,6 +226,33 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     const observer = new IntersectionObserver(([entry]) => setCompact(!entry.isIntersecting));
     observer.observe(sentinel);
     return () => observer.disconnect();
+  }, []);
+  // Scrolling down slides the search bar away; any scroll up brings it back. Near the top, and while
+  // typing in the search field, it always stays. (The logo only shows at the top of the page.)
+  useEffect(() => {
+    let lastY = window.scrollY;
+    let frame = 0;
+    function check() {
+      frame = 0;
+      const y = window.scrollY;
+      const dy = y - lastY;
+      const typing = document.activeElement instanceof HTMLInputElement && document.activeElement.type === 'search';
+      if (y < HEADER_HIDE_AFTER_PX || typing) {
+        setHeaderHidden(false);
+        lastY = y;
+      } else if (Math.abs(dy) > HEADER_SCROLL_SLACK_PX) {
+        setHeaderHidden(dy > 0);
+        lastY = y;
+      }
+    }
+    function onScroll() {
+      if (!frame) frame = requestAnimationFrame(check);
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(frame);
+    };
   }, []);
   const isFirstRender = useRef(true);
 
@@ -663,7 +696,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     : [];
 
   return (
-    <main ref={pageRef} className={styles.page} data-compact={compact}>
+    <main ref={pageRef} className={styles.page} data-compact={compact} data-header-hidden={headerHidden}>
       <div ref={topSentinel} className={styles.sentinel} aria-hidden="true" />
       <div ref={pullIndicatorRef} className={styles.pullIndicator} data-refreshing={refreshing} role="status" aria-label={refreshing ? 'Verversen' : undefined}>
         <span className={styles.spinner} aria-hidden="true" />

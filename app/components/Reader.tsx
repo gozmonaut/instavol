@@ -13,6 +13,14 @@ type Sheet = 'settings' | 'note' | null;
 
 // Matches the slideOut animation in Reader.module.css.
 const SLIDE_OUT_MS = 280;
+// Width of the strip along the left edge where Safari starts its own back gesture.
+const SAFARI_EDGE_PX = 30;
+
+function isStandalone(): boolean {
+  if (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) return true;
+  return (navigator as Navigator & { standalone?: boolean }).standalone === true;
+}
+
 // How long a swipe that wasn't far enough takes to spring back.
 const DRAG_FINISH_MS = 260;
 
@@ -307,6 +315,10 @@ export default function Reader({
       if (el.scrollWidth > el.clientWidth && getComputedStyle(el).overflowX !== 'visible') return;
     }
     const touch = event.touches[0];
+    // In Safari, a swipe from the left edge is Safari's own back gesture, which already slides the
+    // overview in (the reader has its own history entry). Dragging the reader as well would show the
+    // overview twice, so leave edge swipes to Safari. The home-screen app has no such gesture.
+    if (touch.clientX < SAFARI_EDGE_PX && !isStandalone()) return;
     swipe.current = { x: touch.clientX, y: touch.clientY, time: Date.now(), dragging: null, dx: 0 };
   }
   function onTouchMove(event: TouchEvent<HTMLDivElement>) {
