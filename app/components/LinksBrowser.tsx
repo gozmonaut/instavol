@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import type { LinkRow } from '@/lib/schema';
-import { groupByDate } from '@/lib/dateGroups';
+import { groupByDate, TIME_ZONE } from '@/lib/dateGroups';
 import { RESEARCH_FOCUSES, buildResearchPrompt, type ResearchFocus } from '@/lib/researchPrompt';
 import { parseShareUrl } from '@/lib/shareUrl';
 import Reader from './Reader';
@@ -31,9 +31,11 @@ function domainFromUrl(url: string): string {
   }
 }
 
+// Fixed to Amsterdam time, like the date groups: the server (UTC) and the browser must render the
+// same text, or React rebuilds the whole page and drops the theme set on <html>.
 function formatDate(value: Date | string): string {
   const date = typeof value === 'string' ? new Date(value) : value;
-  return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'medium', timeStyle: 'short', timeZone: TIME_ZONE }).format(date);
 }
 
 // macOS lists only apps that accept every shared item, and many accept a url but not plain text.
@@ -53,6 +55,8 @@ function buildShareText(link: LinkRow): string {
 // scroll movements (finger jitter, rubber-banding).
 const HEADER_HIDE_AFTER_PX = 120;
 const HEADER_SCROLL_SLACK_PX = 6;
+// A scroll up after a pause this long (or after scrolling down) counts as a new time.
+const HEADER_SCROLL_PAUSE_MS = 250;
 
 const ACTION_ICON_PATHS = {
   share: ['M12 15V4', 'M8 8l4-4 4 4', 'M7 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1'],
@@ -172,7 +176,8 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [savingCategory, setSavingCategory] = useState(false);
   const [promptCopiedId, setPromptCopiedId] = useState<string | null>(null);
   const [compact, setCompact] = useState(false);
-  const [headerHidden, setHeaderHidden] = useState(false);
+  // What the top bar shows while scrolled: 0 nothing, 1 the search bar, 2 also the logo.
+  const [headerLevel, setHeaderLevel] = useState<0 | 1 | 2>(1);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [passwordSheetOpen, setPasswordSheetOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
@@ -206,16 +211,21 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const topSentinel = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLElement>(null);
   const headerRef = useRef<HTMLElement>(null);
+  const brandRef = useRef<HTMLDivElement>(null);
 
-  // Date headings stick right below the search header, whose height can change (e.g. the Enter hint).
+  // Date headings stick right below the search header (and the logo bar, when it shows), whose
+  // heights can change (e.g. the Enter hint, or the iPhone text size).
   useEffect(() => {
     const page = pageRef.current;
     const header = headerRef.current;
-    if (!page || !header || typeof ResizeObserver === 'undefined') return;
+    const brand = brandRef.current;
+    if (!page || !header || !brand || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(() => {
       page.style.setProperty('--header-height', `${header.offsetHeight}px`);
+      page.style.setProperty('--brand-height', `${brand.offsetHeight}px`);
     });
     observer.observe(header);
+    observer.observe(brand);
     return () => observer.disconnect();
   }, []);
 
@@ -227,22 +237,39 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, []);
-  // Scrolling down slides the search bar away; any scroll up brings it back. Near the top, and while
-  // typing in the search field, it always stays. (The logo only shows at the top of the page.)
+  // Scrolling down slides the search bar away. Scrolling up brings it back; scrolling up a second
+  // time (after a pause, or after scrolling down) also brings back the logo bar. Near the top, and
+  // while typing in the search field, the page looks as it does at the top.
   useEffect(() => {
     let lastY = window.scrollY;
+    let lastEventAt = 0;
+    let direction = 0;
+    let movingUp = false;
     let frame = 0;
     function check() {
       frame = 0;
+      const now = Date.now();
+      const paused = now - lastEventAt > HEADER_SCROLL_PAUSE_MS;
+      lastEventAt = now;
+      if (paused) movingUp = false;
       const y = window.scrollY;
       const dy = y - lastY;
       const typing = document.activeElement instanceof HTMLInputElement && document.activeElement.type === 'search';
       if (y < HEADER_HIDE_AFTER_PX || typing) {
-        setHeaderHidden(false);
+        setHeaderLevel(1);
         lastY = y;
-      } else if (Math.abs(dy) > HEADER_SCROLL_SLACK_PX) {
-        setHeaderHidden(dy > 0);
-        lastY = y;
+        return;
+      }
+      if (Math.abs(dy) <= HEADER_SCROLL_SLACK_PX) return;
+      const next = dy > 0 ? 1 : -1;
+      if (next !== direction) movingUp = false;
+      direction = next;
+      lastY = y;
+      if (next > 0) {
+        setHeaderLevel(0);
+      } else if (!movingUp) {
+        movingUp = true;
+        setHeaderLevel((level) => (level === 0 ? 1 : 2));
       }
     }
     function onScroll() {
@@ -707,106 +734,108 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     : [];
 
   return (
-    <main ref={pageRef} className={styles.page} data-compact={compact} data-header-hidden={headerHidden}>
+    <main ref={pageRef} className={styles.page} data-compact={compact} data-header-level={headerLevel}>
       <div ref={topSentinel} className={styles.sentinel} aria-hidden="true" />
       <div ref={pullIndicatorRef} className={styles.pullIndicator} data-refreshing={refreshing} role="status" aria-label={refreshing ? 'Verversen' : undefined}>
         <span className={styles.spinner} aria-hidden="true" />
       </div>
-      <div className={styles.brand}>
-        <h1>
-          <button className={styles.logoButton} onClick={goHome} title="Terug naar het overzicht">
-            {/* eslint-disable-next-line @next/next/no-img-element -- small static SVG */}
-            <img src="/instavol-logo-light.svg" alt="Instavol" className={`${styles.logo} on-light`} />
-            {/* eslint-disable-next-line @next/next/no-img-element -- small static SVG */}
-            <img src="/instavol-logo-dark.svg" alt="" className={`${styles.logo} on-dark`} />
-          </button>
-        </h1>
-        <div className={styles.brandActions}>
-          <button className={styles.iconButton} onClick={refreshLinks} disabled={refreshing} aria-label="Verversen" title="Verversen">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M20 12a8 8 0 1 1-2.34-5.66" />
-              <path d="M20 4v4h-4" />
-            </svg>
-          </button>
-          <button className={styles.iconButton} onClick={toggleTheme} aria-label="Wissel tussen licht en donker" title="Licht / donker">
-            <svg className="on-light" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" />
-            </svg>
-            <svg className="on-dark" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-            </svg>
-          </button>
-          <div ref={settingsRef} className={styles.settings}>
-            <button
-              className={styles.iconButton}
-              onClick={() => (settingsOpen ? closeSettings() : setSettingsOpen(true))}
-              aria-label="Instellingen"
-              title="Instellingen"
-              aria-haspopup="menu"
-              aria-expanded={settingsOpen}
-            >
+      <div className={styles.topBar}>
+        <div ref={brandRef} className={styles.brand}>
+          <h1>
+            <button className={styles.logoButton} onClick={goHome} title="Terug naar het overzicht">
+              {/* eslint-disable-next-line @next/next/no-img-element -- small static SVG */}
+              <img src="/instavol-logo-light.svg" alt="Instavol" className={`${styles.logo} on-light`} />
+              {/* eslint-disable-next-line @next/next/no-img-element -- small static SVG */}
+              <img src="/instavol-logo-dark.svg" alt="" className={`${styles.logo} on-dark`} />
+            </button>
+          </h1>
+          <div className={styles.brandActions}>
+            <button className={styles.iconButton} onClick={refreshLinks} disabled={refreshing} aria-label="Verversen" title="Verversen">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+                <path d="M20 4v4h-4" />
               </svg>
             </button>
-            {settingsOpen && (
-              <div className={styles.popover} role="menu" aria-label="Instellingen">
-                <button className={`${styles.popoverItem} ${styles.menuOption}`} role="menuitem" onClick={openPasswordSheet}>
-                  <span>Wachtwoord wijzigen</span>
-                  <ActionIcon name="password" />
-                </button>
-                <button className={`${styles.popoverItem} ${styles.menuOption} ${styles.menuDanger}`} role="menuitem" onClick={handleLogout}>
-                  <span>Uitloggen</span>
-                  <ActionIcon name="logout" />
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-      <header ref={headerRef} className={styles.header}>
-        <div className={styles.controls}>
-          <input
-            type="search"
-            enterKeyHint="go"
-            autoCapitalize="none"
-            autoCorrect="off"
-            aria-label="Zoek of plak een link"
-            placeholder="Zoek of plak een link"
-            className={styles.search}
-            value={q}
-            onChange={(event) => setQ(event.target.value)}
-            onKeyDown={(event) => {
-              const url = parseShareUrl(q);
-              if (event.key === 'Enter' && url && !saving) handleSave(url);
-            }}
-          />
-          <select
-            aria-label="Categorie"
-            className={styles.select}
-            value={category}
-            onChange={(event) => setCategory(event.target.value)}
-          >
-            <option value="">Alles</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
-        {parseShareUrl(q) && <p className={styles.hint}>Druk op Enter om deze link te bewaren</p>}
-        {tag && (
-          <div className={styles.activeTag}>
-            <span>Tag:</span>
-            <button className={readerStyles.tag} aria-pressed="true" aria-label={`Stop filter op tag ${tag}`} onClick={() => setTag('')}>
-              {tag} ✕
+            <button className={styles.iconButton} onClick={toggleTheme} aria-label="Wissel tussen licht en donker" title="Licht / donker">
+              <svg className="on-light" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" />
+              </svg>
+              <svg className="on-dark" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+              </svg>
             </button>
+            <div ref={settingsRef} className={styles.settings}>
+              <button
+                className={styles.iconButton}
+                onClick={() => (settingsOpen ? closeSettings() : setSettingsOpen(true))}
+                aria-label="Instellingen"
+                title="Instellingen"
+                aria-haspopup="menu"
+                aria-expanded={settingsOpen}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+              </button>
+              {settingsOpen && (
+                <div className={styles.popover} role="menu" aria-label="Instellingen">
+                  <button className={`${styles.popoverItem} ${styles.menuOption}`} role="menuitem" onClick={openPasswordSheet}>
+                    <span>Wachtwoord wijzigen</span>
+                    <ActionIcon name="password" />
+                  </button>
+                  <button className={`${styles.popoverItem} ${styles.menuOption} ${styles.menuDanger}`} role="menuitem" onClick={handleLogout}>
+                    <span>Uitloggen</span>
+                    <ActionIcon name="logout" />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </header>
+        </div>
+        <header ref={headerRef} className={styles.header}>
+          <div className={styles.controls}>
+            <input
+              type="search"
+              enterKeyHint="go"
+              autoCapitalize="none"
+              autoCorrect="off"
+              aria-label="Zoek of plak een link"
+              placeholder="Zoek of plak een link"
+              className={styles.search}
+              value={q}
+              onChange={(event) => setQ(event.target.value)}
+              onKeyDown={(event) => {
+                const url = parseShareUrl(q);
+                if (event.key === 'Enter' && url && !saving) handleSave(url);
+              }}
+            />
+            <select
+              aria-label="Categorie"
+              className={styles.select}
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+            >
+              <option value="">Alles</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+          {parseShareUrl(q) && <p className={styles.hint}>Druk op Enter om deze link te bewaren</p>}
+          {tag && (
+            <div className={styles.activeTag}>
+              <span>Tag:</span>
+              <button className={readerStyles.tag} aria-pressed="true" aria-label={`Stop filter op tag ${tag}`} onClick={() => setTag('')}>
+                {tag} ✕
+              </button>
+            </div>
+          )}
+        </header>
+      </div>
 
       {links.length === 0 ? (
         <div className={styles.empty}>

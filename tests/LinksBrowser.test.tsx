@@ -244,41 +244,64 @@ describe('the "..." menu and scrolling', () => {
   });
 });
 
-describe('search bar on scroll', () => {
-  function scrollTo(y: number) {
+describe('top bar on scroll', () => {
+  let now = 0;
+
+  // Each call is a separate scroll movement unless `soon` says it follows straight on.
+  function scrollTo(y: number, { soon = false } = {}) {
+    now += soon ? 50 : 1000;
     Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
     act(() => {
       window.dispatchEvent(new Event('scroll'));
     });
   }
 
+  beforeEach(() => {
+    now = 0;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+  });
+
   afterEach(() => {
+    vi.mocked(Date.now).mockRestore();
     Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
   });
 
-  test('scrolling down hides it, scrolling up brings it back, and near the top it always shows', async () => {
+  const level = () => screen.getByRole('main').getAttribute('data-header-level');
+
+  test('down hides it, the first time up brings the search bar back, the second time also the logo', async () => {
     render(<LinksBrowser initialLinks={fixture} />);
-    const page = screen.getByRole('main');
     scrollTo(400);
-    await waitFor(() => expect(page).toHaveAttribute('data-header-hidden', 'true'));
+    await waitFor(() => expect(level()).toBe('0'));
     scrollTo(380);
-    await waitFor(() => expect(page).toHaveAttribute('data-header-hidden', 'false'));
+    await waitFor(() => expect(level()).toBe('1'));
+    scrollTo(360);
+    await waitFor(() => expect(level()).toBe('2'));
     scrollTo(600);
-    await waitFor(() => expect(page).toHaveAttribute('data-header-hidden', 'true'));
-    scrollTo(50);
-    await waitFor(() => expect(page).toHaveAttribute('data-header-hidden', 'false'));
+    await waitFor(() => expect(level()).toBe('0'));
   });
 
-  test('a tiny scroll down does not hide it', async () => {
+  test('one long scroll up counts once', async () => {
     render(<LinksBrowser initialLinks={fixture} />);
-    const page = screen.getByRole('main');
-    scrollTo(300);
-    await waitFor(() => expect(page).toHaveAttribute('data-header-hidden', 'true'));
-    scrollTo(290);
-    await waitFor(() => expect(page).toHaveAttribute('data-header-hidden', 'false'));
-    scrollTo(294);
+    scrollTo(800);
+    await waitFor(() => expect(level()).toBe('0'));
+    scrollTo(780);
+    await waitFor(() => expect(level()).toBe('1'));
+    scrollTo(700, { soon: true });
     await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(page).toHaveAttribute('data-header-hidden', 'false');
+    scrollTo(600, { soon: true });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(level()).toBe('1');
+  });
+
+  test('near the top it looks as at the top, and a tiny movement changes nothing', async () => {
+    render(<LinksBrowser initialLinks={fixture} />);
+    scrollTo(300);
+    await waitFor(() => expect(level()).toBe('0'));
+    scrollTo(296);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(level()).toBe('0');
+    scrollTo(50);
+    await waitFor(() => expect(level()).toBe('1'));
   });
 });
 

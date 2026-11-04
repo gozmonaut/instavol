@@ -28,9 +28,35 @@
   transition: opacity var(--snappy), transform var(--snappy);
 }
 
-.page[data-compact='true'] .brand {
+.page[data-compact='true']:not([data-header-level='2']) .brand {
   opacity: 0;
   transform: translateY(-8px) scale(0.94);
+}
+
+/* Logo bar and search bar stick together. Normally only the search bar shows (the logo bar
+   sits above the screen); scrolling up a second time pulls the logo bar back down, and
+   scrolling down slides both away. */
+.topBar {
+  position: sticky;
+  top: calc(env(safe-area-inset-top) - var(--brand-height, 70px));
+  z-index: 10;
+  margin: 0 -16px;
+  padding: 0 16px;
+  transition: top var(--snappy), transform var(--snappy);
+}
+
+.page[data-header-level='2'] .topBar {
+  top: 0;
+}
+
+.page[data-compact='true'][data-header-level='2'] .topBar {
+  background: var(--bar);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+.page[data-header-level='0'] .topBar {
+  transform: translateY(calc(-1 * var(--header-height, 62px)));
 }
 
 /* Refresh and settings sit together on the right; only the last one hangs into the margin */
@@ -161,9 +187,7 @@
 
 /* Only the search controls stick, below the notch, like an iOS navigation bar */
 .header {
-  position: sticky;
-  top: env(safe-area-inset-top);
-  z-index: 10;
+  position: relative;
   margin: 0 -16px;
   padding: 8px 16px 10px;
   background: var(--bar);
@@ -173,21 +197,25 @@
   transition: border-color var(--snappy), box-shadow var(--snappy), transform var(--snappy);
 }
 
-/* Scrolling down slides the search bar up out of view; the status-bar strip above it stays put */
-.page[data-header-hidden='true'] .header {
-  transform: translateY(calc(-1 * var(--header-height, 62px)));
+/* With everything slid away, the status-bar strip above the search bar stays put */
+.page[data-header-level='0'] .header {
   box-shadow: none;
 }
 
-.page[data-header-hidden='true'] .header::before {
+.page[data-header-level='0'] .header::before {
   transform: translateY(var(--header-height, 62px));
+}
+
+/* With the logo bar showing, it covers the status bar itself */
+.page[data-header-level='2'] .header::before {
+  opacity: 0;
 }
 
 /* Covers the status-bar area above the sticky bar in home-screen mode (zero height in Safari) */
 .header::before {
   content: '';
   position: absolute;
-  transition: transform var(--snappy);
+  transition: transform var(--snappy), opacity var(--snappy);
   left: 0;
   right: 0;
   bottom: 100%;
@@ -312,9 +340,13 @@
   opacity: 0.5;
 }
 
-/* With the search bar away, date headings stick right below the status bar */
-.page[data-header-hidden='true'] .groupHeading {
+/* Date headings follow what the top bar shows: nothing, the search bar, or logo and search bar */
+.page[data-header-level='0'] .groupHeading {
   top: env(safe-area-inset-top);
+}
+
+.page[data-header-level='2'] .groupHeading {
+  top: calc(var(--brand-height, 70px) + var(--header-height, 62px));
 }
 
 /* Date heading that sticks right below the sticky search header, like the iOS Notes app;

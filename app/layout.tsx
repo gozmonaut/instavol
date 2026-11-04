@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Atkinson_Hyperlegible_Next } from "next/font/google";
 import { appName } from "@/lib/config";
+import ThemeKeeper from "@/app/components/ThemeKeeper";
 import "./globals.css";
 
 // The "Leesbaar" option in the reader; not preloaded, so it only downloads when chosen
@@ -40,7 +41,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <ThemeKeeper />
+        {children}
+      </body>
     </html>
   );
 }

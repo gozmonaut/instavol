@@ -3,7 +3,7 @@
 // before that), Eerder deze maand, then month names. Fixed to Amsterdam time so
 // the server render and the browser agree on what "today" is.
 
-const TIME_ZONE = 'Europe/Amsterdam';
+export const TIME_ZONE = 'Europe/Amsterdam';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const dayParts = new Intl.DateTimeFormat('en-CA', {
