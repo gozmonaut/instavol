@@ -1092,3 +1092,17 @@ test('a note can get a picture from the Bewerken sheet and shows it on its card'
   await screen.findByRole('button', { name: 'Afbeelding vervangen' });
   expect(screen.getByRole('button', { name: 'Afbeelding verwijderen' })).toBeInTheDocument();
 });
+
+test('a note with a picture opens it full size from the thumbnail, but not from its title', async () => {
+  const note: LinkRow = { ...noteItem, title: 'Kraan', imageUrl: '/api/links/4/image?v=1' };
+  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: async () => ({ links: [note] }) })));
+  render(<LinksBrowser initialLinks={[note]} />);
+
+  await userEvent.click(screen.getByRole('button', { name: 'Afbeelding groot bekijken' }));
+  const viewer = screen.getByRole('dialog', { name: 'Kraan' });
+  expect(within(viewer).getByRole('img')).toHaveAttribute('src', '/api/links/4/image?v=1');
+  await userEvent.click(within(viewer).getByRole('button', { name: 'Sluiten' }));
+
+  await userEvent.click(screen.getByText('Kraan'));
+  expect(screen.queryByRole('dialog', { name: 'Kraan' })).not.toBeInTheDocument();
+});

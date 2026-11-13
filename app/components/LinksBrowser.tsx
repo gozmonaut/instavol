@@ -1173,9 +1173,10 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                       rel="noreferrer"
                       className={styles.cardTitle}
                       onClick={(event) => {
-                        if (link.kind === 'image') {
+                        if (link.kind !== 'link') {
                           event.preventDefault();
-                          setViewedImage(link);
+                          // An uploaded image is only a picture, so tapping the card shows it; a note has its own text.
+                          if (link.kind === 'image' && link.imageUrl) setViewedImage(link);
                           return;
                         }
                         // Saved articles open in the reader; a modified click still opens the site.
@@ -1867,7 +1868,21 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                     <div className={styles.noteImageRow}>
                       {editingNote.imageUrl && (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={editingNote.imageUrl} alt="" className={styles.noteImagePreview} />
+                        <img
+                          src={editingNote.imageUrl}
+                          alt=""
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Afbeelding groot bekijken"
+                          className={`${styles.noteImagePreview} ${styles.thumbnailZoom}`}
+                          onClick={() => setViewedImage(editingNote)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              setViewedImage(editingNote);
+                            }
+                          }}
+                        />
                       )}
                       <button type="button" className={styles.noteImageButton} disabled={imageBusy} onClick={() => editImageInputRef.current?.click()}>
                         {editingNote.imageUrl ? 'Afbeelding vervangen' : 'Afbeelding toevoegen'}

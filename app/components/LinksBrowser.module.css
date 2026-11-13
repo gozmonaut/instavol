@@ -1192,6 +1192,9 @@
 
 .thumbnailZoom {
   cursor: zoom-in;
+  /* Above the stretched title link (see .cardTitle::after), so the picture gets its own clicks */
+  position: relative;
+  z-index: 1;
 }
 
 /* The whole picture, fitted to the screen, on a dark backdrop */
