@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { and, asc, count, desc, eq, gte, isNotNull, lt } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, isNotNull, lt, ne } from 'drizzle-orm';
 import { normalizeCategory } from '@/lib/categories';
 import { db } from '@/lib/db';
 import { categorize } from '@/lib/gemini';
@@ -20,7 +20,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   const since = typeof body.since === 'string' && !Number.isNaN(Date.parse(body.since)) ? new Date(body.since) : new Date();
 
-  const todo = and(eq(links.status, 'done'), lt(links.updatedAt, since));
+  const todo = and(eq(links.status, 'done'), ne(links.kind, 'image'), lt(links.updatedAt, since));
   const batch = await db.select().from(links).where(todo).orderBy(asc(links.createdAt)).limit(BATCH_SIZE);
 
   const runCategoryRows = await db
@@ -35,7 +35,7 @@ export async function POST(request: Request): Promise<Response> {
   for (const item of batch) {
     let category: string | null;
     try {
-      const suggestion = await categorize(item.title ?? item.url, item.summary ?? '', [...runCategories]);
+      const suggestion = await categorize(item.title ?? item.url ?? '', item.summary ?? '', [...runCategories]);
       category = normalizeCategory(suggestion, runCategories);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

@@ -39,7 +39,7 @@ export function buildResearchPrompt(link: LinkRow, focus: ResearchFocus, savedOn
 
   const details = [
     link.title && `Titel: ${link.title}`,
-    `Bron: ${domainFromUrl(link.url)} – ${link.url}`,
+    link.url && `Bron: ${domainFromUrl(link.url)} – ${link.url}`,
     `Bewaard op: ${savedOn}${link.category ? ` · Categorie: ${link.category}` : ''}`,
     summary && `Samenvatting (automatisch gemaakt, kan onvolledig zijn):\n${summary}`,
   ].filter(Boolean);
@@ -74,7 +74,7 @@ export function buildPassagePrompt(link: LinkRow, passage: string): string {
     quoted,
     '',
     link.title && `Titel: ${link.title}`,
-    `Bron: ${domainFromUrl(link.url)} – ${link.url}`,
+    link.url && `Bron: ${domainFromUrl(link.url)} – ${link.url}`,
     '',
     'Help me met:',
     '1. Uitleg: wat wordt hier bedoeld, en welke achtergrond heb ik nodig?',

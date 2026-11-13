@@ -51,6 +51,30 @@ alleen de backend/website waar die extensie straks tegenaan praat.
    # samenvatting + categorie (of "failed" met een duidelijke foutmelding)
    ```
 
+## Screenshots, afbeeldingen en notities sturen
+
+Naast links neemt `/api/share` (zelfde bearer-token) ook afbeeldingen en
+losse notities aan. Op de website kan het ook: plak een afbeelding in het
+zoekveld, of gebruik de "+"-knop naast de categoriekeuze.
+
+```bash
+# Screenshot of afbeelding (png, jpeg, webp of heic, maximaal 4 MB)
+curl -i -X POST https://<jouw-deployment-url>/api/share \
+  -H "Authorization: Bearer $API_TOKEN" \
+  -F file=@screenshot.png -F title="Optionele titel"
+
+# Losse notitie (maximaal 2000 tekens); Gemini geeft hem titel en categorie
+curl -i -X POST https://<jouw-deployment-url>/api/share \
+  -H "Authorization: Bearer $API_TOKEN" -H "Content-Type: application/json" \
+  -d '{"text":"Bel de loodgieter over de kraan"}'
+```
+
+In een iPhone- of Mac-Shortcut: actie "Formaat van afbeelding wijzigen"
+(breedte 2000), daarna "Haal inhoud van URL op" met methode POST, de
+header `Authorization: Bearer <token>` en als body-type "Formulier" met
+veld `file` (type Bestand). Voor een notitie: body-type JSON met `text`.
+Vergeet niet `npx drizzle-kit migrate` te draaien (migratie 0006).
+
 ## Bekende openstaande kleinigheden (niet blokkerend)
 
 Niets hiervan houdt een werkende deployment tegen; het zijn

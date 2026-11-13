@@ -517,7 +517,7 @@ export default function Reader({
           </button>
           <a
             className={styles.barIcon}
-            href={link.url}
+            href={link.url ?? undefined}
             target="_blank"
             rel="noreferrer"
             aria-label="Origineel openen"
@@ -587,7 +587,7 @@ export default function Reader({
         {content.status === 'failed' && (
           <p className={styles.status}>
             Het artikel kon niet geladen worden.{' '}
-            <a href={link.url} target="_blank" rel="noreferrer">
+            <a href={link.url ?? undefined} target="_blank" rel="noreferrer">
               Open het origineel
             </a>
           </p>

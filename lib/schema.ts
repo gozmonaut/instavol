@@ -1,5 +1,14 @@
 import { sql } from 'drizzle-orm';
-import { pgTable, uuid, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, integer, jsonb, customType } from 'drizzle-orm/pg-core';
+
+// Neon's HTTP driver returns bytea as a '\x…' hex string, PGlite as a Uint8Array.
+const bytea = customType<{ data: Buffer; driverData: Buffer | Uint8Array | string }>({
+  dataType: () => 'bytea',
+  fromDriver: (value) =>
+    typeof value === 'string' ? Buffer.from(value.replace(/^\\x/, ''), 'hex') : Buffer.from(value),
+});
+
+export type LinkKind = 'link' | 'image' | 'note';
 
 export type LinkNote = { id: string; text: string; createdAt: string };
 
@@ -9,7 +18,9 @@ export type LinkHighlight = { id: string; text: string; prefix: string; suffix: 
 
 export const links = pgTable('links', {
   id: uuid('id').primaryKey().defaultRandom(),
-  url: text('url').notNull(),
+  // 'link' items always have a url; an uploaded image or a loose note has none.
+  kind: text('kind').$type<LinkKind>().notNull().default('link'),
+  url: text('url'),
   title: text('title'),
   status: text('status').notNull().default('pending'),
   summary: text('summary'),
@@ -38,6 +49,16 @@ export const linkContents = pgTable('link_contents', {
     .primaryKey()
     .references(() => links.id, { onDelete: 'cascade' }),
   html: text('html').notNull(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// The bytes of an uploaded image or screenshot; kept apart so the list doesn't load them.
+export const linkImages = pgTable('link_images', {
+  linkId: uuid('link_id')
+    .primaryKey()
+    .references(() => links.id, { onDelete: 'cascade' }),
+  mime: text('mime').notNull(),
+  data: bytea('data').notNull(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 

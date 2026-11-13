@@ -20,16 +20,16 @@ export async function POST(request: Request): Promise<Response> {
   }
   const since = typeof body.since === 'string' && !Number.isNaN(Date.parse(body.since)) ? new Date(body.since) : new Date();
 
-  const todo = and(eq(links.status, 'done'), lt(links.updatedAt, since));
+  const todo = and(eq(links.status, 'done'), eq(links.kind, 'link'), lt(links.updatedAt, since));
   const batch = await db.select().from(links).where(todo).orderBy(asc(links.createdAt)).limit(BATCH_SIZE);
 
   let processed = 0;
   const failed: { url: string; error: string }[] = [];
   for (const item of batch) {
     try {
-      await saveReaderContent(item.id, await fetchPageText(item.url));
+      await saveReaderContent(item.id, await fetchPageText(item.url!));
     } catch (error) {
-      failed.push({ url: item.url, error: error instanceof Error ? error.message : String(error) });
+      failed.push({ url: item.url!, error: error instanceof Error ? error.message : String(error) });
     }
     await db.update(links).set({ updatedAt: new Date() }).where(eq(links.id, item.id));
     processed++;

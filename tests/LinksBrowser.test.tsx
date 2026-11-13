@@ -11,6 +11,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: routerReplace }
 const fixture: LinkRow[] = [
   {
     id: '1',
+    kind: 'link',
     url: 'https://a.example',
     title: 'Artikel A',
     status: 'done',
@@ -29,6 +30,7 @@ const fixture: LinkRow[] = [
   },
   {
     id: '2',
+    kind: 'link',
     url: 'https://b.example',
     title: 'Artikel B',
     status: 'failed',
@@ -369,6 +371,7 @@ test('clicking retry calls the reprocess endpoint and updates the item', async (
 const pendingItem: LinkRow = {
   ...fixture[0],
   id: '3',
+  kind: 'link',
   url: 'https://c.example/nieuw',
   title: null,
   status: 'pending',
@@ -772,6 +775,7 @@ describe('the reader', () => {
   const article: LinkRow = {
     ...fixture[0],
     id: '9',
+    kind: 'link',
     url: 'https://www.theverge.com/news/akai',
     title: 'Akai is embracing vibe-coded mods',
     imageUrl: 'https://cdn.example/akai.jpg',
@@ -832,7 +836,7 @@ describe('the reader', () => {
     const reader = screen.getByRole('dialog', { name: article.title! });
 
     await chooseAction('Delen', within(reader).getByRole('button', { name: 'Meer' }));
-    expect(share).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining(article.url) }));
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining(article.url!) }));
 
     await chooseAction('AI-onderzoek', within(reader).getByRole('button', { name: 'Meer' }));
     expect(screen.getByRole('dialog', { name: 'Onderzoek met AI' })).toBeInTheDocument();
@@ -936,4 +940,155 @@ test('a card shows how many notes the item has', () => {
   render(<LinksBrowser initialLinks={[{ ...fixture[0], notes: [note('a'), note('b')] }, { ...fixture[1], notes: [note('c')] }]} />);
   expect(screen.getByText('2 notities')).toBeInTheDocument();
   expect(screen.getByText('1 notitie')).toBeInTheDocument();
+});
+
+const noteItem: LinkRow = {
+  ...fixture[0],
+  id: '4',
+  kind: 'note',
+  url: null,
+  title: null,
+  status: 'pending',
+  summary: null,
+  category: null,
+  notes: [{ id: 'n1', text: 'Bel de loodgieter', createdAt: '2026-11-13T10:00:00Z' }],
+};
+
+test('the plus button saves a loose note and shows a card without a link', async () => {
+  const fetchMock = vi.fn((_url: string, init?: RequestInit) =>
+    Promise.resolve(
+      init?.method === 'POST'
+        ? { ok: true, json: async () => noteItem }
+        : { ok: true, json: async () => ({ links: [noteItem, ...fixture] }) },
+    ),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  render(<LinksBrowser initialLinks={fixture} />);
+  await userEvent.click(screen.getByRole('button', { name: 'Afbeelding of notitie toevoegen' }));
+  await userEvent.type(screen.getByRole('textbox', { name: 'Notitie' }), 'Bel de loodgieter');
+  await userEvent.click(screen.getByRole('button', { name: 'Notitie bewaren' }));
+  expect(fetchMock).toHaveBeenCalledWith(
+    '/api/links',
+    expect.objectContaining({ method: 'POST', body: JSON.stringify({ text: 'Bel de loodgieter' }) }),
+  );
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Toevoegen' })).not.toBeInTheDocument());
+  expect(screen.getByText('Notitie')).toBeInTheDocument();
+  // The text itself is readable on the card, without a "1 notitie" counter.
+  expect(screen.getByText('Bel de loodgieter')).toBeInTheDocument();
+  expect(screen.queryByText('1 notitie')).not.toBeInTheDocument();
+});
+
+test('pasting an image into the search box uploads it as form data', async () => {
+  const imageItem: LinkRow = { ...noteItem, id: '5', kind: 'image', title: 'Afbeelding', notes: [], status: 'done' };
+  const fetchMock = vi.fn((_url: string, init?: RequestInit) =>
+    Promise.resolve(
+      init?.method === 'POST'
+        ? { ok: true, json: async () => imageItem }
+        : { ok: true, json: async () => ({ links: [imageItem, ...fixture] }) },
+    ),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  render(<LinksBrowser initialLinks={fixture} />);
+  const file = new File(['x'], 'shot.png', { type: 'image/png' });
+  fireEvent.paste(screen.getByRole('searchbox'), { clipboardData: { files: [file] } });
+  await waitFor(() =>
+    expect(fetchMock).toHaveBeenCalledWith('/api/links', expect.objectContaining({ method: 'POST', body: expect.any(FormData) })),
+  );
+  await screen.findByText('Afbeelding');
+});
+
+test('Naam wijzigen in the item menu renames the card', async () => {
+  const renamed = { ...fixture[0], title: 'Mijn eigen naam' };
+  const fetchMock = vi.fn((_url: string, init?: RequestInit) =>
+    Promise.resolve({ ok: true, json: async () => (init?.method === 'PATCH' ? renamed : { links: fixture }) }),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  render(<LinksBrowser initialLinks={fixture} />);
+  await userEvent.click(screen.getAllByRole('button', { name: /meer/i })[0]);
+  await userEvent.click(screen.getByRole('menuitem', { name: /Naam wijzigen/ }));
+  const input = screen.getByRole('textbox', { name: 'Naam' });
+  await userEvent.clear(input);
+  await userEvent.type(input, 'Mijn eigen naam');
+  await userEvent.click(screen.getByRole('button', { name: 'Bewaar' }));
+  expect(fetchMock).toHaveBeenCalledWith(
+    `/api/links/${fixture[0].id}`,
+    expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ title: 'Mijn eigen naam' }) }),
+  );
+  await screen.findByText('Mijn eigen naam');
+});
+
+test('clicking an uploaded image opens it full size and closing returns to the list', async () => {
+  const image: LinkRow = { ...noteItem, id: '6', kind: 'image', title: 'Mijn screenshot', status: 'done', imageUrl: '/api/links/6/image' };
+  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: async () => ({ links: [image] }) })));
+  render(<LinksBrowser initialLinks={[image]} />);
+  await userEvent.click(screen.getByRole('button', { name: 'Afbeelding groot bekijken' }));
+  const viewer = screen.getByRole('dialog', { name: 'Mijn screenshot' });
+  expect(within(viewer).getByRole('img')).toHaveAttribute('src', '/api/links/6/image');
+  await userEvent.click(within(viewer).getByRole('button', { name: 'Sluiten' }));
+  expect(screen.queryByRole('dialog', { name: 'Mijn screenshot' })).not.toBeInTheDocument();
+});
+
+test('Bewerken changes the name and the text of a note card in one go', async () => {
+  const edited: LinkRow = { ...noteItem, title: 'Loodgieter', notes: [{ ...noteItem.notes[0], text: 'Bel de loodgieter morgen' }] };
+  const fetchMock = vi.fn((_url: string, init?: RequestInit) =>
+    Promise.resolve({ ok: true, json: async () => (init?.method === 'PATCH' ? edited : { links: [noteItem] }) }),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  render(<LinksBrowser initialLinks={[noteItem]} />);
+  await userEvent.click(screen.getAllByRole('button', { name: /meer/i })[0]);
+  await userEvent.click(screen.getByRole('menuitem', { name: /Bewerken/ }));
+  const box = screen.getByRole('textbox', { name: 'Notitie' });
+  expect(box).toHaveValue('Bel de loodgieter');
+  await userEvent.type(screen.getByRole('textbox', { name: 'Naam' }), 'Loodgieter');
+  await userEvent.clear(box);
+  await userEvent.type(box, 'Bel de loodgieter morgen');
+  await userEvent.click(screen.getByRole('button', { name: 'Bewaar' }));
+  expect(fetchMock).toHaveBeenCalledWith(
+    `/api/links/${noteItem.id}`,
+    expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ title: 'Loodgieter', text: 'Bel de loodgieter morgen' }) }),
+  );
+  await screen.findByText('Bel de loodgieter morgen');
+  expect(screen.getByText('Loodgieter')).toBeInTheDocument();
+});
+
+test('an uploaded image can get a name and an optional note, shown on its card', async () => {
+  const image: LinkRow = { ...noteItem, id: '7', kind: 'image', title: 'Afbeelding', notes: [], status: 'done', imageUrl: '/api/links/7/image' };
+  const edited: LinkRow = { ...image, title: 'Het bonnetje', notes: [{ id: 'n2', text: 'Voor de belasting', createdAt: '2026-11-13T10:00:00Z' }] };
+  const fetchMock = vi.fn((_url: string, init?: RequestInit) =>
+    Promise.resolve({ ok: true, json: async () => (init?.method === 'PATCH' ? edited : { links: [image] }) }),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  render(<LinksBrowser initialLinks={[image]} />);
+  await userEvent.click(screen.getAllByRole('button', { name: /meer/i })[0]);
+  await userEvent.click(screen.getByRole('menuitem', { name: /Bewerken/ }));
+  await userEvent.clear(screen.getByRole('textbox', { name: 'Naam' }));
+  await userEvent.type(screen.getByRole('textbox', { name: 'Naam' }), 'Het bonnetje');
+  await userEvent.type(screen.getByRole('textbox', { name: 'Notitie' }), 'Voor de belasting');
+  await userEvent.click(screen.getByRole('button', { name: 'Bewaar' }));
+  expect(fetchMock).toHaveBeenCalledWith(
+    '/api/links/7',
+    expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ title: 'Het bonnetje', text: 'Voor de belasting' }) }),
+  );
+  await screen.findByText('Voor de belasting');
+});
+
+test('a note can get a picture from the Bewerken sheet and shows it on its card', async () => {
+  const withImage: LinkRow = { ...noteItem, imageUrl: '/api/links/4/image?v=1' };
+  const fetchMock = vi.fn((_url: string, init?: RequestInit) =>
+    Promise.resolve({ ok: true, json: async () => (init?.method === 'POST' ? withImage : { links: [noteItem] }) }),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  render(<LinksBrowser initialLinks={[noteItem]} />);
+  await userEvent.click(screen.getAllByRole('button', { name: /meer/i })[0]);
+  await userEvent.click(screen.getByRole('menuitem', { name: /Bewerken/ }));
+  expect(screen.getByRole('button', { name: 'Afbeelding toevoegen' })).toBeInTheDocument();
+  await userEvent.upload(
+    screen.getByLabelText('Afbeelding kiezen voor deze notitie'),
+    new File(['x'], 'foto.png', { type: 'image/png' }),
+  );
+  await waitFor(() =>
+    expect(fetchMock).toHaveBeenCalledWith('/api/links/4/image', expect.objectContaining({ method: 'POST', body: expect.any(FormData) })),
+  );
+  await screen.findByRole('button', { name: 'Afbeelding vervangen' });
+  expect(screen.getByRole('button', { name: 'Afbeelding verwijderen' })).toBeInTheDocument();
 });

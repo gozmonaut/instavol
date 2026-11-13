@@ -8,6 +8,9 @@ vi.mock('next/server', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   after: (cb: () => void) => cb(),
 }));
+vi.mock('@/lib/gemini', () => ({
+  titleAndCategorizeNote: vi.fn().mockResolvedValue({ title: 'Loodgieter bellen', category: 'Huis' }),
+}));
 vi.mock('@/lib/processLink', () => ({ processLink: vi.fn().mockResolvedValue(undefined) }));
 
 beforeEach(() => {
@@ -72,4 +75,62 @@ test('saving the same url twice creates two separate rows', async () => {
   const body1 = await res1.json();
   const body2 = await res2.json();
   expect(body1.id).not.toBe(body2.id);
+});
+
+function imageReq(file: File | null, token = process.env.API_TOKEN) {
+  const form = new FormData();
+  if (file) form.set('file', file);
+  return new Request('https://x/api/share', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+}
+
+test('an uploaded image is stored and served, without a url', async () => {
+  const { GET } = await import('@/app/api/links/[id]/image/route');
+  const bytes = new Uint8Array([137, 80, 78, 71, 1, 2, 3]);
+  const res = await POST(imageReq(new File([bytes], 'shot.png', { type: 'image/png' })));
+  expect(res.status).toBe(201);
+  const body = await res.json();
+  expect(body.kind).toBe('image');
+  expect(body.status).toBe('done');
+  expect(body.url).toBeNull();
+  expect(body.imageUrl).toBe(`/api/links/${body.id}/image`);
+
+  const image = await GET(new Request('https://x'), { params: Promise.resolve({ id: body.id }) });
+  expect(image.status).toBe(200);
+  expect(image.headers.get('content-type')).toBe('image/png');
+  expect(new Uint8Array(await image.arrayBuffer())).toEqual(bytes);
+});
+
+test('image upload rejects a wrong type, a missing file and a missing token', async () => {
+  expect((await POST(imageReq(new File(['x'], 'a.txt', { type: 'text/plain' })))).status).toBe(400);
+  expect((await POST(imageReq(null))).status).toBe(400);
+  expect((await POST(imageReq(new File(['x'], 'a.png', { type: 'image/png' }), 'wrong'))).status).toBe(401);
+  expect(await db.select().from(links)).toHaveLength(0);
+});
+
+test('image upload rejects a file over 4 MB', async () => {
+  const big = new File([new Uint8Array(4 * 1024 * 1024 + 1)], 'big.png', { type: 'image/png' });
+  expect((await POST(imageReq(big))).status).toBe(400);
+});
+
+test('text without a url creates a note that Gemini then titles and categorizes', async () => {
+  const res = await POST(req({ text: '  Bel de loodgieter over de kraan  ' }));
+  expect(res.status).toBe(201);
+  const body = await res.json();
+  expect(body.kind).toBe('note');
+  expect(body.url).toBeNull();
+  expect(body.notes[0].text).toBe('Bel de loodgieter over de kraan');
+  // after() runs processNote in the background.
+  await vi.waitFor(async () => {
+    const [row] = await db.select().from(links).where(eq(links.id, body.id));
+    expect(row).toMatchObject({ title: 'Loodgieter bellen', category: 'Huis', status: 'done' });
+  });
+});
+
+test('an empty or too long note returns 400', async () => {
+  expect((await POST(req({ text: '   ' }))).status).toBe(400);
+  expect((await POST(req({ text: 'x'.repeat(2001) }))).status).toBe(400);
 });

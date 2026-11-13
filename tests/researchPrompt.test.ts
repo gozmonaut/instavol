@@ -3,6 +3,7 @@ import type { LinkRow } from '@/lib/schema';
 
 const article: LinkRow = {
   id: '1',
+  kind: 'link',
   url: 'https://www.tagesschau.de/frontex',
   title: 'Frontex soll zur Abschiebeagentur werden',
   status: 'done',

@@ -31,6 +31,7 @@ export async function saveReaderContent(id: string, page: PageContent): Promise<
 export async function processLink(id: string): Promise<void> {
   try {
     const [row] = await db.select().from(links).where(eq(links.id, id));
+    if (!row.url) throw new Error('Item heeft geen url');
 
     let page: PageContent | null = null;
     let fetchError: unknown = null;
