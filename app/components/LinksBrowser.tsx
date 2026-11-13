@@ -50,6 +50,15 @@ async function prepareImage(file: File): Promise<Blob> {
   }
 }
 
+// The text of a note on a card, in a yellow block: the first lines only; the reader shows all of it.
+function NoteBody({ text }: { text: string }) {
+  return (
+    <div className={`${styles.summary} ${styles.noteSticky}`}>
+      <p className={`${styles.noteBody} ${styles.noteClamped}`}>{text}</p>
+    </div>
+  );
+}
+
 // What to call an item in titles and dialogs; uploaded images and loose notes have no url.
 function itemName(link: LinkRow): string {
   if (link.title) return link.title;
@@ -215,7 +224,6 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [renamingLink, setRenamingLink] = useState<LinkRow | null>(null);
   const [nameDraft, setNameDraft] = useState('');
   const [savingName, setSavingName] = useState(false);
-  const [viewedImage, setViewedImage] = useState<LinkRow | null>(null);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
@@ -695,6 +703,14 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     saveTags(link, [...(link.tags ?? []), name]);
   }
 
+  // A tap on a note or image card opens the reader, except on a button or link inside it, or while text
+  // on the card is selected (that tap only puts the selection away).
+  function openOwnItem(event: React.MouseEvent, link: LinkRow) {
+    if ((event.target as HTMLElement).closest('button, a, input, textarea, select')) return;
+    if (window.getSelection()?.toString()) return;
+    setReaderLink(link);
+  }
+
   // Notes and uploaded images are edited in one sheet: the name and the text together.
   function startEditingNote(link: LinkRow) {
     setEditingNote(link);
@@ -1151,8 +1167,12 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             </h2>
             <ul className={styles.list}>
               {group.items.map((link) => (
-                <li key={link.id} className={styles.card}>
-                  <div className={styles.cardMain}>
+                <li
+                  key={link.id}
+                  className={`${styles.card} ${link.kind !== 'link' ? styles.cardOpenable : ''}`}
+                  onClick={link.kind !== 'link' ? (event) => openOwnItem(event, link) : undefined}
+                >
+                  <div className={`${styles.cardMain} ${link.kind !== 'link' && link.imageUrl ? styles.cardMainImage : ''}`}>
                     <div className={styles.cardTop}>
                       {link.category && (
                         <button
@@ -1190,8 +1210,11 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                         )}
                       </a>
                     ) : (
-                      // The user's own item: only its picture is clickable, so the text on the card can be selected.
-                      <span className={`${styles.cardTitle} ${styles.cardTitleStatic}`}>{itemName(link)}</span>
+                      // The user's own item: no link stretched over the card, so its text can be selected;
+                      // a tap on the card (see openOwnItem) or on this title opens the reader.
+                      <button type="button" className={`${styles.cardTitle} ${styles.cardTitleStatic} ${styles.cardTitleButton}`} onClick={() => setReaderLink(link)}>
+                        {itemName(link)}
+                      </button>
                     )}
                     <div className={styles.meta}>
                       {link.url && <span>{domainFromUrl(link.url).replace(/^www\./, '')}</span>}
@@ -1229,20 +1252,21 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                       />
                     )}
                     {link.imageUrl && link.kind !== 'link' && (
-                      // The user's own picture: a real button, because iOS Safari only delivers taps to buttons and links.
-                      <button type="button" className={styles.thumbButton} aria-label="Afbeelding groot bekijken" onClick={() => setViewedImage(link)}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={link.imageUrl}
-                          alt=""
-                          loading="lazy"
-                          onError={(event) => {
-                            event.currentTarget.parentElement!.hidden = true;
-                          }}
-                        />
-                      </button>
+                      // The user's own picture; a tap on it opens the reader, like a tap anywhere on the card.
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={link.imageUrl}
+                        alt=""
+                        className={styles.heroImage}
+                        loading="lazy"
+                        onError={(event) => {
+                          event.currentTarget.hidden = true;
+                        }}
+                      />
                     )}
-                    {link.kind !== 'link' && link.notes[0] && <p className={`${styles.summary} ${styles.noteBody}`}>{link.notes[0].text}</p>}
+                    {link.kind !== 'link' && link.notes[0] && (
+                      <NoteBody key={link.notes[0].text} text={link.notes[0].text} />
+                    )}
                     {link.status === 'done' && link.summary && (
                       <p className={styles.summary}>{link.summary}</p>
                     )}
@@ -1792,26 +1816,6 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
           </div>
         </div>
       )}
-      {viewedImage?.imageUrl && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={itemName(viewedImage)}
-          className={styles.imageViewer}
-          onClick={() => setViewedImage(null)}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') setViewedImage(null);
-          }}
-        >
-          <button className={styles.imageViewerClose} aria-label="Sluiten" autoFocus onClick={() => setViewedImage(null)}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={viewedImage.imageUrl} alt={itemName(viewedImage)} className={styles.imageViewerImg} />
-        </div>
-      )}
       {editingNote && (
         <div className={styles.sheetBackdrop} onClick={() => setEditingNote(null)}>
           <div
@@ -1868,10 +1872,8 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                   {editingNote.kind !== 'link' && (
                     <div className={styles.noteImageRow}>
                       {editingNote.imageUrl && (
-                        <button type="button" className={styles.noteImagePreviewButton} aria-label="Afbeelding groot bekijken" onClick={() => setViewedImage(editingNote)}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={editingNote.imageUrl} alt="" className={styles.noteImagePreview} />
-                        </button>
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={editingNote.imageUrl} alt="" className={styles.noteImagePreview} />
                       )}
                       <button type="button" className={styles.noteImageButton} disabled={imageBusy} onClick={() => editImageInputRef.current?.click()}>
                         {editingNote.imageUrl ? 'Afbeelding vervangen' : 'Afbeelding toevoegen'}

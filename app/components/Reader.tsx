@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type ReactNode, type TouchEvent } from 'react';
 import { splitIngredient } from '@/lib/recipe';
 import { applyHighlights, highlightAt, planHighlight, selectionOffsets } from '@/lib/highlights';
@@ -42,6 +43,19 @@ function formatPublished(value: Date | string): string {
 
 function formatNoteDate(value: string): string {
   return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// The text of a note or uploaded image as article body: blank lines start a paragraph, single ones are kept.
+function ownItemHtml(text: string | undefined): string {
+  if (!text) return '';
+  return text
+    .split(/\n{2,}/)
+    .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`)
+    .join('');
 }
 
 // A recipe's ingredients (see lib/recipe.ts) as one table: amount on the left, ingredient on the right,
@@ -120,6 +134,9 @@ export default function Reader({
   const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
   const [sheet, setSheet] = useState<Sheet>(null);
   const sheetRef = useRef<Sheet>(null);
+  // The picture of a note or image shown across the whole screen.
+  const [zoomed, setZoomed] = useState(false);
+  const zoomedRef = useRef(false);
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const readerRef = useRef<HTMLDivElement>(null);
   // Text selected in the article, with where the "Onderzoek" button goes (just below the selection).
@@ -136,6 +153,10 @@ export default function Reader({
   useEffect(() => {
     sheetRef.current = sheet;
   }, [sheet]);
+
+  useEffect(() => {
+    zoomedRef.current = zoomed;
+  }, [zoomed]);
 
   function changeSettings(next: ReaderSettings) {
     setSettings(next);
@@ -160,7 +181,11 @@ export default function Reader({
     }
   }
 
+  // Notes and uploaded images are the user's own and have no saved article to fetch.
+  const own = link.kind !== 'link';
+
   useEffect(() => {
+    if (own) return;
     let cancelled = false;
     fetch(`/api/links/${link.id}/content`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
@@ -173,7 +198,7 @@ export default function Reader({
     return () => {
       cancelled = true;
     };
-  }, [link.id]);
+  }, [link.id, own]);
 
   // The list behind stays put while reading; Escape closes the settings first, then goes back.
   useEffect(() => {
@@ -181,7 +206,9 @@ export default function Reader({
     backButton.current?.focus({ focusVisible: false } as FocusOptions);
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== 'Escape') return;
-      if (sheetRef.current) {
+      if (zoomedRef.current) {
+        setZoomed(false);
+      } else if (sheetRef.current) {
         const button = sheetRef.current === 'note' ? noteButton : settingsButton;
         setSheet(null);
         button.current?.focus({ focusVisible: false } as FocusOptions);
@@ -369,7 +396,7 @@ export default function Reader({
 
   function onTouchStart(event: TouchEvent<HTMLDivElement>) {
     swipe.current = null;
-    if (event.touches.length !== 1 || sheetRef.current || closing || swipeDone.current) return;
+    if (event.touches.length !== 1 || sheetRef.current || zoomedRef.current || closing || swipeDone.current) return;
     for (let el = event.target as HTMLElement | null; el && el !== event.currentTarget; el = el.parentElement) {
       if (el.scrollWidth > el.clientWidth && getComputedStyle(el).overflowX !== 'visible') return;
     }
@@ -448,7 +475,9 @@ export default function Reader({
 
   // A recipe shows only the recipe: no summary, author, date or reading time.
   const isRecipe = content.status === 'ready' && content.recipe;
-  const meta = isRecipe
+  const meta = own
+    ? [formatNoteDate(new Date(link.createdAt).toISOString())]
+    : isRecipe
     ? [domain]
     : [
         domain,
@@ -458,9 +487,17 @@ export default function Reader({
       ].filter(Boolean);
   // Waits for the article, so a recipe's summary doesn't flash by first.
   const showSummary = link.summary && content.status !== 'loading' && !isRecipe;
+  const noteText = link.notes[0]?.text;
   const html = useMemo(
-    () => (content.status !== 'ready' ? '' : content.recipe ? withIngredientTable(content.html) : content.html),
-    [content],
+    () =>
+      own
+        ? ownItemHtml(noteText)
+        : content.status !== 'ready'
+          ? ''
+          : content.recipe
+            ? withIngredientTable(content.html)
+            : content.html,
+    [content, own, noteText],
   );
   const notes = link.notes;
 
@@ -502,40 +539,44 @@ export default function Reader({
               Aa
             </span>
           </button>
-          <button
-            ref={noteButton}
-            className={styles.barIcon}
-            onClick={() => setSheet('note')}
-            aria-label="Notitie toevoegen"
-            title="Notitie toevoegen"
-            aria-expanded={sheet === 'note'}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-            </svg>
-          </button>
-          <a
-            className={styles.barIcon}
-            href={link.url ?? undefined}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Origineel openen"
-            title="Origineel openen"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M14 4h6v6" />
-              <path d="M20 4l-9 9" />
-              <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
-            </svg>
-          </a>
+          {!own && (
+            <>
+              <button
+                ref={noteButton}
+                className={styles.barIcon}
+                onClick={() => setSheet('note')}
+                aria-label="Notitie toevoegen"
+                title="Notitie toevoegen"
+                aria-expanded={sheet === 'note'}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+                </svg>
+              </button>
+              <a
+                className={styles.barIcon}
+                href={link.url ?? undefined}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Origineel openen"
+                title="Origineel openen"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M14 4h6v6" />
+                  <path d="M20 4l-9 9" />
+                  <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
+                </svg>
+              </a>
+            </>
+          )}
           {actions}
         </div>
       </div>
       <article className={styles.article} onClick={onArticleClick}>
         {labels && <div className={styles.labels}>{labels}</div>}
         <header className={styles.header}>
-          {link.imageUrl && (
+          {!own && link.imageUrl && (
             // The card's remote og:image; hidden when it fails to load (e.g. hotlinking blocked).
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -553,8 +594,15 @@ export default function Reader({
           </h1>
           <p className={styles.meta}>{meta.join(' · ')}</p>
         </header>
+        {own && link.imageUrl && (
+          // A real button: iOS Safari only delivers taps to buttons and links.
+          <button type="button" className={styles.ownImageButton} aria-label="Afbeelding op volledig scherm bekijken" onClick={() => setZoomed(true)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={link.imageUrl} alt="" className={styles.ownImage} />
+          </button>
+        )}
         {showSummary && <p className={styles.summary}>{link.summary}</p>}
-        {notes.length > 0 && (
+        {!own && notes.length > 0 && (
           <section className={styles.notes} aria-labelledby="reader-notes-title">
             <h2 id="reader-notes-title" className={styles.notesTitle}>
               {notes.length === 1 ? 'Notitie' : `Notities (${notes.length})`}
@@ -578,13 +626,13 @@ export default function Reader({
             </ul>
           </section>
         )}
-        {content.status === 'loading' && (
+        {!own && content.status === 'loading' && (
           <p className={styles.status}>
             <span className={styles.spinner} aria-hidden="true" />
             Artikel laden...
           </p>
         )}
-        {content.status === 'failed' && (
+        {!own && content.status === 'failed' && (
           <p className={styles.status}>
             Het artikel kon niet geladen worden.{' '}
             <a href={link.url ?? undefined} target="_blank" rel="noreferrer">
@@ -592,9 +640,9 @@ export default function Reader({
             </a>
           </p>
         )}
-        {content.status === 'ready' && (
-          // Sanitized on the server when it was saved (lib/articleHtml.ts).
-          <div ref={bodyRef} className={styles.body} dangerouslySetInnerHTML={{ __html: html }} />
+        {(own ? html !== '' : content.status === 'ready') && (
+          // Sanitized on the server when it was saved (lib/articleHtml.ts); a note's text is escaped (ownItemHtml).
+          <div ref={bodyRef} className={`${styles.body} ${own ? styles.ownBody : ''}`} dangerouslySetInnerHTML={{ __html: html }} />
         )}
       </article>
       {(passage ?? activeMark) && (
@@ -632,6 +680,24 @@ export default function Reader({
             </button>
           )}
         </div>
+      )}
+      {zoomed && link.imageUrl && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${link.title ?? 'Afbeelding'} (volledig scherm)`}
+          className={styles.zoom}
+          onClick={() => setZoomed(false)}
+        >
+          <button type="button" className={styles.zoomClose} aria-label="Sluiten" autoFocus onClick={() => setZoomed(false)}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={link.imageUrl} alt={link.title ?? ''} className={styles.zoomImg} />
+        </div>,
+        document.body,
       )}
       {sheet === 'settings' && <ReaderSettingsSheet settings={settings} onChange={changeSettings} onClose={closeSheet} />}
       {sheet === 'note' && (

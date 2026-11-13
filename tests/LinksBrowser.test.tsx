@@ -1017,16 +1017,16 @@ test('Naam wijzigen in the item menu renames the card', async () => {
   await screen.findByText('Mijn eigen naam');
 });
 
-test('clicking an uploaded image opens it full size and closing returns to the list', async () => {
-  const image: LinkRow = { ...noteItem, id: '6', kind: 'image', title: 'Mijn screenshot', status: 'done', imageUrl: '/api/links/6/image' };
+test('a tap on an uploaded image opens the reader with the whole picture', async () => {
+  const image: LinkRow = { ...noteItem, id: '6', kind: 'image', title: 'Mijn screenshot', status: 'done', notes: [], imageUrl: '/api/links/6/image' };
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: async () => ({ links: [image] }) })));
   render(<LinksBrowser initialLinks={[image]} />);
-  await userEvent.click(screen.getByRole('button', { name: 'Afbeelding groot bekijken' }));
-  const viewer = screen.getByRole('dialog', { name: 'Mijn screenshot' });
-  expect(within(viewer).getByRole('img')).toHaveAttribute('src', '/api/links/6/image');
-  await userEvent.click(within(viewer).getByRole('button', { name: 'Sluiten' }));
-  expect(screen.queryByRole('dialog', { name: 'Mijn screenshot' })).not.toBeInTheDocument();
+  // The picture has an empty alt text, so it has no role to look it up by.
+  await userEvent.click(document.querySelector('li img')!);
+  const reader = screen.getByRole('dialog', { name: 'Mijn screenshot' });
+  expect(reader.querySelector('img')).toHaveAttribute('src', '/api/links/6/image');
 });
+;
 
 test('Bewerken changes the name and the text of a note card in one go', async () => {
   const edited: LinkRow = { ...noteItem, title: 'Loodgieter', notes: [{ ...noteItem.notes[0], text: 'Bel de loodgieter morgen' }] };
@@ -1093,18 +1093,74 @@ test('a note can get a picture from the Bewerken sheet and shows it on its card'
   expect(screen.getByRole('button', { name: 'Afbeelding verwijderen' })).toBeInTheDocument();
 });
 
-test('a note with a picture opens it full size from the thumbnail, but not from its title', async () => {
+describe('opening a note or image in the reader', () => {
+  const note: LinkRow = {
+    ...noteItem,
+    title: 'Kraan',
+    imageUrl: '/api/links/4/image?v=1',
+    notes: [{ id: 'n1', text: 'Eerste alinea\nmet regeleinde\n\nTweede <b>alinea</b>', createdAt: '2026-11-13T10:00:00Z' }],
+  };
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: async () => ({ links: [note] }) })));
+  });
+
+  test('a tap on the card text opens the reader with the picture and the whole text, without fetching an article', async () => {
+    render(<LinksBrowser initialLinks={[note]} />);
+    await userEvent.click(screen.getAllByText(/Eerste alinea/)[0]);
+    const reader = screen.getByRole('dialog', { name: 'Kraan' });
+    expect(within(reader).getByRole('heading', { name: 'Kraan' })).toBeInTheDocument();
+    expect(reader.querySelector('img')).toHaveAttribute('src', '/api/links/4/image?v=1');
+    expect(within(reader).getByText(/Tweede/)).toBeInTheDocument();
+    // The text is shown as text, not as markup.
+    expect(within(reader).getByText('Tweede <b>alinea</b>')).toBeInTheDocument();
+    expect(within(reader).queryByText('Artikel laden...')).not.toBeInTheDocument();
+    expect(within(reader).queryByRole('button', { name: 'Notitie toevoegen' })).not.toBeInTheDocument();
+    expect(within(reader).queryByRole('link', { name: 'Origineel openen' })).not.toBeInTheDocument();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalledWith(expect.stringContaining('/content'));
+  });
+
+  test('the title also opens the reader', async () => {
+    render(<LinksBrowser initialLinks={[note]} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Kraan' }));
+    expect(screen.getByRole('dialog', { name: 'Kraan' })).toBeInTheDocument();
+  });
+
+  test('while text on the card is selected, a tap does not open the reader', async () => {
+    render(<LinksBrowser initialLinks={[note]} />);
+    vi.spyOn(window, 'getSelection').mockReturnValue({ toString: () => 'Eerste' } as Selection);
+    await userEvent.click(screen.getAllByText(/Eerste alinea/)[0]);
+    expect(screen.queryByRole('dialog', { name: 'Kraan' })).not.toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+});
+
+test('a long note has no "Lees meer" on the card; the reader shows all of it', async () => {
+  const longNote: LinkRow = {
+    ...noteItem,
+    title: 'Lang',
+    notes: [{ id: 'n9', text: `${'regel\n'.repeat(40)}de allerlaatste regel`, createdAt: '2026-11-13T10:00:00Z' }],
+  };
+  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: async () => ({ links: [longNote] }) })));
+  render(<LinksBrowser initialLinks={[longNote]} />);
+  expect(screen.queryByRole('button', { name: /Lees meer|Minder/ })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Lang' }));
+  const reader = screen.getByRole('dialog', { name: 'Lang' });
+  expect(within(reader).getByText(/de allerlaatste regel/)).toBeInTheDocument();
+});
+
+test('in the reader a tap on the picture of a note shows it fullscreen, and Escape closes only that', async () => {
   const note: LinkRow = { ...noteItem, title: 'Kraan', imageUrl: '/api/links/4/image?v=1' };
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: async () => ({ links: [note] }) })));
   render(<LinksBrowser initialLinks={[note]} />);
-
-  await userEvent.click(screen.getByRole('button', { name: 'Afbeelding groot bekijken' }));
-  const viewer = screen.getByRole('dialog', { name: 'Kraan' });
-  expect(within(viewer).getByRole('img')).toHaveAttribute('src', '/api/links/4/image?v=1');
-  await userEvent.click(within(viewer).getByRole('button', { name: 'Sluiten' }));
-
-  await userEvent.click(screen.getByText('Kraan'));
-  expect(screen.queryByRole('dialog', { name: 'Kraan' })).not.toBeInTheDocument();
-  // Only the picture is clickable; the title is plain text, so the card's text can be selected.
-  expect(screen.queryByRole('link', { name: 'Kraan' })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Kraan' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Afbeelding op volledig scherm bekijken' }));
+  const zoom = screen.getByRole('dialog', { name: 'Kraan (volledig scherm)' });
+  expect(within(zoom).getByRole('img')).toHaveAttribute('src', '/api/links/4/image?v=1');
+  await userEvent.keyboard('{Escape}');
+  expect(screen.queryByRole('dialog', { name: 'Kraan (volledig scherm)' })).not.toBeInTheDocument();
+  expect(screen.getByRole('dialog', { name: 'Kraan' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Afbeelding op volledig scherm bekijken' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Sluiten' }));
+  expect(screen.queryByRole('dialog', { name: 'Kraan (volledig scherm)' })).not.toBeInTheDocument();
 });

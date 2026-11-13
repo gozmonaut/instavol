@@ -1190,71 +1190,7 @@
   outline-offset: -2px;
 }
 
-/* The user's own picture on a card; a button so it also gets taps on iOS, and above the stretched title link */
-.thumbButton {
-  grid-area: thumb;
-  display: block;
-  margin: 0 14px 0 0;
-  padding: 0;
-  line-height: 0;
-  background: none;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.thumbButton img {
-  display: block;
-  width: calc(92rem / 17);
-  height: calc(92rem / 17);
-  object-fit: cover;
-  background: var(--fill);
-  border-radius: 10px;
-}
-
-.noteImagePreviewButton {
-  padding: 0;
-  line-height: 0;
-  background: none;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-}
-
 /* The whole picture, fitted to the screen, on a dark backdrop */
-.imageViewer {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: grid;
-  place-items: center;
-  padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px));
-  background: rgba(0, 0, 0, 0.9);
-}
-
-.imageViewerImg {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  border-radius: 6px;
-}
-
-.imageViewerClose {
-  position: absolute;
-  top: max(12px, env(safe-area-inset-top, 0px));
-  right: 12px;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.18);
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-}
-
 /* A loose note's own text, with its line breaks as typed */
 .noteBody {
   white-space: pre-wrap;
@@ -1303,4 +1239,65 @@
 .noteBody {
   -webkit-user-select: text;
   user-select: text;
+}
+
+/* A note or uploaded image with a picture: title and meta on top, the picture across the full width below them.
+   Tapping the card opens the reader. */
+.cardMainImage {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto;
+  grid-template-areas:
+    'chip'
+    'title'
+    'meta'
+    'media'
+    'body';
+}
+
+/* The text of a note or uploaded image: a yellow block */
+.noteSticky {
+  padding: 12px 14px;
+  color: var(--note-text);
+  background: var(--note-bg);
+  border-radius: 12px;
+}
+
+/* A long note shows its first lines on the card; the reader shows all of it */
+.noteBody {
+  margin: 0;
+}
+
+.noteClamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 8;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Notes and uploaded images open in the reader when the card is tapped (iOS needs the pointer cursor for that) */
+.cardOpenable {
+  cursor: pointer;
+}
+
+.cardTitleButton {
+  width: 100%;
+  padding: 0;
+  font-family: inherit;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* A note's or uploaded image's picture, across the full card width */
+.heroImage {
+  grid-area: media;
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  margin-top: 12px;
+  object-fit: cover;
+  background: var(--fill);
+  border-radius: 12px;
 }
