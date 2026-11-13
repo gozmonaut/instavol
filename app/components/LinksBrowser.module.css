@@ -1190,11 +1190,36 @@
   outline-offset: -2px;
 }
 
-.thumbnailZoom {
-  cursor: zoom-in;
-  /* Above the stretched title link (see .cardTitle::after), so the picture gets its own clicks */
-  position: relative;
-  z-index: 1;
+/* The user's own picture on a card; a button so it also gets taps on iOS, and above the stretched title link */
+.thumbButton {
+  grid-area: thumb;
+  display: block;
+  margin: 0 14px 0 0;
+  padding: 0;
+  line-height: 0;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.thumbButton img {
+  display: block;
+  width: calc(92rem / 17);
+  height: calc(92rem / 17);
+  object-fit: cover;
+  background: var(--fill);
+  border-radius: 10px;
+}
+
+.noteImagePreviewButton {
+  padding: 0;
+  line-height: 0;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
 }
 
 /* The whole picture, fitted to the screen, on a dark backdrop */

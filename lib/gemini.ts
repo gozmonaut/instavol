@@ -76,21 +76,6 @@ function buildCategoryPrompt(title: string, summary: string, existingCategories:
   ].join('\n');
 }
 
-function buildNotePrompt(text: string, existingCategories: string[]): string {
-  return [
-    'Je krijgt een korte eigen notitie van de gebruiker. Geef hem een korte titel (maximaal 8 woorden) en kies een categorie.',
-    'Baseer je alleen op wat er in de notitie staat.',
-    '',
-    ...categorySection(existingCategories),
-    '',
-    'Antwoord uitsluitend met JSON in exact dit formaat, zonder extra tekst:',
-    '{"title": "...", "category": "..."}',
-    '',
-    'Notitie:',
-    text,
-  ].join('\n');
-}
-
 function stripCodeFence(text: string): string {
   return text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
 }
@@ -175,18 +160,6 @@ export async function summarizeUrlAndCategorize(url: string, existingCategories:
   const { summary, category } = parseResult(text);
   const { title } = parseJson(text);
   return { title: typeof title === 'string' ? title.trim() : '', summary, category };
-}
-
-// A loose note of the user's own: Gemini only names and categorizes it, the text stays as written.
-export async function titleAndCategorizeNote(
-  text: string,
-  existingCategories: string[],
-): Promise<{ title: string; category: string }> {
-  const { title, category } = parseJson(await generate(buildNotePrompt(text, existingCategories)));
-  if (typeof title !== 'string' || !title.trim() || typeof category !== 'string' || !category.trim()) {
-    throw new GeminiError('Gemini-antwoord mist een titel of categorie');
-  }
-  return { title: title.trim(), category };
 }
 
 // Category only, from an already saved title and summary (used to recategorize existing items).

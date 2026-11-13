@@ -8,9 +8,6 @@ vi.mock('next/server', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   after: (cb: () => void) => cb(),
 }));
-vi.mock('@/lib/gemini', () => ({
-  titleAndCategorizeNote: vi.fn().mockResolvedValue({ title: 'Loodgieter bellen', category: 'Huis' }),
-}));
 vi.mock('@/lib/processLink', () => ({ processLink: vi.fn().mockResolvedValue(undefined) }));
 
 beforeEach(() => {
@@ -116,18 +113,28 @@ test('image upload rejects a file over 4 MB', async () => {
   expect((await POST(imageReq(big))).status).toBe(400);
 });
 
-test('text without a url creates a note that Gemini then titles and categorizes', async () => {
-  const res = await POST(req({ text: '  Bel de loodgieter over de kraan  ' }));
+test('text without a url creates a finished note without asking Gemini', async () => {
+  const fetchSpy = vi.spyOn(globalThis, 'fetch');
+  const res = await POST(req({ text: '  Bel de loodgieter over de kraan\nen vraag naar de prijs  ' }));
   expect(res.status).toBe(201);
   const body = await res.json();
-  expect(body.kind).toBe('note');
-  expect(body.url).toBeNull();
-  expect(body.notes[0].text).toBe('Bel de loodgieter over de kraan');
-  // after() runs processNote in the background.
-  await vi.waitFor(async () => {
-    const [row] = await db.select().from(links).where(eq(links.id, body.id));
-    expect(row).toMatchObject({ title: 'Loodgieter bellen', category: 'Huis', status: 'done' });
+  expect(body).toMatchObject({
+    kind: 'note',
+    url: null,
+    status: 'done',
+    title: 'Bel de loodgieter over de kraan',
+    category: 'Notities',
   });
+  expect(body.notes[0].text).toBe('Bel de loodgieter over de kraan\nen vraag naar de prijs');
+  expect(fetchSpy).not.toHaveBeenCalled();
+  fetchSpy.mockRestore();
+});
+
+test('a note takes an own title when given, and reuses an existing spelling of the category', async () => {
+  await db.insert(links).values({ url: 'https://a.example', category: 'notities' });
+  const body = await (await POST(req({ text: 'Iets', title: 'Mijn titel' }))).json();
+  expect(body.title).toBe('Mijn titel');
+  expect(body.category).toBe('notities');
 });
 
 test('an empty or too long note returns 400', async () => {

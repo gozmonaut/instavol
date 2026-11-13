@@ -4,12 +4,11 @@ import { eq } from 'drizzle-orm';
 import { normalizeCategory } from '@/lib/categories';
 import { db } from '@/lib/db';
 import { getCategoriesByUsage } from '@/lib/links';
-import { MAX_NOTE_LENGTH } from '@/lib/createItem';
+import { MAX_NOTE_LENGTH, NOTES_CATEGORY } from '@/lib/createItem';
 import { links, type LinkNote } from '@/lib/schema';
 import { normalizeTags } from '@/lib/tags';
 
 const MAX_TITLE_LENGTH = 200;
-const NOTES_CATEGORY = 'Notities';
 
 // Manually change an item's title, category and/or tags, or the text of a loose note or image.
 export async function PATCH(

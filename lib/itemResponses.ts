@@ -1,5 +1,5 @@
-import { NextResponse, after } from 'next/server';
-import { createImageItem, createNoteItem, ItemInputError, processNote } from '@/lib/createItem';
+import { NextResponse } from 'next/server';
+import { createImageItem, createNoteItem, ItemInputError } from '@/lib/createItem';
 import type { LinkRow } from '@/lib/schema';
 
 function created(row: LinkRow): Response {
@@ -48,7 +48,6 @@ export async function imageResponse(request: Request): Promise<Response> {
 export async function noteResponse(body: { text: unknown; title?: unknown }): Promise<Response> {
   try {
     const row = await createNoteItem(body);
-    after(() => processNote(row.id).catch(console.error));
     return created(row);
   } catch (error) {
     return failure(error);

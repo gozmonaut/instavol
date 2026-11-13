@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { normalizeCategory } from '@/lib/categories';
 import { db } from '@/lib/db';
-import { titleAndCategorizeNote } from '@/lib/gemini';
 import { getCategoriesByUsage } from '@/lib/links';
 import { linkImages, links, type LinkRow } from '@/lib/schema';
 
@@ -10,6 +9,8 @@ import { linkImages, links, type LinkRow } from '@/lib/schema';
 export const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 export const MAX_NOTE_LENGTH = 2000;
 const MAX_TITLE_LENGTH = 200;
+const MAX_NOTE_TITLE = 60;
+export const NOTES_CATEGORY = 'Notities';
 
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/heic']);
 
@@ -85,7 +86,14 @@ export async function removeItemImage(id: string): Promise<LinkRow | null> {
   return row;
 }
 
-// A loose note: its text becomes the item's first note; processNote adds a title and category.
+// The first line of a note, as a name for its card.
+function noteTitle(text: string): string {
+  const line = text.split('\n')[0].trim();
+  return line.length > MAX_NOTE_TITLE ? `${line.slice(0, MAX_NOTE_TITLE).trimEnd()}…` : line;
+}
+
+// A loose note: its text becomes the item's first note. Nothing is sent to Gemini; the name is the first
+// line of the text and the category is "Notities", both changeable afterwards.
 export async function createNoteItem(input: { text: unknown; title?: unknown }): Promise<LinkRow> {
   const text = typeof input.text === 'string' ? input.text.trim() : '';
   if (!text) throw new ItemInputError('text is required');
@@ -95,33 +103,11 @@ export async function createNoteItem(input: { text: unknown; title?: unknown }):
     .insert(links)
     .values({
       kind: 'note',
-      title: cleanTitle(input.title),
+      title: cleanTitle(input.title) ?? noteTitle(text),
+      category: normalizeCategory(NOTES_CATEGORY, await getCategoriesByUsage()) ?? NOTES_CATEGORY,
+      status: 'done',
       notes: [{ id: randomUUID(), text, createdAt: new Date().toISOString() }],
     })
     .returning();
   return row;
-}
-
-export async function processNote(id: string): Promise<void> {
-  try {
-    const [row] = await db.select().from(links).where(eq(links.id, id));
-    const existingCategories = await getCategoriesByUsage();
-    const result = await titleAndCategorizeNote(row.notes[0]?.text ?? '', existingCategories);
-    await db
-      .update(links)
-      .set({
-        title: row.title ?? result.title,
-        category: normalizeCategory(result.category, existingCategories),
-        status: 'done',
-        updatedAt: new Date(),
-      })
-      .where(eq(links.id, id));
-  } catch (error) {
-    // The note itself is saved; without a title or category it is still readable and searchable.
-    const message = error instanceof Error ? error.message : String(error);
-    await db
-      .update(links)
-      .set({ status: 'failed', errorMessage: message, updatedAt: new Date() })
-      .where(eq(links.id, id));
-  }
 }

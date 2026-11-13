@@ -1215,31 +1215,33 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                         </>
                       )}
                     </div>
-                    {link.imageUrl && (
+                    {link.imageUrl && link.kind === 'link' && (
                       // A remote og:image; hidden when it fails to load (e.g. hotlinking blocked).
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={link.imageUrl}
                         alt=""
-                        className={`${styles.thumbnail} ${link.kind !== 'link' ? styles.thumbnailZoom : ''}`}
-                        {...(link.kind !== 'link' && {
-                          role: 'button',
-                          tabIndex: 0,
-                          'aria-label': 'Afbeelding groot bekijken',
-                          onClick: () => setViewedImage(link),
-                          onKeyDown: (event: React.KeyboardEvent) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault();
-                              setViewedImage(link);
-                            }
-                          },
-                        })}
+                        className={styles.thumbnail}
                         loading="lazy"
                         referrerPolicy="no-referrer"
                         onError={(event) => {
                           event.currentTarget.hidden = true;
                         }}
                       />
+                    )}
+                    {link.imageUrl && link.kind !== 'link' && (
+                      // The user's own picture: a real button, because iOS Safari only delivers taps to buttons and links.
+                      <button type="button" className={styles.thumbButton} aria-label="Afbeelding groot bekijken" onClick={() => setViewedImage(link)}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={link.imageUrl}
+                          alt=""
+                          loading="lazy"
+                          onError={(event) => {
+                            event.currentTarget.parentElement!.hidden = true;
+                          }}
+                        />
+                      </button>
                     )}
                     {link.kind !== 'link' && link.notes[0] && <p className={`${styles.summary} ${styles.noteBody}`}>{link.notes[0].text}</p>}
                     {link.status === 'done' && link.summary && (
@@ -1867,22 +1869,10 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                   {editingNote.kind !== 'link' && (
                     <div className={styles.noteImageRow}>
                       {editingNote.imageUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={editingNote.imageUrl}
-                          alt=""
-                          role="button"
-                          tabIndex={0}
-                          aria-label="Afbeelding groot bekijken"
-                          className={`${styles.noteImagePreview} ${styles.thumbnailZoom}`}
-                          onClick={() => setViewedImage(editingNote)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault();
-                              setViewedImage(editingNote);
-                            }
-                          }}
-                        />
+                        <button type="button" className={styles.noteImagePreviewButton} aria-label="Afbeelding groot bekijken" onClick={() => setViewedImage(editingNote)}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={editingNote.imageUrl} alt="" className={styles.noteImagePreview} />
+                        </button>
                       )}
                       <button type="button" className={styles.noteImageButton} disabled={imageBusy} onClick={() => editImageInputRef.current?.click()}>
                         {editingNote.imageUrl ? 'Afbeelding vervangen' : 'Afbeelding toevoegen'}

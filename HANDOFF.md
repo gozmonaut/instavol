@@ -63,7 +63,7 @@ curl -i -X POST https://<jouw-deployment-url>/api/share \
   -H "Authorization: Bearer $API_TOKEN" \
   -F file=@screenshot.png -F title="Optionele titel"
 
-# Losse notitie (maximaal 2000 tekens); Gemini geeft hem titel en categorie
+# Losse notitie (maximaal 2000 tekens); naam = eerste regel, categorie = Notities (geen Gemini)
 curl -i -X POST https://<jouw-deployment-url>/api/share \
   -H "Authorization: Bearer $API_TOKEN" -H "Content-Type: application/json" \
   -d '{"text":"Bel de loodgieter over de kraan"}'
