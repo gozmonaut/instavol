@@ -59,6 +59,22 @@ function NoteBody({ text }: { text: string }) {
   );
 }
 
+const IMAGE_EXTENSIONS: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/heic': 'heic' };
+
+// The picture of a note or image as a file, to hand to the share sheet. Never throws: null means "share without".
+async function loadShareFile(link: LinkRow): Promise<File | null> {
+  if (!link.imageUrl) return null;
+  try {
+    const res = await fetch(link.imageUrl);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const name = (link.title ?? 'afbeelding').replace(/[^\p{L}\p{N} _-]+/gu, '').trim().slice(0, 60) || 'afbeelding';
+    return new File([blob], `${name}.${IMAGE_EXTENSIONS[blob.type] ?? 'jpg'}`, { type: blob.type });
+  } catch {
+    return null;
+  }
+}
+
 // What to call an item in titles and dialogs; uploaded images and loose notes have no url.
 function itemName(link: LinkRow): string {
   if (link.title) return link.title;
@@ -79,8 +95,19 @@ function isMacDesktop(): boolean {
   return navigator.platform === 'MacIntel' && navigator.maxTouchPoints === 0;
 }
 
+// A note is shared as its own text. The name goes on top only when it says more than the first line of the
+// text (which is what a new note is named after), and a picture's default name ("Afbeelding 13 nov. 2026") is left out.
+function buildOwnShareText(link: LinkRow): string {
+  const text = link.notes[0]?.text ?? '';
+  const title = link.title?.trim() ?? '';
+  const stem = title.replace(/…$/, '');
+  const redundant = !title || (text && text.startsWith(stem)) || /^Afbeelding( \d.*)?$/.test(title);
+  return [redundant ? '' : title, text].filter(Boolean).join('\n\n');
+}
+
 // The URL goes inside the text: some apps keep only the text or only the url when both are passed.
 function buildShareText(link: LinkRow): string {
+  if (link.kind !== 'link') return buildOwnShareText(link);
   const meta = [formatDate(link.createdAt), link.category].filter(Boolean).join(' | ');
   const summary = link.status === 'done' && link.summary ? link.summary : null;
   return [link.title, meta, summary, link.url].filter(Boolean).join('\n');
@@ -209,6 +236,9 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [category, setCategory] = useState('');
   const [tag, setTag] = useState('');
   const [menuLink, setMenuLink] = useState<LinkRow | null>(null);
+  // Pictures fetched ahead as files for sharing: Safari wants the share sheet opened right after the tap,
+  // so the fetch can't happen in between.
+  const shareFiles = useRef(new Map<string, Promise<File | null>>());
   // Where the "..." dropdown hangs: just under (or, near the bottom, above) the button that opened it.
   const [menuPos, setMenuPos] = useState<{ right: number; top?: number; bottom?: number } | null>(null);
   const itemMenuRef = useRef<HTMLDivElement>(null);
@@ -594,23 +624,46 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     url: string | undefined,
     id: string,
     setFeedbackId: (update: (current: string | null) => string | null) => void,
+    file?: File | null,
   ) {
     if (navigator.share) {
       try {
-        // On iOS the url stays inside the text only; on a Mac it's also passed separately (see isMacDesktop).
-        await navigator.share(isMacDesktop() ? { text, url } : { text });
+        if (file && navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], ...(text && { text }) });
+        } else if (text) {
+          // On iOS the url stays inside the text only; on a Mac it's also passed separately (see isMacDesktop).
+          await navigator.share(isMacDesktop() ? { text, url } : { text });
+        }
       } catch {
         // User closed the share sheet; nothing to do.
       }
       return;
     }
+    if (!text) return;
     await navigator.clipboard.writeText(text);
     setFeedbackId(() => id);
     setTimeout(() => setFeedbackId((current) => (current === id ? null : current)), COPIED_FEEDBACK_MS);
   }
 
-  function handleShare(link: LinkRow) {
-    return shareOrCopy(buildShareText(link), link.url ?? undefined, link.id, setCopiedId);
+  // The picture of a note or image, as a file; fetched once and kept (its url changes when it is replaced).
+  function shareFileFor(link: LinkRow): Promise<File | null> {
+    if (link.kind === 'link' || !link.imageUrl) return Promise.resolve(null);
+    let file = shareFiles.current.get(link.imageUrl);
+    if (!file) {
+      file = loadShareFile(link);
+      shareFiles.current.set(link.imageUrl, file);
+    }
+    return file;
+  }
+
+  // Opening the "..." menu already fetches the picture, so it is there when "Delen" is chosen.
+  useEffect(() => {
+    if (menuLink) void shareFileFor(menuLink);
+  }, [menuLink]);
+
+  async function handleShare(link: LinkRow) {
+    const file = await shareFileFor(link);
+    return shareOrCopy(buildShareText(link), link.url ?? undefined, link.id, setCopiedId, file);
   }
 
   function handleResearch(focus: ResearchFocus) {

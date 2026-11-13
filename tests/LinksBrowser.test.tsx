@@ -1164,3 +1164,80 @@ test('in the reader a tap on the picture of a note shows it fullscreen, and Esca
   await userEvent.click(screen.getByRole('button', { name: 'Sluiten' }));
   expect(screen.queryByRole('dialog', { name: 'Kraan (volledig scherm)' })).not.toBeInTheDocument();
 });
+
+describe('sharing a note or an image', () => {
+  const share = vi.fn().mockResolvedValue(undefined);
+  const note: LinkRow = {
+    ...noteItem,
+    title: 'Bel de loodgieter',
+    status: 'done',
+    notes: [{ id: 'n1', text: 'Bel de loodgieter\nvraag naar de prijs', createdAt: '2026-11-13T10:00:00Z' }],
+  };
+
+  beforeEach(() => {
+    share.mockClear();
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+  });
+
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'share');
+    Reflect.deleteProperty(navigator, 'canShare');
+  });
+
+  test('a note shares its own text, without repeating its name', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: async () => ({ links: [note] }) })));
+    render(<LinksBrowser initialLinks={[note]} />);
+    await chooseAction('Delen', moreButton(0));
+    expect(share).toHaveBeenCalledWith({ text: 'Bel de loodgieter\nvraag naar de prijs' });
+  });
+
+  test('a note with its own name shares the name above the text', async () => {
+    const named = { ...note, title: 'Klusjes' };
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: async () => ({ links: [named] }) })));
+    render(<LinksBrowser initialLinks={[named]} />);
+    await chooseAction('Delen', moreButton(0));
+    expect(share).toHaveBeenCalledWith({ text: 'Klusjes\n\nBel de loodgieter\nvraag naar de prijs' });
+  });
+
+  test('a note with a picture shares the picture as a file together with the text', async () => {
+    const withImage = { ...note, imageUrl: '/api/links/4/image?v=1' };
+    const fetchMock = vi.fn((url: string) =>
+      Promise.resolve(
+        url.includes('/image')
+          ? { ok: true, blob: async () => new Blob(['x'], { type: 'image/jpeg' }) }
+          : { ok: true, json: async () => ({ links: [withImage] }) },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true });
+    render(<LinksBrowser initialLinks={[withImage]} />);
+    await chooseAction('Delen', moreButton(0));
+    const arg = share.mock.calls[0][0];
+    expect(arg.text).toBe('Bel de loodgieter\nvraag naar de prijs');
+    expect(arg.files).toHaveLength(1);
+    expect(arg.files[0]).toMatchObject({ name: 'Bel de loodgieter.jpg', type: 'image/jpeg' });
+  });
+
+  test('an image without a note shares just the file, and without file support nothing is shared', async () => {
+    const image: LinkRow = { ...noteItem, id: '8', kind: 'image', title: 'Afbeelding 13 nov. 2026', status: 'done', notes: [], imageUrl: '/api/links/8/image' };
+    const fetchMock = vi.fn((url: string) =>
+      Promise.resolve(
+        url.includes('/image')
+          ? { ok: true, blob: async () => new Blob(['x'], { type: 'image/png' }) }
+          : { ok: true, json: async () => ({ links: [image] }) },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true });
+    const { unmount } = render(<LinksBrowser initialLinks={[image]} />);
+    await chooseAction('Delen', moreButton(0));
+    expect(share.mock.calls[0][0]).toEqual({ files: [expect.objectContaining({ name: 'Afbeelding 13 nov 2026.png' })] });
+    unmount();
+
+    share.mockClear();
+    Object.defineProperty(navigator, 'canShare', { value: () => false, configurable: true });
+    render(<LinksBrowser initialLinks={[image]} />);
+    await chooseAction('Delen', moreButton(0));
+    expect(share).not.toHaveBeenCalled();
+  });
+});

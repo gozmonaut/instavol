@@ -1289,15 +1289,21 @@
   cursor: pointer;
 }
 
-/* A note's or uploaded image's picture, across the full card width */
+/* A note's or uploaded image's picture, across the full card width. Always the same shape, whatever the
+   photo: it is cropped to fit (the reader shows all of it), so cards with a picture stay equally big. */
 .heroImage {
   grid-area: media;
   display: block;
   width: 100%;
   height: auto;
-  max-height: 420px;
+  aspect-ratio: 16 / 9;
   margin-top: 12px;
   object-fit: cover;
   background: var(--fill);
   border-radius: 12px;
+}
+
+/* With a picture, the note shows only its first lines, so these cards don't grow with the text */
+.cardMainImage .noteClamped {
+  -webkit-line-clamp: 3;
 }
