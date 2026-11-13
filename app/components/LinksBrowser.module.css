@@ -1293,3 +1293,14 @@
   opacity: 0.4;
   cursor: default;
 }
+
+/* Notes and uploaded images: no link stretched over the card, so text can be selected */
+.cardTitleStatic::after {
+  content: none;
+}
+
+.cardTitleStatic,
+.noteBody {
+  -webkit-user-select: text;
+  user-select: text;
+}

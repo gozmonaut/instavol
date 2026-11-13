@@ -1105,4 +1105,6 @@ test('a note with a picture opens it full size from the thumbnail, but not from 
 
   await userEvent.click(screen.getByText('Kraan'));
   expect(screen.queryByRole('dialog', { name: 'Kraan' })).not.toBeInTheDocument();
+  // Only the picture is clickable; the title is plain text, so the card's text can be selected.
+  expect(screen.queryByRole('link', { name: 'Kraan' })).not.toBeInTheDocument();
 });

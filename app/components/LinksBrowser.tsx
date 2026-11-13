@@ -1167,33 +1167,32 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                       <span className={styles.date}>{formatDate(link.createdAt)}</span>
                       {moreButton(link, styles.moreButton)}
                     </div>
-                    <a
-                      href={link.url ?? undefined}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={styles.cardTitle}
-                      onClick={(event) => {
-                        if (link.kind !== 'link') {
+                    {link.kind === 'link' ? (
+                      <a
+                        href={link.url ?? undefined}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={styles.cardTitle}
+                        onClick={(event) => {
+                          // Saved articles open in the reader; a modified click still opens the site.
+                          if (!link.readingMinutes || event.metaKey || event.ctrlKey || event.shiftKey) return;
                           event.preventDefault();
-                          // An uploaded image is only a picture, so tapping the card shows it; a note has its own text.
-                          if (link.kind === 'image' && link.imageUrl) setViewedImage(link);
-                          return;
-                        }
-                        // Saved articles open in the reader; a modified click still opens the site.
-                        if (!link.readingMinutes || event.metaKey || event.ctrlKey || event.shiftKey) return;
-                        event.preventDefault();
-                        setReaderLink(link);
-                      }}
-                    >
-                      {link.title ?? link.url ?? itemName(link)}
-                      {!link.readingMinutes && (
-                        <svg className={styles.externalIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M14 4h6v6" />
-                          <path d="M20 4l-9 9" />
-                          <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
-                        </svg>
-                      )}
-                    </a>
+                          setReaderLink(link);
+                        }}
+                      >
+                        {link.title ?? link.url ?? itemName(link)}
+                        {!link.readingMinutes && (
+                          <svg className={styles.externalIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M14 4h6v6" />
+                            <path d="M20 4l-9 9" />
+                            <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
+                          </svg>
+                        )}
+                      </a>
+                    ) : (
+                      // The user's own item: only its picture is clickable, so the text on the card can be selected.
+                      <span className={`${styles.cardTitle} ${styles.cardTitleStatic}`}>{itemName(link)}</span>
+                    )}
                     <div className={styles.meta}>
                       {link.url && <span>{domainFromUrl(link.url).replace(/^www\./, '')}</span>}
                       {link.readingMinutes && (
