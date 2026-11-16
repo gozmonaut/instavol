@@ -13,12 +13,12 @@ function patch(id: string, body: unknown) {
 }
 
 test('new items start without tags', async () => {
-  const [row] = await db.insert(links).values({ url: 'https://a.example' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://a.example' }).returning();
   expect(row.tags).toEqual([]);
 });
 
 test('PATCH replaces the tags, cleaned up, and keeps the category', async () => {
-  const [row] = await db.insert(links).values({ url: 'https://a.example', category: 'Koken' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://a.example', category: 'Koken' }).returning();
   const res = await patch(row.id, { tags: ['  weekend ', 'Weekend', '', 'voor   Anna'] });
   expect(res.status).toBe(200);
   const body = await res.json();
@@ -27,15 +27,15 @@ test('PATCH replaces the tags, cleaned up, and keeps the category', async () => 
 });
 
 test('PATCH rejects tags that are not a list of strings', async () => {
-  const [row] = await db.insert(links).values({ url: 'https://a.example' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://a.example' }).returning();
   expect((await patch(row.id, { tags: 'weekend' })).status).toBe(400);
   expect((await patch(row.id, { tags: [1] })).status).toBe(400);
 });
 
 test('GET /api/links?tag= only returns items with that tag', async () => {
   await db.insert(links).values([
-    { url: 'https://a.example', title: 'Met tag', tags: ['weekend', 'koken'] },
-    { url: 'https://b.example', title: 'Zonder tag', tags: ['werk'] },
+    { userId: 'user-a', url: 'https://a.example', title: 'Met tag', tags: ['weekend', 'koken'] },
+    { userId: 'user-a', url: 'https://b.example', title: 'Zonder tag', tags: ['werk'] },
   ]);
   const body = await (await getLinksRoute(new Request('https://x/api/links?tag=weekend'))).json();
   expect(body.links.map((link: { title: string }) => link.title)).toEqual(['Met tag']);
@@ -43,9 +43,9 @@ test('GET /api/links?tag= only returns items with that tag', async () => {
 
 test('GET /api/tags lists tags, most used first', async () => {
   await db.insert(links).values([
-    { url: 'https://a.example', tags: ['weekend', 'koken'] },
-    { url: 'https://b.example', tags: ['koken'] },
-    { url: 'https://c.example' },
+    { userId: 'user-a', url: 'https://a.example', tags: ['weekend', 'koken'] },
+    { userId: 'user-a', url: 'https://b.example', tags: ['koken'] },
+    { userId: 'user-a', url: 'https://c.example' },
   ]);
   const body = await (await getTags()).json();
   expect(body.tags).toEqual(['koken', 'weekend']);

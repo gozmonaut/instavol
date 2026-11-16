@@ -7,7 +7,15 @@ function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 
-export async function getLinks(filters: { q?: string; category?: string; tag?: string }): Promise<LinkRow[]> {
+// Matches one link, but only when it belongs to this user: someone else's link counts as not existing.
+export function ownedLink(userId: string, id: string) {
+  return and(eq(links.id, id), eq(links.userId, userId));
+}
+
+export async function getLinks(
+  userId: string,
+  filters: { q?: string; category?: string; tag?: string },
+): Promise<LinkRow[]> {
   const term = filters.q?.trim();
   const pattern = term ? `%${escapeLike(term)}%` : undefined;
 
@@ -16,6 +24,7 @@ export async function getLinks(filters: { q?: string; category?: string; tag?: s
     .from(links)
     .where(
       and(
+        eq(links.userId, userId),
         pattern
           ? or(
               ilike(links.title, pattern),
@@ -35,22 +44,23 @@ export async function getLinks(filters: { q?: string; category?: string; tag?: s
     .orderBy(desc(links.createdAt));
 }
 
-// All categories in use, most used first (ties alphabetically, so the order is stable).
-export async function getCategoriesByUsage(): Promise<string[]> {
+// All of this user's categories, most used first (ties alphabetically, so the order is stable).
+export async function getCategoriesByUsage(userId: string): Promise<string[]> {
   const rows = await db
     .select({ category: links.category, uses: count() })
     .from(links)
-    .where(isNotNull(links.category))
+    .where(and(eq(links.userId, userId), isNotNull(links.category)))
     .groupBy(links.category)
     .orderBy(desc(count()), links.category);
   return rows.map((row) => row.category).filter((category): category is string => category !== null);
 }
 
-// All tags in use, most used first (ties alphabetically).
-export async function getTagsByUsage(): Promise<string[]> {
+// All of this user's tags, most used first (ties alphabetically).
+export async function getTagsByUsage(userId: string): Promise<string[]> {
   const expanded = db
     .select({ tag: sql<string>`unnest(${links.tags})`.as('tag') })
     .from(links)
+    .where(eq(links.userId, userId))
     .as('expanded');
   const rows = await db
     .select({ tag: expanded.tag, uses: count() })

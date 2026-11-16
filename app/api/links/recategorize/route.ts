@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { and, asc, count, desc, eq, gte, isNotNull, lt } from 'drizzle-orm';
 import { normalizeCategory } from '@/lib/categories';
+import { getUserId } from '@/lib/currentUser';
 import { db } from '@/lib/db';
 import { categorize } from '@/lib/gemini';
 import { links } from '@/lib/schema';
@@ -12,6 +13,11 @@ const BATCH_SIZE = 5;
 // Items touched after `since` count as done; only categories from this run are offered for reuse,
 // so the old categories don't leak back in.
 export async function POST(request: Request): Promise<Response> {
+  const userId = await getUserId();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   let body: { since?: unknown } = {};
   try {
     body = await request.json();
@@ -20,13 +26,13 @@ export async function POST(request: Request): Promise<Response> {
   }
   const since = typeof body.since === 'string' && !Number.isNaN(Date.parse(body.since)) ? new Date(body.since) : new Date();
 
-  const todo = and(eq(links.status, 'done'), lt(links.updatedAt, since));
+  const todo = and(eq(links.userId, userId), eq(links.status, 'done'), lt(links.updatedAt, since));
   const batch = await db.select().from(links).where(todo).orderBy(asc(links.createdAt)).limit(BATCH_SIZE);
 
   const runCategoryRows = await db
     .select({ category: links.category, uses: count() })
     .from(links)
-    .where(and(gte(links.updatedAt, since), isNotNull(links.category)))
+    .where(and(eq(links.userId, userId), gte(links.updatedAt, since), isNotNull(links.category)))
     .groupBy(links.category)
     .orderBy(desc(count()), links.category);
   const runCategories = runCategoryRows.map((row) => row.category).filter((c): c is string => c !== null);

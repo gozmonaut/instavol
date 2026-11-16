@@ -15,12 +15,12 @@ function deleteHighlight(id: string, highlightId: string) {
 }
 
 test('new items start without highlights', async () => {
-  const [row] = await db.insert(links).values({ url: 'https://a.example' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://a.example' }).returning();
   expect(row.highlights).toEqual([]);
 });
 
 test('POST adds highlights in order with their surroundings', async () => {
-  const [row] = await db.insert(links).values({ url: 'https://a.example', tags: ['koken'] }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://a.example', tags: ['koken'] }).returning();
   expect((await addHighlight(row.id, { text: '  eerste  ', prefix: 'voor ', suffix: ' na' })).status).toBe(201);
   const body: LinkRow = await (await addHighlight(row.id, { text: 'tweede' })).json();
   expect(body.highlights.map((h) => h.text)).toEqual(['eerste', 'tweede']);
@@ -31,14 +31,14 @@ test('POST adds highlights in order with their surroundings', async () => {
 });
 
 test('POST rejects empty text and an unknown item', async () => {
-  const [row] = await db.insert(links).values({ url: 'https://a.example' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://a.example' }).returning();
   expect((await addHighlight(row.id, { text: '   ' })).status).toBe(400);
   expect((await addHighlight(row.id, {})).status).toBe(400);
   expect((await addHighlight('00000000-0000-0000-0000-000000000000', { text: 'x' })).status).toBe(404);
 });
 
 test('DELETE removes only that highlight and keeps the order', async () => {
-  const [row] = await db.insert(links).values({ url: 'https://a.example' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://a.example' }).returning();
   for (const text of ['een', 'twee', 'drie']) await addHighlight(row.id, { text });
   const [{ highlights }] = await db.select().from(links);
 
@@ -50,7 +50,7 @@ test('DELETE removes only that highlight and keeps the order', async () => {
 });
 
 test('POST does not add the exact same highlight twice', async () => {
-  const [row] = await db.insert(links).values({ url: 'https://a.example' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://a.example' }).returning();
   await addHighlight(row.id, { text: 'zelfde', prefix: 'a ', suffix: ' b' });
   const res = await addHighlight(row.id, { text: 'zelfde', prefix: 'a ', suffix: ' b' });
   expect(res.status).toBe(200);
@@ -59,7 +59,7 @@ test('POST does not add the exact same highlight twice', async () => {
 });
 
 test('POST with replaces swaps the merged highlights for the new one', async () => {
-  const [row] = await db.insert(links).values({ url: 'https://a.example' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://a.example' }).returning();
   for (const text of ['een', 'twee', 'drie']) await addHighlight(row.id, { text });
   const [{ highlights }] = await db.select().from(links);
   const body: LinkRow = await (

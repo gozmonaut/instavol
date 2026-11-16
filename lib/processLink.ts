@@ -49,7 +49,8 @@ export async function processLink(id: string): Promise<void> {
 
     if (page) await saveReaderContent(id, page);
 
-    const existingCategories = await getCategoriesByUsage();
+    // Only the owner's own categories are offered for reuse.
+    const existingCategories = row.userId ? await getCategoriesByUsage(row.userId) : [];
 
     let result: { summary: string; category: string };
     if (page) {

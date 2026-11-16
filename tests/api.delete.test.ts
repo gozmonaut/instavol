@@ -8,7 +8,7 @@ function context(id: string) {
 }
 
 test('deletes the link and returns 204', async () => {
-  const [row] = await db.insert(links).values({ url: 'https://x.example' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://x.example' }).returning();
   const res = await DELETE(new Request('https://x', { method: 'DELETE' }), context(row.id));
   expect(res.status).toBe(204);
   const remaining = await db.select().from(links).where(eq(links.id, row.id));

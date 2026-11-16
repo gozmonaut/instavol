@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import { eq, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
+import { getUserId } from '@/lib/currentUser';
 import { db } from '@/lib/db';
+import { ownedLink } from '@/lib/links';
 import { links, type LinkHighlight } from '@/lib/schema';
 
 const MAX_TEXT_LENGTH = 4000;
@@ -18,6 +20,10 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const userId = await getUserId();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const { id } = await params;
 
   let body: { text?: unknown; prefix?: unknown; suffix?: unknown; replaces?: unknown } = {};
@@ -36,7 +42,7 @@ export async function POST(
   const prefix = clean(body.prefix, MAX_CONTEXT_LENGTH);
   const suffix = clean(body.suffix, MAX_CONTEXT_LENGTH);
 
-  const [current] = await db.select().from(links).where(eq(links.id, id));
+  const [current] = await db.select().from(links).where(ownedLink(userId, id));
   if (!current) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
@@ -60,7 +66,7 @@ export async function POST(
       ) || ${JSON.stringify([highlight])}::jsonb`,
       updatedAt: new Date(),
     })
-    .where(eq(links.id, id))
+    .where(ownedLink(userId, id))
     .returning();
   if (!row) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });

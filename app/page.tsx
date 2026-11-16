@@ -1,3 +1,5 @@
+import { redirect } from 'next/navigation';
+import { getSessionUserId, getUserId } from '@/lib/currentUser';
 import { getLinks } from '@/lib/links';
 import LinksBrowser from '@/app/components/LinksBrowser';
 
@@ -7,6 +9,11 @@ import LinksBrowser from '@/app/components/LinksBrowser';
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  const initialLinks = await getLinks({});
+  const userId = await getUserId();
+  if (!userId) {
+    // Signed in but never invited, or not signed in at all.
+    redirect((await getSessionUserId()) ? '/geen-toegang' : '/login');
+  }
+  const initialLinks = await getLinks(userId, {});
   return <LinksBrowser initialLinks={initialLinks} />;
 }

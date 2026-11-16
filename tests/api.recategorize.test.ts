@@ -24,7 +24,7 @@ beforeEach(() => {
 test('recategorizes done items oldest first in batches of 5, and reports what remains', async () => {
   vi.mocked(categorize).mockResolvedValue('politiek');
   for (let i = 0; i < 7; i++) {
-    await db.insert(links).values({
+    await db.insert(links).values({ userId: 'user-a',
       url: `https://${i}.example`,
       title: `Artikel ${i}`,
       summary: `Samenvatting ${i}`,
@@ -34,7 +34,7 @@ test('recategorizes done items oldest first in batches of 5, and reports what re
       updatedAt: hourAgo,
     });
   }
-  await db.insert(links).values({ url: 'https://pending.example', status: 'pending', updatedAt: hourAgo });
+  await db.insert(links).values({ userId: 'user-a', url: 'https://pending.example', status: 'pending', updatedAt: hourAgo });
 
   const first = await (await run()).json();
   expect(first).toMatchObject({ processed: 5, remaining: 2 });
@@ -53,8 +53,8 @@ test('recategorizes done items oldest first in batches of 5, and reports what re
 test('only categories created during this run are offered for reuse, not the old ones', async () => {
   vi.mocked(categorize).mockResolvedValueOnce('Tech').mockResolvedValueOnce('Tech');
   await db.insert(links).values([
-    { url: 'https://a.example', title: 'A', status: 'done', category: 'Oud', createdAt: hourAgo, updatedAt: hourAgo },
-    { url: 'https://b.example', title: 'B', status: 'done', category: 'Oud', createdAt: new Date(hourAgo.getTime() + 1000), updatedAt: hourAgo },
+    { userId: 'user-a', url: 'https://a.example', title: 'A', status: 'done', category: 'Oud', createdAt: hourAgo, updatedAt: hourAgo },
+    { userId: 'user-a', url: 'https://b.example', title: 'B', status: 'done', category: 'Oud', createdAt: new Date(hourAgo.getTime() + 1000), updatedAt: hourAgo },
   ]);
   await run();
   expect(vi.mocked(categorize).mock.calls[0][2]).toEqual([]);
@@ -65,7 +65,7 @@ test('a Gemini failure stops the batch with 502 and leaves the item for the next
   vi.mocked(categorize).mockRejectedValue(new Error('Gemini-verzoek mislukt (HTTP 503)'));
   const [row] = await db
     .insert(links)
-    .values({ url: 'https://a.example', title: 'A', status: 'done', category: 'Oud', updatedAt: hourAgo })
+    .values({ userId: 'user-a', url: 'https://a.example', title: 'A', status: 'done', category: 'Oud', updatedAt: hourAgo })
     .returning();
   const res = await run();
   expect(res.status).toBe(502);

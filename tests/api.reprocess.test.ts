@@ -10,7 +10,7 @@ function context(id: string) {
 }
 
 test('reprocesses a failed link and returns the updated row', async () => {
-  const [row] = await db.insert(links).values({ url: 'https://x.example', status: 'failed', errorMessage: 'oud probleem' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://x.example', status: 'failed', errorMessage: 'oud probleem' }).returning();
   const res = await POST(new Request('https://x'), context(row.id));
   expect(res.status).toBe(200);
   const body = await res.json();

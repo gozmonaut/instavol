@@ -2,6 +2,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { getSessionUserId, getUserId } from '@/lib/currentUser';
 import { addMember } from '@/lib/members';
 
+vi.unmock('@/lib/currentUser');
 const getSession = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/auth/server', () => ({ auth: { getSession } }));
 

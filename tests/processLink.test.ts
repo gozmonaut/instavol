@@ -18,7 +18,7 @@ test('happy path: fetches, summarizes, categorizes, and backfills title', async 
   vi.mocked(fetchPageText).mockResolvedValue({ title: 'Page Title', text: 'content' });
   vi.mocked(summarizeAndCategorize).mockResolvedValue({ summary: 'Korte samenvatting', category: 'Tech' });
 
-  const [row] = await db.insert(links).values({ url: 'https://example.com' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://example.com' }).returning();
   await processLink(row.id);
 
   const [updated] = await db.select().from(links).where(eq(links.id, row.id));
@@ -35,7 +35,7 @@ test('fetch failure marks the link failed and preserves url/title', async () => 
   vi.mocked(fetchPageText).mockRejectedValue(new PageFetchError('Geen leesbare inhoud gevonden'));
   vi.mocked(summarizeUrlAndCategorize).mockRejectedValue(new GeminiError('Gemini kon de pagina niet openen'));
 
-  const [row] = await db.insert(links).values({ url: 'https://example.com/paywall', title: 'Oorspronkelijke titel' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://example.com/paywall', title: 'Oorspronkelijke titel' }).returning();
   await processLink(row.id);
 
   const [updated] = await db.select().from(links).where(eq(links.id, row.id));
@@ -52,8 +52,8 @@ test('passes existing categories to the AI so it can reuse them', async () => {
   vi.mocked(fetchPageText).mockResolvedValue({ title: 'Nieuwe pagina', text: 'content' });
   vi.mocked(summarizeAndCategorize).mockResolvedValue({ summary: 'x', category: 'Tech' });
 
-  await db.insert(links).values({ url: 'https://a.example', category: 'Tech', status: 'done' });
-  const [row] = await db.insert(links).values({ url: 'https://b.example' }).returning();
+  await db.insert(links).values({ userId: 'user-a', url: 'https://a.example', category: 'Tech', status: 'done' });
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://b.example' }).returning();
 
   await processLink(row.id);
 
@@ -67,7 +67,7 @@ test('Gemini failure marks the link failed but keeps the extracted title', async
   vi.mocked(fetchPageText).mockResolvedValue({ title: 'Geextraheerde titel', text: 'content' });
   vi.mocked(summarizeAndCategorize).mockRejectedValue(new GeminiError('rate limited'));
 
-  const [row] = await db.insert(links).values({ url: 'https://c.example' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://c.example' }).returning();
   await processLink(row.id);
 
   const [updated] = await db.select().from(links).where(eq(links.id, row.id));
@@ -82,8 +82,8 @@ test('cleans up the AI category and reuses the spelling of an existing one', asy
   vi.mocked(fetchPageText).mockResolvedValue({ title: 'T', text: 'content' });
   vi.mocked(summarizeAndCategorize).mockResolvedValue({ summary: 'x', category: ' politiek. ' });
 
-  await db.insert(links).values({ url: 'https://a.example', category: 'Politiek', status: 'done' });
-  const [row] = await db.insert(links).values({ url: 'https://b.example' }).returning();
+  await db.insert(links).values({ userId: 'user-a', url: 'https://a.example', category: 'Politiek', status: 'done' });
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://b.example' }).returning();
   await processLink(row.id);
 
   const [updated] = await db.select().from(links).where(eq(links.id, row.id));
@@ -97,11 +97,11 @@ test('offers existing categories most-used first', async () => {
   vi.mocked(summarizeAndCategorize).mockResolvedValue({ summary: 'x', category: 'Tech' });
 
   await db.insert(links).values([
-    { url: 'https://a.example', category: 'Koken', status: 'done' },
-    { url: 'https://b.example', category: 'Tech', status: 'done' },
-    { url: 'https://c.example', category: 'Tech', status: 'done' },
+    { userId: 'user-a', url: 'https://a.example', category: 'Koken', status: 'done' },
+    { userId: 'user-a', url: 'https://b.example', category: 'Tech', status: 'done' },
+    { userId: 'user-a', url: 'https://c.example', category: 'Tech', status: 'done' },
   ]);
-  const [row] = await db.insert(links).values({ url: 'https://d.example' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://d.example' }).returning();
   await processLink(row.id);
 
   expect(vi.mocked(summarizeAndCategorize).mock.lastCall?.[1]).toEqual(['Tech', 'Koken']);
@@ -114,7 +114,7 @@ test('when we cannot read the page, Gemini opens the URL and its title is used',
   vi.mocked(summarizeUrlAndCategorize).mockResolvedValue({ title: 'Webshop', summary: 'Een webshop voor fietsen.', category: 'Winkelen' });
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-  const [row] = await db.insert(links).values({ url: 'https://shop.example' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://shop.example' }).returning();
   await processLink(row.id);
 
   const [updated] = await db.select().from(links).where(eq(links.id, row.id));
@@ -133,7 +133,7 @@ test('a blocked address is never handed to Gemini', async () => {
   vi.mocked(fetchPageText).mockRejectedValue(new DisallowedHostError());
   vi.mocked(summarizeUrlAndCategorize).mockClear();
 
-  const [row] = await db.insert(links).values({ url: 'http://169.254.169.254/' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'http://169.254.169.254/' }).returning();
   await processLink(row.id);
 
   const [updated] = await db.select().from(links).where(eq(links.id, row.id));
@@ -153,7 +153,7 @@ test('an article saves its reader html and the list metadata', async () => {
   });
   vi.mocked(summarizeAndCategorize).mockResolvedValue({ summary: 'x', category: 'Tech' });
 
-  const [row] = await db.insert(links).values({ url: 'https://e.example' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://e.example' }).returning();
   await processLink(row.id);
 
   const [updated] = await db.select().from(links).where(eq(links.id, row.id));
@@ -169,7 +169,7 @@ test('reprocessing replaces the saved article, and removes it when the page is n
   const { fetchPageText } = await import('@/lib/extractPage');
   const { summarizeAndCategorize } = await import('@/lib/gemini');
   vi.mocked(summarizeAndCategorize).mockResolvedValue({ summary: 'x', category: 'Tech' });
-  const [row] = await db.insert(links).values({ url: 'https://f.example' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://f.example' }).returning();
 
   vi.mocked(fetchPageText).mockResolvedValue({
     title: 'T', text: 'content', article: { html: '<p>Oud</p>', byline: null, publishedAt: null, readingMinutes: 2 },

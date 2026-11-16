@@ -1,4 +1,15 @@
-import { afterEach } from 'vitest';
+import { afterEach, vi } from 'vitest';
+import { currentUser, signInAs } from '@/tests/helpers/user';
+
+// Route tests don't talk to Neon Auth: the signed-in user comes from tests/helpers/user.ts.
+vi.mock('@/lib/currentUser', () => ({
+  getUserId: async () => currentUser.id,
+  getSessionUserId: async () => currentUser.sessionId,
+}));
+
+afterEach(() => {
+  signInAs('user-a');
+});
 
 // jsdom-environment tests don't use the database, and PGlite can't load under jsdom's Blob.
 const isJsdom = typeof window !== 'undefined';

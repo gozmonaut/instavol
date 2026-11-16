@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import { eq, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
+import { getUserId } from '@/lib/currentUser';
 import { db } from '@/lib/db';
+import { ownedLink } from '@/lib/links';
 import { links } from '@/lib/schema';
 
 // Removes one highlight from an item; returns the updated item.
@@ -8,6 +10,10 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string; highlightId: string }> },
 ): Promise<Response> {
+  const userId = await getUserId();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const { id, highlightId } = await params;
 
   const [row] = await db
@@ -20,7 +26,7 @@ export async function DELETE(
       )`,
       updatedAt: new Date(),
     })
-    .where(eq(links.id, id))
+    .where(ownedLink(userId, id))
     .returning();
   if (!row) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });

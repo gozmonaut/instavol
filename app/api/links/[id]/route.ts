@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { eq } from 'drizzle-orm';
 import { normalizeCategory } from '@/lib/categories';
+import { getUserId } from '@/lib/currentUser';
 import { db } from '@/lib/db';
-import { getCategoriesByUsage } from '@/lib/links';
+import { getCategoriesByUsage, ownedLink } from '@/lib/links';
 import { links } from '@/lib/schema';
 import { normalizeTags } from '@/lib/tags';
 
@@ -11,6 +11,10 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const userId = await getUserId();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const { id } = await params;
 
   let body: { category?: unknown; tags?: unknown } = {};
@@ -31,7 +35,7 @@ export async function PATCH(
   }
 
   if (body.category !== undefined || body.tags === undefined) {
-    const category = normalizeCategory(body.category, await getCategoriesByUsage());
+    const category = normalizeCategory(body.category, await getCategoriesByUsage(userId));
     if (!category) {
       return NextResponse.json({ error: 'category is required' }, { status: 400 });
     }
@@ -41,7 +45,7 @@ export async function PATCH(
   const [row] = await db
     .update(links)
     .set({ ...changes, updatedAt: new Date() })
-    .where(eq(links.id, id))
+    .where(ownedLink(userId, id))
     .returning();
   if (!row) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -54,9 +58,13 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const userId = await getUserId();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const { id } = await params;
 
-  const deleted = await db.delete(links).where(eq(links.id, id)).returning();
+  const deleted = await db.delete(links).where(ownedLink(userId, id)).returning();
   if (deleted.length === 0) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }

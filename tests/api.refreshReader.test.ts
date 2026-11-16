@@ -34,7 +34,7 @@ beforeEach(() => {
 
 test('saves reader content for done items in batches of 5, without Gemini or touching summary and category', async () => {
   for (let i = 0; i < 7; i++) {
-    await db.insert(links).values({
+    await db.insert(links).values({ userId: 'user-a',
       url: `https://${i}.example`,
       title: `Artikel ${i}`,
       summary: `Samenvatting ${i}`,
@@ -44,7 +44,7 @@ test('saves reader content for done items in batches of 5, without Gemini or tou
       updatedAt: hourAgo,
     });
   }
-  await db.insert(links).values({ url: 'https://pending.example', status: 'pending', updatedAt: hourAgo });
+  await db.insert(links).values({ userId: 'user-a', url: 'https://pending.example', status: 'pending', updatedAt: hourAgo });
 
   const first = await (await run()).json();
   expect(first).toMatchObject({ processed: 5, remaining: 2, failed: [] });
@@ -66,7 +66,7 @@ test('saves reader content for done items in batches of 5, without Gemini or tou
 
 test('a page that cannot be read is reported, counted as done and keeps its data', async () => {
   vi.mocked(fetchPageText).mockRejectedValue(new PageFetchError('Pagina niet beschikbaar (HTTP 403)'));
-  await db.insert(links).values({ url: 'https://paywall.example', summary: 'Blijft', status: 'done', updatedAt: hourAgo });
+  await db.insert(links).values({ userId: 'user-a', url: 'https://paywall.example', summary: 'Blijft', status: 'done', updatedAt: hourAgo });
 
   const result = await (await run()).json();
   expect(result).toMatchObject({

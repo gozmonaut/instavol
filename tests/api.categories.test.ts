@@ -13,17 +13,17 @@ function patch(id: string, body: unknown) {
 
 test('GET /api/categories lists categories, most used first', async () => {
   await db.insert(links).values([
-    { url: 'https://a.example', category: 'Koken' },
-    { url: 'https://b.example', category: 'Politiek' },
-    { url: 'https://c.example', category: 'Politiek' },
-    { url: 'https://d.example' },
+    { userId: 'user-a', url: 'https://a.example', category: 'Koken' },
+    { userId: 'user-a', url: 'https://b.example', category: 'Politiek' },
+    { userId: 'user-a', url: 'https://c.example', category: 'Politiek' },
+    { userId: 'user-a', url: 'https://d.example' },
   ]);
   const body = await (await getCategories()).json();
   expect(body.categories).toEqual(['Politiek', 'Koken']);
 });
 
 test('PATCH sets the category and returns the updated row', async () => {
-  const [row] = await db.insert(links).values({ url: 'https://a.example', category: 'Tech', status: 'done' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://a.example', category: 'Tech', status: 'done' }).returning();
   const res = await patch(row.id, { category: 'Wetenschap' });
   expect(res.status).toBe(200);
   expect((await res.json()).category).toBe('Wetenschap');
@@ -32,14 +32,14 @@ test('PATCH sets the category and returns the updated row', async () => {
 });
 
 test('PATCH reuses the spelling of an existing category', async () => {
-  await db.insert(links).values({ url: 'https://a.example', category: 'Politiek' });
-  const [row] = await db.insert(links).values({ url: 'https://b.example', category: 'Tech' }).returning();
+  await db.insert(links).values({ userId: 'user-a', url: 'https://a.example', category: 'Politiek' });
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://b.example', category: 'Tech' }).returning();
   const res = await patch(row.id, { category: '  politiek ' });
   expect((await res.json()).category).toBe('Politiek');
 });
 
 test('PATCH with an empty category returns 400 and changes nothing', async () => {
-  const [row] = await db.insert(links).values({ url: 'https://a.example', category: 'Tech' }).returning();
+  const [row] = await db.insert(links).values({ userId: 'user-a', url: 'https://a.example', category: 'Tech' }).returning();
   const res = await patch(row.id, { category: '   ' });
   expect(res.status).toBe(400);
   const [unchanged] = await db.select().from(links).where(eq(links.id, row.id));

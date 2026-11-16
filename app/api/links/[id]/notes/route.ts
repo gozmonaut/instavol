@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import { eq, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
+import { getUserId } from '@/lib/currentUser';
 import { db } from '@/lib/db';
+import { ownedLink } from '@/lib/links';
 import { links, type LinkNote } from '@/lib/schema';
 
 const MAX_NOTE_LENGTH = 2000;
@@ -10,6 +12,10 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const userId = await getUserId();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const { id } = await params;
 
   let body: { text?: unknown } = {};
@@ -29,7 +35,7 @@ export async function POST(
   const [row] = await db
     .update(links)
     .set({ notes: sql`${links.notes} || ${JSON.stringify([note])}::jsonb`, updatedAt: new Date() })
-    .where(eq(links.id, id))
+    .where(ownedLink(userId, id))
     .returning();
   if (!row) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
