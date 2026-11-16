@@ -14,5 +14,7 @@ export default defineConfig({
     include: ['tests/**/*.test.{ts,tsx}'],
     globals: true,
     setupFiles: ['tests/setup.ts'],
+    // The Neon Auth SDK imports 'next/headers' without a file extension, which only Vite can resolve.
+    server: { deps: { inline: ['@neon/auth'] } },
   },
 });

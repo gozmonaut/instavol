@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { authClient } from '@/lib/auth/client';
 import type { LinkRow } from '@/lib/schema';
 import { groupByDate, TIME_ZONE } from '@/lib/dateGroups';
 import { RESEARCH_FOCUSES, buildResearchPrompt, type ResearchFocus } from '@/lib/researchPrompt';
@@ -728,7 +729,11 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
 
   async function confirmLogout() {
     setLogoutConfirmOpen(false);
-    await fetch('/api/logout', { method: 'POST' });
+    try {
+      await authClient.signOut();
+    } catch {
+      // Go to the login screen anyway; it sends a still-valid session straight back.
+    }
     router.replace('/login');
   }
 

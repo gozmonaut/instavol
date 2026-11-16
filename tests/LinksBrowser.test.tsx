@@ -7,6 +7,8 @@ import type { LinkRow } from '@/lib/schema';
 
 const routerReplace = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: routerReplace }) }));
+const signOut = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/auth/client', () => ({ authClient: { signOut } }));
 
 const fixture: LinkRow[] = [
   {
@@ -486,7 +488,7 @@ describe('research with Claude', () => {
 });
 
 describe('logging out', () => {
-  test('asks for confirmation in a centered dialog and then calls the logout endpoint', async () => {
+  test('asks for confirmation in a centered dialog and then signs out', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
     render(<LinksBrowser initialLinks={fixture} />);
@@ -494,9 +496,9 @@ describe('logging out', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: 'Uitloggen' }));
     const dialog = screen.getByRole('alertdialog', { name: 'Uitloggen?' });
     expect(dialog).toHaveTextContent('Weet je zeker dat je wilt uitloggen?');
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Uitloggen' }));
-    expect(fetchMock).toHaveBeenCalledWith('/api/logout', expect.objectContaining({ method: 'POST' }));
+    expect(signOut).toHaveBeenCalledTimes(1);
     expect(routerReplace).toHaveBeenCalledWith('/login');
   });
 
@@ -508,7 +510,7 @@ describe('logging out', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: 'Uitloggen' }));
     await userEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Annuleren' }));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
   });
 });
 
