@@ -8,7 +8,8 @@ import type { LinkRow } from '@/lib/schema';
 const routerReplace = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: routerReplace }) }));
 const signOut = vi.hoisted(() => vi.fn());
-vi.mock('@/lib/auth/client', () => ({ authClient: { signOut } }));
+const changePassword = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/auth/client', () => ({ authClient: { signOut, changePassword } }));
 
 const fixture: LinkRow[] = [
   {
@@ -733,15 +734,15 @@ describe('changing the password', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Bewaar' }));
   }
 
+  beforeEach(() => {
+    changePassword.mockReset();
+  });
+
   test('sends current and new password, and confirms the change', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
-    vi.stubGlobal('fetch', fetchMock);
+    changePassword.mockResolvedValue({ data: {}, error: null });
     render(<LinksBrowser initialLinks={fixture} />);
     await fillIn('geheim', 'nieuw-wachtwoord', 'nieuw-wachtwoord');
-    expect(fetchMock).toHaveBeenCalledWith('/api/password', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({ currentPassword: 'geheim', newPassword: 'nieuw-wachtwoord' }),
-    }));
+    expect(changePassword).toHaveBeenCalledWith({ currentPassword: 'geheim', newPassword: 'nieuw-wachtwoord' });
     expect(await screen.findByText('Je wachtwoord is gewijzigd')).toBeInTheDocument();
   });
 
@@ -756,19 +757,34 @@ describe('changing the password', () => {
   });
 
   test('different new passwords are caught before anything is sent', async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
     render(<LinksBrowser initialLinks={fixture} />);
     await fillIn('geheim', 'nieuw-wachtwoord', 'iets-anders1');
     expect(screen.getByRole('alert')).toHaveTextContent('niet gelijk');
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(changePassword).not.toHaveBeenCalled();
   });
 
-  test('shows the error from the server', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: 'Huidig wachtwoord klopt niet' }) }));
+  test('a new password shorter than 8 characters is caught before anything is sent', async () => {
+    render(<LinksBrowser initialLinks={fixture} />);
+    await fillIn('geheim', '1234567', '1234567');
+    expect(screen.getByRole('alert')).toHaveTextContent('Nieuw wachtwoord moet minstens 8 tekens zijn');
+    expect(changePassword).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['an error result', () => changePassword.mockResolvedValue({ data: null, error: { status: 400, message: 'Invalid password' } })],
+    ['a thrown auth error', () => changePassword.mockRejectedValue(Object.assign(new Error('Invalid password'), { status: 400 }))],
+  ])('a rejected change (%s) says the current password is wrong', async (_name, arrange) => {
+    arrange();
     render(<LinksBrowser initialLinks={fixture} />);
     await fillIn('fout', 'nieuw-wachtwoord', 'nieuw-wachtwoord');
     expect(await screen.findByRole('alert')).toHaveTextContent('Huidig wachtwoord klopt niet');
+  });
+
+  test('a failed connection is not reported as a wrong password', async () => {
+    changePassword.mockRejectedValue(new TypeError('Failed to fetch'));
+    render(<LinksBrowser initialLinks={fixture} />);
+    await fillIn('geheim', 'nieuw-wachtwoord', 'nieuw-wachtwoord');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Geen verbinding, probeer het opnieuw');
   });
 });
 

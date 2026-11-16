@@ -4,10 +4,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { authClient } from '@/lib/auth/client';
+import { authOutcome } from '@/lib/auth/outcome';
 import AuthPage from './AuthPage';
 import styles from './login.module.css';
-
-const WRONG_CREDENTIALS = 'Onjuist e-mailadres of wachtwoord';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -20,24 +19,15 @@ export default function LoginForm() {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
-    try {
-      const { error: rejected } = await authClient.signIn.email({ email, password });
-      if (!rejected) {
-        router.replace('/');
-        return;
-      }
-      setError(WRONG_CREDENTIALS);
+    const outcome = await authOutcome(() => authClient.signIn.email({ email, password }));
+    setSubmitting(false);
+    if (outcome === 'ok') {
+      router.replace('/');
+    } else if (outcome === 'rejected') {
+      setError('Onjuist e-mailadres of wachtwoord');
       setPassword('');
-    } catch (thrown) {
-      // The auth client throws on a rejected sign-in (it carries the HTTP status); anything else is the network.
-      if (typeof thrown === 'object' && thrown !== null && 'status' in thrown) {
-        setError(WRONG_CREDENTIALS);
-        setPassword('');
-      } else {
-        setError('Geen verbinding, probeer het opnieuw');
-      }
-    } finally {
-      setSubmitting(false);
+    } else {
+      setError('Geen verbinding, probeer het opnieuw');
     }
   }
 

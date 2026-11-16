@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { authClient } from '@/lib/auth/client';
+import { authOutcome } from '@/lib/auth/outcome';
 import type { LinkRow } from '@/lib/schema';
 import { groupByDate, TIME_ZONE } from '@/lib/dateGroups';
 import { RESEARCH_FOCUSES, buildResearchPrompt, type ResearchFocus } from '@/lib/researchPrompt';
@@ -166,6 +167,8 @@ function useDismissibleMenu(open: boolean, close: () => void, menuRef: RefObject
     };
   }, [open, close, menuRef, triggerSelector]);
 }
+
+const MIN_PASSWORD_LENGTH = 8;
 
 export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[] }) {
   const router = useRouter();
@@ -701,25 +704,17 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
       setPasswordError('De nieuwe wachtwoorden zijn niet gelijk');
       return;
     }
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setPasswordError(`Nieuw wachtwoord moet minstens ${MIN_PASSWORD_LENGTH} tekens zijn`);
+      return;
+    }
     setSavingPassword(true);
     setPasswordError(null);
-    try {
-      const res = await fetch('/api/password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-      if (res.ok) {
-        setPasswordChanged(true);
-        return;
-      }
-      const data = await res.json().catch(() => ({}));
-      setPasswordError(data.error ?? 'Wijzigen mislukt, probeer het opnieuw');
-    } catch {
-      setPasswordError('Geen verbinding, probeer het opnieuw');
-    } finally {
-      setSavingPassword(false);
-    }
+    const outcome = await authOutcome(() => authClient.changePassword({ currentPassword, newPassword }));
+    setSavingPassword(false);
+    if (outcome === 'ok') setPasswordChanged(true);
+    else if (outcome === 'rejected') setPasswordError('Huidig wachtwoord klopt niet');
+    else setPasswordError('Geen verbinding, probeer het opnieuw');
   }
 
   function handleLogout() {
