@@ -170,3 +170,35 @@
     animation: none;
   }
 }
+
+/* Secondary links under a form ("Account aanmaken", "Wachtwoord vergeten?") */
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 20px;
+  font-size: calc(15rem / 17);
+  text-align: center;
+}
+
+.links a,
+.linkButton {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.linkButton {
+  font: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* A short explanation or confirmation above or instead of a form */
+.notice {
+  font-size: calc(15rem / 17);
+  line-height: 1.45;
+  text-align: center;
+  color: var(--text-secondary);
+}
