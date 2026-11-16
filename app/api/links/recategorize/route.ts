@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { and, asc, count, desc, eq, gte, isNotNull, lt, ne } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, isNotNull, lt } from 'drizzle-orm';
 import { normalizeCategory } from '@/lib/categories';
 import { getUserId } from '@/lib/currentUser';
 import { db } from '@/lib/db';
@@ -26,7 +26,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   const since = typeof body.since === 'string' && !Number.isNaN(Date.parse(body.since)) ? new Date(body.since) : new Date();
 
-  const todo = and(eq(links.userId, userId), eq(links.status, 'done'), ne(links.kind, 'image'), lt(links.updatedAt, since));
+  const todo = and(eq(links.userId, userId), eq(links.status, 'done'), eq(links.kind, 'link'), lt(links.updatedAt, since));
   const batch = await db.select().from(links).where(todo).orderBy(asc(links.createdAt)).limit(BATCH_SIZE);
 
   const runCategoryRows = await db

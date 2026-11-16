@@ -78,3 +78,17 @@ test('a page that cannot be read is reported, counted as done and keeps its data
   expect(item.summary).toBe('Blijft');
   expect(item.readingMinutes).toBeNull();
 });
+
+test('notes and uploaded images have no page to fetch and are left alone', async () => {
+  await db.insert(links).values([
+    { userId: 'user-a', kind: 'link', url: 'https://a.example', status: 'done', updatedAt: hourAgo },
+    { userId: 'user-a', kind: 'note', title: 'Notitie', status: 'done', updatedAt: hourAgo },
+    { userId: 'user-a', kind: 'image', title: 'Foto', status: 'done', updatedAt: hourAgo },
+  ]);
+
+  const result = await (await run()).json();
+
+  expect(result).toMatchObject({ processed: 1, remaining: 0 });
+  expect(vi.mocked(fetchPageText)).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(fetchPageText).mock.calls[0][0]).toBe('https://a.example');
+});

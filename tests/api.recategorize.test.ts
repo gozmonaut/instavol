@@ -73,3 +73,21 @@ test('a Gemini failure stops the batch with 502 and leaves the item for the next
   const [unchanged] = await db.select().from(links).where(eq(links.id, row.id));
   expect(unchanged.category).toBe('Oud');
 });
+
+test('loose notes and uploaded images are left alone: nothing about them is sent to Gemini', async () => {
+  vi.mocked(categorize).mockResolvedValue('politiek');
+  await db.insert(links).values([
+    { userId: 'user-a', kind: 'link', url: 'https://a.example', title: 'Artikel', summary: 'S', category: 'Oud', status: 'done', updatedAt: hourAgo },
+    { userId: 'user-a', kind: 'note', title: 'Bel de loodgieter over de kraan', category: 'Notities', status: 'done', updatedAt: hourAgo },
+    { userId: 'user-a', kind: 'image', title: 'Foto', category: 'Koken', status: 'done', updatedAt: hourAgo },
+  ]);
+
+  const result = await (await run()).json();
+
+  expect(result).toMatchObject({ processed: 1, remaining: 0 });
+  expect(vi.mocked(categorize)).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(categorize).mock.calls[0][0]).toBe('Artikel');
+  const rows = await db.select().from(links);
+  expect(rows.find((row) => row.kind === 'note')?.category).toBe('Notities');
+  expect(rows.find((row) => row.kind === 'image')?.category).toBe('Koken');
+});
