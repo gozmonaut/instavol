@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { pgTable, uuid, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
+import { index, pgTable, uuid, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
 
 export type LinkNote = { id: string; text: string; createdAt: string };
 
@@ -7,28 +7,34 @@ export type LinkNote = { id: string; text: string; createdAt: string };
 // spot again when the same sentence occurs more than once (see lib/highlights.ts).
 export type LinkHighlight = { id: string; text: string; prefix: string; suffix: string; createdAt: string };
 
-export const links = pgTable('links', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  url: text('url').notNull(),
-  title: text('title'),
-  status: text('status').notNull().default('pending'),
-  summary: text('summary'),
-  category: text('category'),
-  // Free labels added by the user (cleaned up in lib/tags.ts).
-  tags: text('tags').array().notNull().default(sql`'{}'::text[]`),
-  // The user's own notes, oldest first (added and removed via /api/links/[id]/notes).
-  notes: jsonb('notes').$type<LinkNote[]>().notNull().default(sql`'[]'::jsonb`),
-  // Passages marked in the reader, oldest first (added and removed via /api/links/[id]/highlights).
-  highlights: jsonb('highlights').$type<LinkHighlight[]>().notNull().default(sql`'[]'::jsonb`),
-  errorMessage: text('error_message'),
-  imageUrl: text('image_url'),
-  byline: text('byline'),
-  publishedAt: timestamp('published_at'),
-  // Only set when the article text was saved, so it also tells whether there is a reader view.
-  readingMinutes: integer('reading_minutes'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+export const links = pgTable(
+  'links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    // The Neon Auth user who owns this link. Only empty for links saved before accounts existed.
+    userId: text('user_id'),
+    url: text('url').notNull(),
+    title: text('title'),
+    status: text('status').notNull().default('pending'),
+    summary: text('summary'),
+    category: text('category'),
+    // Free labels added by the user (cleaned up in lib/tags.ts).
+    tags: text('tags').array().notNull().default(sql`'{}'::text[]`),
+    // The user's own notes, oldest first (added and removed via /api/links/[id]/notes).
+    notes: jsonb('notes').$type<LinkNote[]>().notNull().default(sql`'[]'::jsonb`),
+    // Passages marked in the reader, oldest first (added and removed via /api/links/[id]/highlights).
+    highlights: jsonb('highlights').$type<LinkHighlight[]>().notNull().default(sql`'[]'::jsonb`),
+    errorMessage: text('error_message'),
+    imageUrl: text('image_url'),
+    byline: text('byline'),
+    publishedAt: timestamp('published_at'),
+    // Only set when the article text was saved, so it also tells whether there is a reader view.
+    readingMinutes: integer('reading_minutes'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [index('links_user_id_idx').on(table.userId)],
+);
 
 export type LinkRow = typeof links.$inferSelect;
 
@@ -46,4 +52,17 @@ export const sitePassword = pgTable('site_password', {
   id: integer('id').primaryKey(),
   passwordHash: text('password_hash').notNull(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Users who signed up with the invite code. An account in Neon Auth without a row here has no access.
+export const members = pgTable('members', {
+  userId: text('user_id').primaryKey(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// One token per user for saving from the share menu; only its SHA-256 is stored.
+export const shareTokens = pgTable('share_tokens', {
+  userId: text('user_id').primaryKey(),
+  tokenHash: text('token_hash').notNull().unique(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });

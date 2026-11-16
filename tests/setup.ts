@@ -5,8 +5,10 @@ const isJsdom = typeof window !== 'undefined';
 
 export async function truncateLinks() {
   const { db } = await import('@/lib/db');
-  const { links, sitePassword } = await import('@/lib/schema');
+  const { links, members, shareTokens, sitePassword } = await import('@/lib/schema');
   await db.delete(links);
+  await db.delete(members);
+  await db.delete(shareTokens);
   await db.delete(sitePassword);
 }
 
