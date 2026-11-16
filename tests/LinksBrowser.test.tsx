@@ -724,6 +724,17 @@ test('the refresh button refetches the list', async () => {
   await waitFor(() => expect(screen.queryByText('Artikel B')).not.toBeInTheDocument());
 });
 
+test('the settings menu opens the share-token sheet (and the menu closes)', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ exists: false }) }));
+  render(<LinksBrowser initialLinks={fixture} />);
+  await userEvent.click(screen.getByRole('button', { name: 'Instellingen' }));
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Token voor opslaan-snelkoppeling' }));
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  expect(screen.getByRole('dialog', { name: 'Token voor opslaan-snelkoppeling' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Sluiten' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
 describe('changing the password', () => {
   async function fillIn(current: string, next: string, repeat: string) {
     await userEvent.click(screen.getByRole('button', { name: 'Instellingen' }));

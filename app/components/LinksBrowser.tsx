@@ -9,6 +9,7 @@ import { groupByDate, TIME_ZONE } from '@/lib/dateGroups';
 import { RESEARCH_FOCUSES, buildResearchPrompt, type ResearchFocus } from '@/lib/researchPrompt';
 import { parseShareUrl } from '@/lib/shareUrl';
 import Reader from './Reader';
+import ShareTokenSheet from './ShareTokenSheet';
 import styles from './LinksBrowser.module.css';
 import readerStyles from './Reader.module.css';
 
@@ -207,6 +208,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [headerLevel, setHeaderLevel] = useState<0 | 1 | 2>(1);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [passwordSheetOpen, setPasswordSheetOpen] = useState(false);
+  const [shareTokenSheetOpen, setShareTokenSheetOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -689,6 +691,8 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [passwordSheetOpen]);
 
+  const closeShareTokenSheet = useCallback(() => setShareTokenSheetOpen(false), []);
+
   function openPasswordSheet() {
     setCurrentPassword('');
     setNewPassword('');
@@ -856,6 +860,17 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                   <button className={`${styles.popoverItem} ${styles.menuOption}`} role="menuitem" onClick={openPasswordSheet}>
                     <span>Wachtwoord wijzigen</span>
                     <ActionIcon name="password" />
+                  </button>
+                  <button
+                    className={`${styles.popoverItem} ${styles.menuOption}`}
+                    role="menuitem"
+                    onClick={() => {
+                      closeSettings();
+                      setShareTokenSheetOpen(true);
+                    }}
+                  >
+                    <span>Token voor opslaan-snelkoppeling</span>
+                    <ActionIcon name="share" />
                   </button>
                   <button className={`${styles.popoverItem} ${styles.menuOption} ${styles.menuDanger}`} role="menuitem" onClick={handleLogout}>
                     <span>Uitloggen</span>
@@ -1341,6 +1356,8 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
           </div>
         </div>
       )}
+
+      {shareTokenSheetOpen && <ShareTokenSheet onClose={closeShareTokenSheet} />}
 
       {logoutConfirmOpen && (
         <div className={styles.dialogBackdrop} onClick={() => setLogoutConfirmOpen(false)}>

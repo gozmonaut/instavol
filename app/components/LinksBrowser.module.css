@@ -1147,3 +1147,15 @@
     animation: none;
   }
 }
+
+/* The share token, shown once: selectable, and wrapped so the whole token stays visible */
+.tokenValue {
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: calc(14rem / 17);
+  overflow-wrap: anywhere;
+  user-select: all;
+  color: var(--text);
+  background: var(--accent-soft);
+  border-radius: 10px;
+}
