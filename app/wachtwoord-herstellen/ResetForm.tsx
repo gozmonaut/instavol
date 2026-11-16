@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import AuthPage from '@/app/login/AuthPage';
 import styles from '@/app/login/login.module.css';
@@ -12,10 +11,10 @@ const MIN_PASSWORD_LENGTH = 8;
 
 // Where the link from the reset mail lands; `token` comes from that link.
 export default function ResetForm({ token }: { token?: string }) {
-  const router = useRouter();
   const [newPassword, setNewPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
   const [expired, setExpired] = useState(!token);
+  const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -33,9 +32,22 @@ export default function ResetForm({ token }: { token?: string }) {
     setError(null);
     const outcome = await authOutcome(() => authClient.resetPassword({ newPassword, token: token! }));
     setSubmitting(false);
-    if (outcome === 'ok') router.replace('/');
+    if (outcome === 'ok') setDone(true);
     else if (outcome === 'rejected') setExpired(true);
     else setError('Geen verbinding, probeer het opnieuw');
+  }
+
+  if (done) {
+    return (
+      <AuthPage>
+        <div className={styles.form}>
+          <p className={styles.notice}>Je wachtwoord is gewijzigd. Log nu in met je nieuwe wachtwoord.</p>
+          <p className={styles.links}>
+            <Link href="/login">Inloggen</Link>
+          </p>
+        </div>
+      </AuthPage>
+    );
   }
 
   if (expired) {

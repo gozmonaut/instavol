@@ -22,12 +22,16 @@ async function fillIn(next: string, repeat: string) {
   await userEvent.click(screen.getByRole('button', { name: 'Wachtwoord opslaan' }));
 }
 
-test('saves the new password with the token from the link and opens the app', async () => {
+test('saves the new password with the token from the link and says to sign in with it', async () => {
   resetPassword.mockResolvedValue({ data: { status: true }, error: null });
   render(<ResetForm token="reset-token" />);
   await fillIn('nieuw-wachtwoord', 'nieuw-wachtwoord');
   expect(resetPassword).toHaveBeenCalledWith({ newPassword: 'nieuw-wachtwoord', token: 'reset-token' });
-  expect(routerReplace).toHaveBeenCalledWith('/');
+  // A reset does not sign you in, so say so instead of sending you to a page that bounces to the login screen.
+  expect(await screen.findByText('Je wachtwoord is gewijzigd. Log nu in met je nieuwe wachtwoord.')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Inloggen' })).toHaveAttribute('href', '/login');
+  expect(screen.queryByLabelText('Nieuw wachtwoord')).not.toBeInTheDocument();
+  expect(routerReplace).not.toHaveBeenCalled();
 });
 
 test('different passwords are caught before anything is sent', async () => {
