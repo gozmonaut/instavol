@@ -5,7 +5,7 @@ import { useState, type FormEvent } from 'react';
 import AuthPage from '@/app/login/AuthPage';
 import styles from '@/app/login/login.module.css';
 import { authClient } from '@/lib/auth/client';
-import { authOutcome } from '@/lib/auth/outcome';
+import { authOutcome, failureMessage } from '@/lib/auth/outcome';
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -34,7 +34,7 @@ export default function ResetForm({ token }: { token?: string }) {
     setSubmitting(false);
     if (outcome === 'ok') setDone(true);
     else if (outcome === 'rejected') setExpired(true);
-    else setError('Geen verbinding, probeer het opnieuw');
+    else setError(failureMessage(outcome));
   }
 
   if (done) {

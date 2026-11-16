@@ -753,7 +753,12 @@ describe('changing the password', () => {
     changePassword.mockResolvedValue({ data: {}, error: null });
     render(<LinksBrowser initialLinks={fixture} />);
     await fillIn('geheim', 'nieuw-wachtwoord', 'nieuw-wachtwoord');
-    expect(changePassword).toHaveBeenCalledWith({ currentPassword: 'geheim', newPassword: 'nieuw-wachtwoord' });
+    expect(changePassword).toHaveBeenCalledWith({
+      currentPassword: 'geheim',
+      newPassword: 'nieuw-wachtwoord',
+      // Changing the password is what you do when a device is lost: everything else gets signed out.
+      revokeOtherSessions: true,
+    });
     expect(await screen.findByText('Je wachtwoord is gewijzigd')).toBeInTheDocument();
   });
 
@@ -789,6 +794,13 @@ describe('changing the password', () => {
     render(<LinksBrowser initialLinks={fixture} />);
     await fillIn('fout', 'nieuw-wachtwoord', 'nieuw-wachtwoord');
     expect(await screen.findByRole('alert')).toHaveTextContent('Huidig wachtwoord klopt niet');
+  });
+
+  test('an unavailable service is not reported as a wrong current password', async () => {
+    changePassword.mockResolvedValue({ data: null, error: { status: 503, message: 'x' } });
+    render(<LinksBrowser initialLinks={fixture} />);
+    await fillIn('geheim', 'nieuw-wachtwoord', 'nieuw-wachtwoord');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Het lukt nu even niet, probeer het later opnieuw');
   });
 
   test('a failed connection is not reported as a wrong password', async () => {

@@ -10,6 +10,18 @@ test('the configured code is accepted', () => {
   expect(isValidInviteCode('familie-2026')).toBe(true);
 });
 
+test('spaces or a newline around the code (from pasting) do not matter, on either side', () => {
+  vi.stubEnv('INVITE_CODE', 'familie-2026');
+  expect(isValidInviteCode('  familie-2026\n')).toBe(true);
+  vi.stubEnv('INVITE_CODE', 'familie-2026 \n');
+  expect(isValidInviteCode('familie-2026')).toBe(true);
+});
+
+test('a code that is only spaces is still rejected', () => {
+  vi.stubEnv('INVITE_CODE', '   ');
+  expect(isValidInviteCode('   ')).toBe(false);
+});
+
 test.each([['a wrong code', 'familie-2025'], ['an empty code', ''], ['a number', 42], ['nothing', undefined]])(
   '%s is rejected',
   (_name, code) => {

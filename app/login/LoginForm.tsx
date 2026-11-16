@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { authClient } from '@/lib/auth/client';
-import { authOutcome } from '@/lib/auth/outcome';
+import { authOutcome, failureMessage } from '@/lib/auth/outcome';
 import AuthPage from './AuthPage';
 import styles from './login.module.css';
 
@@ -27,7 +27,7 @@ export default function LoginForm() {
       setError('Onjuist e-mailadres of wachtwoord');
       setPassword('');
     } else {
-      setError('Geen verbinding, probeer het opnieuw');
+      setError(failureMessage(outcome));
     }
   }
 

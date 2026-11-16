@@ -5,7 +5,7 @@ import { useState, type FormEvent } from 'react';
 import AuthPage from '@/app/login/AuthPage';
 import styles from '@/app/login/login.module.css';
 import { authClient } from '@/lib/auth/client';
-import { authOutcome } from '@/lib/auth/outcome';
+import { authOutcome, failureMessage } from '@/lib/auth/outcome';
 
 export default function ForgotForm() {
   const [email, setEmail] = useState('');
@@ -23,7 +23,7 @@ export default function ForgotForm() {
     setSubmitting(false);
     // A refusal (for example an unknown address) looks the same as success, so this form
     // can't be used to find out who has an account.
-    if (outcome === 'offline') setError('Geen verbinding, probeer het opnieuw');
+    if (outcome === 'offline' || outcome === 'unavailable') setError(failureMessage(outcome));
     else setSent(true);
   }
 

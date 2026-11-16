@@ -40,6 +40,13 @@ test.each([
   expect(routerReplace).not.toHaveBeenCalled();
 });
 
+test('an unavailable service is not reported as a wrong password', async () => {
+  signInEmail.mockResolvedValue({ data: null, error: { status: 503, message: 'x' } });
+  render(<LoginForm />);
+  await signIn('geheim-wachtwoord');
+  expect(await screen.findByRole('alert')).toHaveTextContent('Het lukt nu even niet, probeer het later opnieuw');
+});
+
 test('a failed connection is not reported as a wrong password', async () => {
   signInEmail.mockRejectedValue(new TypeError('Failed to fetch'));
   render(<LoginForm />);

@@ -38,6 +38,14 @@ test.each([
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
+test.each([429, 503])('when the service is unavailable (status %i) there is no false confirmation', async (status) => {
+  requestPasswordReset.mockResolvedValue({ data: null, error: { status, message: 'x' } });
+  render(<ForgotForm />);
+  await submit();
+  expect(await screen.findByRole('alert')).toHaveTextContent('Het lukt nu even niet, probeer het later opnieuw');
+  expect(screen.queryByText(CONFIRMATION)).not.toBeInTheDocument();
+});
+
 test('a failed connection is reported, without the confirmation', async () => {
   requestPasswordReset.mockRejectedValue(new TypeError('Failed to fetch'));
   render(<ForgotForm />);

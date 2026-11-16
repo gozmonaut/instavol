@@ -66,6 +66,15 @@ test.each([
   expect(routerReplace).not.toHaveBeenCalled();
 });
 
+test('an unavailable service is not reported as an expired link, and the form stays', async () => {
+  resetPassword.mockResolvedValue({ data: null, error: { status: 503, message: 'x' } });
+  render(<ResetForm token="reset-token" />);
+  await fillIn('nieuw-wachtwoord', 'nieuw-wachtwoord');
+  expect(await screen.findByRole('alert')).toHaveTextContent('Het lukt nu even niet, probeer het later opnieuw');
+  expect(screen.queryByText(EXPIRED)).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Nieuw wachtwoord')).toBeInTheDocument();
+});
+
 test('a failed connection keeps the form so you can try again', async () => {
   resetPassword.mockRejectedValue(new TypeError('Failed to fetch'));
   render(<ResetForm token="reset-token" />);

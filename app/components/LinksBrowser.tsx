@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { authClient } from '@/lib/auth/client';
-import { authOutcome } from '@/lib/auth/outcome';
+import { authOutcome, failureMessage } from '@/lib/auth/outcome';
 import type { LinkRow } from '@/lib/schema';
 import { groupByDate, TIME_ZONE } from '@/lib/dateGroups';
 import { RESEARCH_FOCUSES, buildResearchPrompt, type ResearchFocus } from '@/lib/researchPrompt';
@@ -714,11 +714,11 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     }
     setSavingPassword(true);
     setPasswordError(null);
-    const outcome = await authOutcome(() => authClient.changePassword({ currentPassword, newPassword }));
+    const outcome = await authOutcome(() => authClient.changePassword({ currentPassword, newPassword, revokeOtherSessions: true }));
     setSavingPassword(false);
     if (outcome === 'ok') setPasswordChanged(true);
     else if (outcome === 'rejected') setPasswordError('Huidig wachtwoord klopt niet');
-    else setPasswordError('Geen verbinding, probeer het opnieuw');
+    else setPasswordError(failureMessage(outcome));
   }
 
   function handleLogout() {
