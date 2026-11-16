@@ -735,6 +735,19 @@ test('the settings menu opens the share-token sheet (and the menu closes)', asyn
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
+test('a link without an address (bad data) does not break the whole list', () => {
+  const broken = { ...fixture[0], id: 'no-url', url: null, title: 'Zonder adres' } as unknown as LinkRow;
+  render(<LinksBrowser initialLinks={[broken, ...fixture]} />);
+  expect(screen.getByText('Zonder adres')).toBeInTheDocument();
+  expect(screen.getByText('Artikel A')).toBeInTheDocument();
+});
+
+test('a link without both title and address is still listed', () => {
+  const broken = { ...fixture[0], id: 'nothing', url: null, title: null } as unknown as LinkRow;
+  render(<LinksBrowser initialLinks={[broken]} />);
+  expect(screen.getByText('Zonder titel')).toBeInTheDocument();
+});
+
 describe('changing the password', () => {
   async function fillIn(current: string, next: string, repeat: string) {
     await userEvent.click(screen.getByRole('button', { name: 'Instellingen' }));

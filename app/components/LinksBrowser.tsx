@@ -26,7 +26,9 @@ function isStandalone(): boolean {
   return (navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
 
-function domainFromUrl(url: string): string {
+// `url` should always be there, but one saved item without an address must not take down the whole list.
+function domainFromUrl(url: string | null): string {
+  if (!url) return '';
   try {
     return new URL(url).hostname;
   } catch {
@@ -1013,7 +1015,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                         setReaderLink(link);
                       }}
                     >
-                      {link.title ?? link.url}
+                      {link.title ?? link.url ?? 'Zonder titel'}
                       {!link.readingMinutes && (
                         <svg className={styles.externalIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <path d="M14 4h6v6" />
