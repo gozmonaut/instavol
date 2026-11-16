@@ -11,6 +11,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: routerReplace }
 const fixture: LinkRow[] = [
   {
     id: '1',
+    userId: 'user-a',
     url: 'https://a.example',
     title: 'Artikel A',
     status: 'done',
@@ -29,6 +30,7 @@ const fixture: LinkRow[] = [
   },
   {
     id: '2',
+    userId: 'user-a',
     url: 'https://b.example',
     title: 'Artikel B',
     status: 'failed',
