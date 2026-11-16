@@ -1,8 +1,10 @@
-import { afterEach, beforeEach } from 'vitest';
+import { beforeEach } from 'vitest';
 import { POST } from '@/app/api/share/route';
 import { db } from '@/lib/db';
 import { links } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
+import { addMember } from '@/lib/members';
+import { createShareToken } from '@/lib/shareTokens';
 
 vi.mock('next/server', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -10,18 +12,17 @@ vi.mock('next/server', async (importOriginal) => ({
 }));
 vi.mock('@/lib/processLink', () => ({ processLink: vi.fn().mockResolvedValue(undefined) }));
 
-beforeEach(() => {
-  vi.stubEnv('API_TOKEN', 'test-secret');
+let userToken: string;
+
+beforeEach(async () => {
+  await addMember('user-b');
+  userToken = await createShareToken('user-b');
 });
 
-afterEach(() => {
-  vi.unstubAllEnvs();
-});
-
-function req(body: unknown, token = process.env.API_TOKEN) {
+function req(body: unknown, token: string | null = userToken) {
   return new Request('https://x/api/share', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: { ...(token === null ? {} : { Authorization: `Bearer ${token}` }), 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
 }
@@ -33,6 +34,26 @@ test('valid request creates a pending link and returns 201', async () => {
   expect(body.status).toBe('pending');
   const [row] = await db.select().from(links).where(eq(links.id, body.id));
   expect(row.url).toBe('https://example.com/a');
+});
+
+test('the link is saved for the owner of the token, not for whoever is signed in on the website', async () => {
+  const res = await POST(req({ url: 'https://example.com/owner' }));
+  const [row] = await db.select().from(links).where(eq(links.id, (await res.json()).id));
+  expect(row.userId).toBe('user-b');
+});
+
+test.each([['an empty token', ''], ['no Authorization header', null]])('%s returns 401 and inserts nothing', async (_name, token) => {
+  const res = await POST(req({ url: 'https://example.com/b' }, token));
+  expect(res.status).toBe(401);
+  expect(await db.select().from(links)).toHaveLength(0);
+});
+
+test('the old shared API_TOKEN no longer gives access', async () => {
+  vi.stubEnv('API_TOKEN', 'test-secret');
+  const res = await POST(req({ url: 'https://example.com/b' }, 'test-secret'));
+  vi.unstubAllEnvs();
+  expect(res.status).toBe(401);
+  expect(await db.select().from(links)).toHaveLength(0);
 });
 
 test('invalid url returns 400 and inserts nothing', async () => {

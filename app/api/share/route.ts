@@ -1,11 +1,16 @@
 import { NextResponse, after } from 'next/server';
-import { isValidApiToken } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { links } from '@/lib/schema';
 import { processLink } from '@/lib/processLink';
+import { userIdForShareToken } from '@/lib/shareTokens';
+
+const BEARER_PREFIX = 'Bearer ';
 
 export async function POST(request: Request): Promise<Response> {
-  if (!isValidApiToken(request)) {
+  // Saving from the share menu: the personal token says whose collection the link goes into.
+  const header = request.headers.get('authorization');
+  const userId = header?.startsWith(BEARER_PREFIX) ? await userIdForShareToken(header.slice(BEARER_PREFIX.length)) : null;
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -42,7 +47,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const [row] = await db
     .insert(links)
-    .values({ url, title: typeof title === 'string' ? title : null })
+    .values({ url, userId, title: typeof title === 'string' ? title : null })
     .returning();
 
   after(() => processLink(row.id).catch(console.error));
