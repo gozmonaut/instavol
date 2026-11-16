@@ -9,6 +9,7 @@ import type { LinkRow } from '@/lib/schema';
 const link: LinkRow = {
   id: '1',
   userId: 'user-a',
+  kind: 'link',
   url: 'https://a.example',
   title: 'Artikel A',
   status: 'done',

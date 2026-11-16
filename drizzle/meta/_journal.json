@@ -47,8 +47,15 @@
     {
       "idx": 6,
       "version": "7",
+      "when": 1794569089871,
+      "tag": "0006_images_and_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
       "when": 1794822388767,
-      "tag": "0006_accounts",
+      "tag": "0007_accounts",
       "breakpoints": true
     }
   ]

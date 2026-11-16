@@ -36,6 +36,57 @@ function domainFromUrl(url: string | null): string {
   }
 }
 
+// Screenshots can be several MB; the server accepts 4 MB. Shrinks big pictures to a JPEG of at most 2000 px
+// where the browser can decode them, and sends anything else as it is.
+const MAX_UPLOAD_EDGE = 2000;
+async function prepareImage(file: File): Promise<Blob> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_UPLOAD_EDGE / Math.max(bitmap.width, bitmap.height));
+    if (scale === 1 && file.size < 1024 * 1024) return file;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+    return blob ?? file;
+  } catch {
+    return file;
+  }
+}
+
+// The text of a note on a card, in a yellow block: the first lines only; the reader shows all of it.
+function NoteBody({ text }: { text: string }) {
+  return (
+    <div className={`${styles.summary} ${styles.noteSticky}`}>
+      <p className={`${styles.noteBody} ${styles.noteClamped}`}>{text}</p>
+    </div>
+  );
+}
+
+const IMAGE_EXTENSIONS: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/heic': 'heic' };
+
+// The picture of a note or image as a file, to hand to the share sheet. Never throws: null means "share without".
+async function loadShareFile(link: LinkRow): Promise<File | null> {
+  if (!link.imageUrl) return null;
+  try {
+    const res = await fetch(link.imageUrl);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const name = (link.title ?? 'afbeelding').replace(/[^\p{L}\p{N} _-]+/gu, '').trim().slice(0, 60) || 'afbeelding';
+    return new File([blob], `${name}.${IMAGE_EXTENSIONS[blob.type] ?? 'jpg'}`, { type: blob.type });
+  } catch {
+    return null;
+  }
+}
+
+// What to call an item in titles and dialogs; uploaded images and loose notes have no url.
+function itemName(link: LinkRow): string {
+  if (link.title) return link.title;
+  if (link.url) return domainFromUrl(link.url);
+  return link.kind === 'image' ? 'Afbeelding' : 'Notitie';
+}
+
 // Fixed to Amsterdam time, like the date groups: the server (UTC) and the browser must render the
 // same text, or React rebuilds the whole page and drops the theme set on <html>.
 function formatDate(value: Date | string): string {
@@ -49,8 +100,19 @@ function isMacDesktop(): boolean {
   return navigator.platform === 'MacIntel' && navigator.maxTouchPoints === 0;
 }
 
+// A note is shared as its own text. The name goes on top only when it says more than the first line of the
+// text (which is what a new note is named after), and a picture's default name ("Afbeelding 13 nov. 2026") is left out.
+function buildOwnShareText(link: LinkRow): string {
+  const text = link.notes[0]?.text ?? '';
+  const title = link.title?.trim() ?? '';
+  const stem = title.replace(/…$/, '');
+  const redundant = !title || (text && text.startsWith(stem)) || /^Afbeelding( \d.*)?$/.test(title);
+  return [redundant ? '' : title, text].filter(Boolean).join('\n\n');
+}
+
 // The URL goes inside the text: some apps keep only the text or only the url when both are passed.
 function buildShareText(link: LinkRow): string {
+  if (link.kind !== 'link') return buildOwnShareText(link);
   const meta = [formatDate(link.createdAt), link.category].filter(Boolean).join(' | ');
   const summary = link.status === 'done' && link.summary ? link.summary : null;
   return [link.title, meta, summary, link.url].filter(Boolean).join('\n');
@@ -79,6 +141,7 @@ const ACTION_ICON_PATHS = {
   category: ['M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'],
   password: ['M12 15a4 4 0 1 1-8 0 4 4 0 0 1 8 0z', 'M11 12l9-9', 'M17 6l3 3'],
   logout: ['M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3', 'M10 17l-5-5 5-5', 'M5 12h11'],
+  rename: ['M12 20h9', 'M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z'],
   tag: ['M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z', 'M7.5 7.5h.01'],
 } as const;
 
@@ -180,11 +243,28 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
   const [category, setCategory] = useState('');
   const [tag, setTag] = useState('');
   const [menuLink, setMenuLink] = useState<LinkRow | null>(null);
+  // Pictures fetched ahead as files for sharing: Safari wants the share sheet opened right after the tap,
+  // so the fetch can't happen in between.
+  const shareFiles = useRef(new Map<string, Promise<File | null>>());
   // Where the "..." dropdown hangs: just under (or, near the bottom, above) the button that opened it.
   const [menuPos, setMenuPos] = useState<{ right: number; top?: number; bottom?: number } | null>(null);
   const itemMenuRef = useRef<HTMLDivElement>(null);
   const closeItemMenu = useCallback(() => setMenuLink(null), []);
   const [tagsLink, setTagsLink] = useState<LinkRow | null>(null);
+  const [editingNote, setEditingNote] = useState<LinkRow | null>(null);
+  const [noteEditDraft, setNoteEditDraft] = useState('');
+  const [nameEditDraft, setNameEditDraft] = useState('');
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const editImageInputRef = useRef<HTMLInputElement>(null);
+  const [savingNoteEdit, setSavingNoteEdit] = useState(false);
+  const [renamingLink, setRenamingLink] = useState<LinkRow | null>(null);
+  const [nameDraft, setNameDraft] = useState('');
+  const [savingName, setSavingName] = useState(false);
+  const [addSheetOpen, setAddSheetOpen] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [addError, setAddError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [tagDraft, setTagDraft] = useState('');
   const [allTags, setAllTags] = useState<string[]>([]);
   const [savingTags, setSavingTags] = useState(false);
@@ -503,36 +583,102 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     }
   }
 
+  // A screenshot or other picture, from the clipboard or the file picker.
+  async function handleUploadImage(file: File) {
+    setSaving(true);
+    setAddError(null);
+    try {
+      const form = new FormData();
+      form.set('file', await prepareImage(file), file.name || 'afbeelding');
+      const res = await fetch('/api/links', { method: 'POST', body: form });
+      if (!res.ok) throw new Error();
+      const created: LinkRow = await res.json();
+      setLinks((prev) => [created, ...prev]);
+      setAddSheetOpen(false);
+    } catch {
+      setAddError('De afbeelding kon niet bewaard worden.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // A loose note without a link; the server gives it a title and category.
+  async function handleSaveNote() {
+    const text = noteDraft.trim();
+    if (!text) return;
+    setSaving(true);
+    setAddError(null);
+    try {
+      const res = await fetch('/api/links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) throw new Error();
+      const created: LinkRow = await res.json();
+      setLinks((prev) => [created, ...prev]);
+      setNoteDraft('');
+      setAddSheetOpen(false);
+    } catch {
+      setAddError('De notitie kon niet bewaard worden.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   // Opens the native share sheet, or copies the text where sharing isn't supported.
   async function shareOrCopy(
     text: string,
-    url: string,
+    url: string | undefined,
     id: string,
     setFeedbackId: (update: (current: string | null) => string | null) => void,
+    file?: File | null,
   ) {
     if (navigator.share) {
       try {
-        // On iOS the url stays inside the text only; on a Mac it's also passed separately (see isMacDesktop).
-        await navigator.share(isMacDesktop() ? { text, url } : { text });
+        if (file && navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], ...(text && { text }) });
+        } else if (text) {
+          // On iOS the url stays inside the text only; on a Mac it's also passed separately (see isMacDesktop).
+          await navigator.share(isMacDesktop() ? { text, url } : { text });
+        }
       } catch {
         // User closed the share sheet; nothing to do.
       }
       return;
     }
+    if (!text) return;
     await navigator.clipboard.writeText(text);
     setFeedbackId(() => id);
     setTimeout(() => setFeedbackId((current) => (current === id ? null : current)), COPIED_FEEDBACK_MS);
   }
 
-  function handleShare(link: LinkRow) {
-    return shareOrCopy(buildShareText(link), link.url, link.id, setCopiedId);
+  // The picture of a note or image, as a file; fetched once and kept (its url changes when it is replaced).
+  function shareFileFor(link: LinkRow): Promise<File | null> {
+    if (link.kind === 'link' || !link.imageUrl) return Promise.resolve(null);
+    let file = shareFiles.current.get(link.imageUrl);
+    if (!file) {
+      file = loadShareFile(link);
+      shareFiles.current.set(link.imageUrl, file);
+    }
+    return file;
+  }
+
+  // Opening the "..." menu already fetches the picture, so it is there when "Delen" is chosen.
+  useEffect(() => {
+    if (menuLink) void shareFileFor(menuLink);
+  }, [menuLink]);
+
+  async function handleShare(link: LinkRow) {
+    const file = await shareFileFor(link);
+    return shareOrCopy(buildShareText(link), link.url ?? undefined, link.id, setCopiedId, file);
   }
 
   function handleResearch(focus: ResearchFocus) {
     if (!researchLink) return;
     const link = researchLink;
     setResearchLink(null);
-    return shareOrCopy(buildResearchPrompt(link, focus, formatDate(link.createdAt)), link.url, link.id, setPromptCopiedId);
+    return shareOrCopy(buildResearchPrompt(link, focus, formatDate(link.createdAt)), link.url ?? undefined, link.id, setPromptCopiedId);
   }
 
   // Switches between light and dark; the choice is remembered on this device.
@@ -616,6 +762,90 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
     if (!name) return;
     setTagDraft('');
     saveTags(link, [...(link.tags ?? []), name]);
+  }
+
+  // A tap on a note or image card opens the reader, except on a button or link inside it, or while text
+  // on the card is selected (that tap only puts the selection away).
+  function openOwnItem(event: React.MouseEvent, link: LinkRow) {
+    if ((event.target as HTMLElement).closest('button, a, input, textarea, select')) return;
+    if (window.getSelection()?.toString()) return;
+    setReaderLink(link);
+  }
+
+  // Notes and uploaded images are edited in one sheet: the name and the text together.
+  function startEditingNote(link: LinkRow) {
+    setEditingNote(link);
+    setNameEditDraft(link.title ?? '');
+    setNoteEditDraft(link.notes[0]?.text ?? '');
+    setImageError(null);
+  }
+
+  // Adds, replaces or removes the picture right away; the name and text are saved with "Bewaar".
+  async function changeEditedImage(file: File | null) {
+    if (!editingNote || imageBusy) return;
+    setImageBusy(true);
+    setImageError(null);
+    try {
+      const res = file
+        ? await fetch(`/api/links/${editingNote.id}/image`, { method: 'POST', body: (() => {
+            const form = new FormData();
+            form.set('file', file, file.name || 'afbeelding');
+            return form;
+          })() })
+        : await fetch(`/api/links/${editingNote.id}/image`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      const updated: LinkRow = await res.json();
+      replaceLink(updated);
+      setEditingNote(updated);
+    } catch {
+      setImageError('De afbeelding kon niet gewijzigd worden.');
+    } finally {
+      setImageBusy(false);
+    }
+  }
+
+  async function saveNoteEdit() {
+    if (!editingNote || savingNoteEdit) return;
+    const title = nameEditDraft.trim();
+    const text = noteEditDraft.trim();
+    setSavingNoteEdit(true);
+    try {
+      const res = await fetch(`/api/links/${editingNote.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...(title && { title }), text }),
+      });
+      if (res.ok) {
+        replaceLink(await res.json());
+        setEditingNote(null);
+      }
+    } finally {
+      setSavingNoteEdit(false);
+    }
+  }
+
+  function startRenaming(link: LinkRow) {
+    setRenamingLink(link);
+    setNameDraft(link.title ?? '');
+  }
+
+  async function saveName() {
+    const title = nameDraft.trim();
+    if (!renamingLink || !title || savingName) return;
+    setSavingName(true);
+    try {
+      const res = await fetch(`/api/links/${renamingLink.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      });
+      if (res.ok) {
+        replaceLink(await res.json());
+        setRenamingLink(null);
+      }
+    } finally {
+      setSavingName(false);
+    }
   }
 
   function startEditingCategory(link: LinkRow) {
@@ -897,6 +1127,12 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                 className={styles.search}
                 value={q}
                 onChange={(event) => setQ(event.target.value)}
+                onPaste={(event) => {
+                  const image = Array.from(event.clipboardData.files).find((file) => file.type.startsWith('image/'));
+                  if (!image) return;
+                  event.preventDefault();
+                  handleUploadImage(image);
+                }}
                 onKeyDown={(event) => {
                   const url = parseShareUrl(q);
                   if (event.key === 'Enter' && url && !saving) handleSave(url);
@@ -921,6 +1157,20 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                 </button>
               )}
             </div>
+            <button
+              type="button"
+              className={styles.addButton}
+              aria-label="Afbeelding of notitie toevoegen"
+              title="Afbeelding of notitie toevoegen"
+              onClick={() => {
+                setAddError(null);
+                setAddSheetOpen(true);
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
             <select
               aria-label="Categorie"
               className={styles.select}
@@ -954,7 +1204,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
           ) : (
             <>
               <p className={styles.emptyTitle}>Nog niets bewaard</p>
-              <p>Plak hierboven een link, of deel een pagina vanuit Safari met &ldquo;Bewaar in Instavol&rdquo;.</p>
+              <p>Plak hierboven een link of screenshot, of deel een pagina vanuit Safari met &ldquo;Bewaar in Instavol&rdquo;.</p>
             </>
           )}
         </div>
@@ -987,8 +1237,12 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             </h2>
             <ul className={styles.list}>
               {group.items.map((link) => (
-                <li key={link.id} className={styles.card}>
-                  <div className={styles.cardMain}>
+                <li
+                  key={link.id}
+                  className={`${styles.card} ${link.kind !== 'link' ? styles.cardOpenable : ''}`}
+                  onClick={link.kind !== 'link' ? (event) => openOwnItem(event, link) : undefined}
+                >
+                  <div className={`${styles.cardMain} ${link.kind !== 'link' && link.imageUrl ? styles.cardMainImage : ''}`}>
                     <div className={styles.cardTop}>
                       {link.category && (
                         <button
@@ -1003,36 +1257,44 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                       <span className={styles.date}>{formatDate(link.createdAt)}</span>
                       {moreButton(link, styles.moreButton)}
                     </div>
-                    <a
-                      href={link.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={styles.cardTitle}
-                      onClick={(event) => {
-                        // Saved articles open in the reader; a modified click still opens the site.
-                        if (!link.readingMinutes || event.metaKey || event.ctrlKey || event.shiftKey) return;
-                        event.preventDefault();
-                        setReaderLink(link);
-                      }}
-                    >
-                      {link.title ?? link.url ?? 'Zonder titel'}
-                      {!link.readingMinutes && (
-                        <svg className={styles.externalIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M14 4h6v6" />
-                          <path d="M20 4l-9 9" />
-                          <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
-                        </svg>
-                      )}
-                    </a>
+                    {link.kind === 'link' ? (
+                      <a
+                        href={link.url ?? undefined}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={styles.cardTitle}
+                        onClick={(event) => {
+                          // Saved articles open in the reader; a modified click still opens the site.
+                          if (!link.readingMinutes || event.metaKey || event.ctrlKey || event.shiftKey) return;
+                          event.preventDefault();
+                          setReaderLink(link);
+                        }}
+                      >
+                        {link.title ?? link.url ?? itemName(link)}
+                        {!link.readingMinutes && (
+                          <svg className={styles.externalIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M14 4h6v6" />
+                            <path d="M20 4l-9 9" />
+                            <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
+                          </svg>
+                        )}
+                      </a>
+                    ) : (
+                      // The user's own item: no link stretched over the card, so its text can be selected;
+                      // a tap on the card (see openOwnItem) or on this title opens the reader.
+                      <button type="button" className={`${styles.cardTitle} ${styles.cardTitleStatic} ${styles.cardTitleButton}`} onClick={() => setReaderLink(link)}>
+                        {itemName(link)}
+                      </button>
+                    )}
                     <div className={styles.meta}>
-                      <span>{domainFromUrl(link.url).replace(/^www\./, '')}</span>
+                      {link.url && <span>{domainFromUrl(link.url).replace(/^www\./, '')}</span>}
                       {link.readingMinutes && (
                         <>
                           <span aria-hidden="true">·</span>
                           <span>{link.readingMinutes} min. leestijd</span>
                         </>
                       )}
-                      {link.notes.length > 0 && (
+                      {link.kind === 'link' && link.notes.length > 0 && (
                         <>
                           <span aria-hidden="true">·</span>
                           <span className={styles.noteCount}>
@@ -1045,7 +1307,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                         </>
                       )}
                     </div>
-                    {link.imageUrl && (
+                    {link.imageUrl && link.kind === 'link' && (
                       // A remote og:image; hidden when it fails to load (e.g. hotlinking blocked).
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -1059,16 +1321,32 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                         }}
                       />
                     )}
+                    {link.imageUrl && link.kind !== 'link' && (
+                      // The user's own picture; a tap on it opens the reader, like a tap anywhere on the card.
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={link.imageUrl}
+                        alt=""
+                        className={styles.heroImage}
+                        loading="lazy"
+                        onError={(event) => {
+                          event.currentTarget.hidden = true;
+                        }}
+                      />
+                    )}
+                    {link.kind !== 'link' && link.notes[0] && (
+                      <NoteBody key={link.notes[0].text} text={link.notes[0].text} />
+                    )}
                     {link.status === 'done' && link.summary && (
                       <p className={styles.summary}>{link.summary}</p>
                     )}
-                    {link.status === 'pending' && (
+                    {link.kind !== 'note' && link.status === 'pending' && (
                       <p className={styles.status}>
                         <span className={styles.spinner} aria-hidden="true" />
                         Wordt verwerkt...
                       </p>
                     )}
-                    {link.status === 'failed' && (
+                    {link.kind !== 'note' && link.status === 'failed' && (
                       <p className={`${styles.status} ${styles.failed}`}>Mislukt: {link.errorMessage}</p>
                     )}
                   </div>
@@ -1094,7 +1372,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                 <p id="category-edit-title" className={styles.sheetTitle}>
                   Categorie wijzigen
                 </p>
-                <p className={styles.sheetSubtitle}>{editingLink.title ?? domainFromUrl(editingLink.url)}</p>
+                <p className={styles.sheetSubtitle}>{itemName(editingLink)}</p>
               </div>
               <div className={styles.pickerBody}>
                 <form
@@ -1183,7 +1461,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                 <p id="research-title" className={styles.sheetTitle}>
                   Onderzoek met AI
                 </p>
-                <p className={styles.sheetSubtitle}>{researchLink.title ?? domainFromUrl(researchLink.url)}</p>
+                <p className={styles.sheetSubtitle}>{itemName(researchLink)}</p>
               </div>
               {RESEARCH_FOCUSES.map((focus) => (
                 <button key={focus.id} className={styles.sheetOption} onClick={() => handleResearch(focus.id)}>
@@ -1204,7 +1482,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
           onSwipe={followReaderSwipe}
           key={readerLink.id}
           link={readerLink}
-          domain={domainFromUrl(readerLink.url)}
+          domain={readerLink.url ? domainFromUrl(readerLink.url) : ''}
           onClose={closeReader}
           onChange={replaceLink}
           actions={moreButton(readerLink, readerStyles.barIcon)}
@@ -1241,10 +1519,14 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
         <div
           ref={itemMenuRef}
           role="menu"
-          aria-label={menuLink.title ?? domainFromUrl(menuLink.url)}
+          aria-label={itemName(menuLink)}
           className={`${styles.popover} ${styles.itemMenu}`}
           style={menuPos}
         >
+          <button className={`${styles.popoverItem} ${styles.menuOption}`} role="menuitem" onClick={() => chooseFromMenu(menuLink.kind === 'link' ? startRenaming : startEditingNote)}>
+            <span>{menuLink.kind === 'link' ? 'Naam wijzigen' : 'Bewerken'}</span>
+            <ActionIcon name="rename" />
+          </button>
           <button className={`${styles.popoverItem} ${styles.menuOption}`} role="menuitem" onClick={() => chooseFromMenu(openTags)}>
             <span>Tags toevoegen</span>
             <ActionIcon name="tag" />
@@ -1408,7 +1690,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
               <p id="delete-text" className={styles.dialogText}>
                 Weet je zeker dat je dit item wilt verwijderen?
               </p>
-              <p className={styles.dialogItem}>{deleteLink.title ?? domainFromUrl(deleteLink.url)}</p>
+              <p className={styles.dialogItem}>{itemName(deleteLink)}</p>
             </div>
             <div className={styles.dialogActions}>
               <button className={styles.dialogButton} onClick={() => setDeleteLink(null)}>
@@ -1436,7 +1718,7 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
                 <p id="tags-title" className={styles.sheetTitle}>
                   Tags
                 </p>
-                <p className={styles.sheetSubtitle}>{tagsLink.title ?? domainFromUrl(tagsLink.url)}</p>
+                <p className={styles.sheetSubtitle}>{itemName(tagsLink)}</p>
               </div>
               <div className={styles.pickerBody}>
                 <form
@@ -1498,6 +1780,196 @@ export default function LinksBrowser({ initialLinks }: { initialLinks: LinkRow[]
             </div>
             <button className={styles.sheetCancel} onClick={() => setTagsLink(null)}>
               Klaar
+            </button>
+          </div>
+        </div>
+      )}
+      {addSheetOpen && (
+        <div className={styles.sheetBackdrop} onClick={() => setAddSheetOpen(false)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-title"
+            className={styles.sheet}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={`${styles.sheetGroup} ${styles.sheetScroll}`}>
+              <div className={styles.sheetHeader}>
+                <p id="add-title" className={styles.sheetTitle}>
+                  Toevoegen
+                </p>
+              </div>
+              <div className={styles.pickerBody}>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  aria-label="Afbeelding kiezen"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.target.value = '';
+                    if (file) handleUploadImage(file);
+                  }}
+                />
+                <button type="button" className={styles.pickerSave} disabled={saving} onClick={() => fileInputRef.current?.click()}>
+                  Afbeelding kiezen
+                </button>
+                <form
+                  className={styles.noteForm}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    handleSaveNote();
+                  }}
+                >
+                  <textarea
+                    className={styles.noteInput}
+                    aria-label="Notitie"
+                    placeholder="Schrijf een notitie"
+                    rows={4}
+                    maxLength={2000}
+                    value={noteDraft}
+                    onChange={(event) => setNoteDraft(event.target.value)}
+                  />
+                  <button type="submit" className={styles.pickerSave} disabled={!noteDraft.trim() || saving}>
+                    Notitie bewaren
+                  </button>
+                </form>
+                {addError && <p role="alert">{addError}</p>}
+              </div>
+            </div>
+            <button className={styles.sheetCancel} onClick={() => setAddSheetOpen(false)}>
+              Annuleren
+            </button>
+          </div>
+        </div>
+      )}
+      {renamingLink && (
+        <div className={styles.sheetBackdrop} onClick={() => setRenamingLink(null)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rename-title"
+            className={styles.sheet}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={`${styles.sheetGroup} ${styles.sheetScroll}`}>
+              <div className={styles.sheetHeader}>
+                <p id="rename-title" className={styles.sheetTitle}>
+                  Naam wijzigen
+                </p>
+              </div>
+              <div className={styles.pickerBody}>
+                <form
+                  className={styles.pickerForm}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    saveName();
+                  }}
+                >
+                  <input
+                    className={styles.pickerInput}
+                    aria-label="Naam"
+                    enterKeyHint="done"
+                    maxLength={200}
+                    autoFocus
+                    value={nameDraft}
+                    onChange={(event) => setNameDraft(event.target.value)}
+                  />
+                  <button type="submit" className={styles.pickerSave} disabled={!nameDraft.trim() || savingName}>
+                    Bewaar
+                  </button>
+                </form>
+              </div>
+            </div>
+            <button className={styles.sheetCancel} onClick={() => setRenamingLink(null)}>
+              Annuleren
+            </button>
+          </div>
+        </div>
+      )}
+      {editingNote && (
+        <div className={styles.sheetBackdrop} onClick={() => setEditingNote(null)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="note-edit-title"
+            className={styles.sheet}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={`${styles.sheetGroup} ${styles.sheetScroll}`}>
+              <div className={styles.sheetHeader}>
+                <p id="note-edit-title" className={styles.sheetTitle}>
+                  Bewerken
+                </p>
+              </div>
+              <div className={styles.pickerBody}>
+                <form
+                  className={styles.noteForm}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    saveNoteEdit();
+                  }}
+                >
+                  <input
+                    className={styles.pickerInput}
+                    aria-label="Naam"
+                    placeholder="Naam"
+                    enterKeyHint="next"
+                    maxLength={200}
+                    value={nameEditDraft}
+                    onChange={(event) => setNameEditDraft(event.target.value)}
+                  />
+                  <textarea
+                    className={styles.noteInput}
+                    aria-label="Notitie"
+                    placeholder={editingNote.kind === 'image' ? 'Notitie (niet verplicht)' : 'Notitie'}
+                    rows={8}
+                    maxLength={2000}
+                    value={noteEditDraft}
+                    onChange={(event) => setNoteEditDraft(event.target.value)}
+                  />
+                  <input
+                    ref={editImageInputRef}
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    aria-label="Afbeelding kiezen voor deze notitie"
+                    onChange={async (event) => {
+                      const file = event.target.files?.[0];
+                      event.target.value = '';
+                      if (file) changeEditedImage(await prepareImage(file).then((blob) => (blob instanceof File ? blob : new File([blob], 'afbeelding.jpg', { type: blob.type }))));
+                    }}
+                  />
+                  {editingNote.kind !== 'link' && (
+                    <div className={styles.noteImageRow}>
+                      {editingNote.imageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={editingNote.imageUrl} alt="" className={styles.noteImagePreview} />
+                      )}
+                      <button type="button" className={styles.noteImageButton} disabled={imageBusy} onClick={() => editImageInputRef.current?.click()}>
+                        {editingNote.imageUrl ? 'Afbeelding vervangen' : 'Afbeelding toevoegen'}
+                      </button>
+                      {editingNote.kind === 'note' && editingNote.imageUrl && (
+                        <button type="button" className={styles.noteImageButton} disabled={imageBusy} onClick={() => changeEditedImage(null)}>
+                          Afbeelding verwijderen
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {imageError && <p role="alert">{imageError}</p>}
+                  <button
+                    type="submit"
+                    className={styles.pickerSave}
+                    disabled={savingNoteEdit || (editingNote.kind === 'note' && !noteEditDraft.trim())}
+                  >
+                    Bewaar
+                  </button>
+                </form>
+              </div>
+            </div>
+            <button className={styles.sheetCancel} onClick={() => setEditingNote(null)}>
+              Annuleren
             </button>
           </div>
         </div>

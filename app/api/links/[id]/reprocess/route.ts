@@ -20,7 +20,8 @@ export async function POST(
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  await processLink(id);
+  // Only links are processed (by Gemini); images and notes are saved as they are.
+  if (existing.kind === 'link') await processLink(id);
 
   const [row] = await db.select().from(links).where(ownedLink(userId, id));
   if (!row) {
