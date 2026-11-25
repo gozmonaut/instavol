@@ -8,8 +8,8 @@ dynamische rendering. Niets staat nog open behalve de daadwerkelijke
 deployment (hieronder). Laatste commit: `46150db`.
 
 Volledige achtergrond:
-- Ontwerp: [docs/superpowers/specs/2026-10-20-save-site-app-design.md](docs/superpowers/specs/2026-10-20-save-site-app-design.md)
-- Bouwplan (incl. exacte Task 11-stappen): [docs/superpowers/plans/2026-10-20-instavol-backend-website.md](docs/superpowers/plans/2026-10-20-instavol-backend-website.md) (zie "Task 11: Deploy to Vercel and Neon" onderaan)
+- Ontwerp: [docs/superpowers/specs/2026-10-20-save-site-app-design.md](documentation/superpowers/specs/2026-10-20-save-site-app-design.md)
+- Bouwplan (incl. exacte Task 11-stappen): [docs/superpowers/plans/2026-10-20-instavol-backend-website.md](documentation/superpowers/plans/2026-10-20-instavol-backend-website.md) (zie "Task 11: Deploy to Vercel and Neon" onderaan)
 
 De Safari Share Extension (iOS + macOS, om vanaf je telefoon/Mac op te
 slaan) is een apart, nog niet gebouwd plan ("Plan B") — deze repo bevat

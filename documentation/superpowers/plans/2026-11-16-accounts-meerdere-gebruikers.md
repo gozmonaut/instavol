@@ -8,7 +8,7 @@
 
 **Tech Stack:** Next.js 16.4 (App Router, `proxy.ts`), Neon Auth SDK, Drizzle, Neon Postgres, Vitest met PGlite.
 
-**Spec:** `docs/superpowers/specs/2026-11-16-accounts-meerdere-gebruikers-design.md`
+**Spec:** `documentation/superpowers/specs/2026-11-16-accounts-meerdere-gebruikers-design.md`
 
 ## Global Constraints
 
