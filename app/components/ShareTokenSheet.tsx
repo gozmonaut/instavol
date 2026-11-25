@@ -11,6 +11,8 @@ export default function ShareTokenSheet({ onClose }: { onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The sheet only opens after a click, so it is never rendered on the server.
+  const origin = window.location.origin;
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +81,20 @@ export default function ShareTokenSheet({ onClose }: { onClose: () => void }) {
             Met dit token slaat de snelkoppeling in het deelmenu links op in jouw account.
             {exists && !token && ' Het oude token werkt daarna niet meer.'}
           </p>
+        </div>
+        <div className={styles.dialogBody}>
+          <p className={styles.dialogTitle}>Instellen op iPhone</p>
+          <p className={styles.dialogText}>1. Maak hierboven een token en kopieer het.</p>
+          <p className={styles.dialogText}>
+            2. Open de Opdrachten-app en maak een nieuwe opdracht. Zet in de instellingen &ldquo;Toon in deelmenu&rdquo; aan
+            en kies URL&rsquo;s, tekst en afbeeldingen.
+          </p>
+          <p className={styles.dialogText}>
+            3. Voeg &ldquo;Haal inhoud van URL op&rdquo; toe: methode POST naar {origin}/api/share, header
+            Authorization met &ldquo;Bearer&rdquo; en je token. Body JSON met url (of text voor losse tekst). Voor een
+            afbeelding: eerst formaat wijzigen (breedte 2000), dan body Formulier met het veld file.
+          </p>
+          <p className={styles.dialogText}>4. Deel een pagina vanuit Safari om te testen.</p>
         </div>
         {token && (
           <div className={styles.passwordBody}>
