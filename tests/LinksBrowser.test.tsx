@@ -1291,3 +1291,33 @@ describe('sharing a note or an image', () => {
     expect(share).not.toHaveBeenCalled();
   });
 });
+
+test('a link in a note card can be clicked and opens in a new tab, without opening the reader', async () => {
+  const quote: LinkRow = {
+    ...noteItem,
+    title: 'Citaat',
+    notes: [{ id: 'n5', text: 'Een mooi stukje\n\nhttps://a.example/artikel', createdAt: '2026-11-13T10:00:00Z' }],
+  };
+  render(<LinksBrowser initialLinks={[quote]} />);
+  const anchor = screen.getByRole('link', { name: 'https://a.example/artikel' });
+  expect(anchor).toHaveAttribute('href', 'https://a.example/artikel');
+  expect(anchor).toHaveAttribute('target', '_blank');
+  anchor.addEventListener('click', (event) => event.preventDefault());
+  await userEvent.click(anchor);
+  expect(screen.queryByRole('dialog', { name: 'Citaat' })).not.toBeInTheDocument();
+});
+
+test('in the reader the link in a loose note can be clicked', async () => {
+  const quote: LinkRow = {
+    ...noteItem,
+    title: 'Citaat',
+    notes: [{ id: 'n5', text: 'Een mooi stukje\n\nhttps://a.example/artikel', createdAt: '2026-11-13T10:00:00Z' }],
+  };
+  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: async () => ({ links: [quote] }) })));
+  render(<LinksBrowser initialLinks={[quote]} />);
+  await userEvent.click(screen.getByRole('button', { name: 'Citaat' }));
+  const reader = screen.getByRole('dialog', { name: 'Citaat' });
+  const anchor = within(reader).getByRole('link', { name: 'https://a.example/artikel' });
+  expect(anchor).toHaveAttribute('href', 'https://a.example/artikel');
+  expect(anchor).toHaveAttribute('target', '_blank');
+});

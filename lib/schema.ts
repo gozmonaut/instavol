@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { index, pgTable, uuid, text, timestamp, integer, jsonb, customType } from 'drizzle-orm/pg-core';
+import { index, pgTable, primaryKey, uuid, text, timestamp, integer, jsonb, customType } from 'drizzle-orm/pg-core';
 
 // Neon's HTTP driver returns bytea as a '\x…' hex string, PGlite as a Uint8Array.
 const bytea = customType<{ data: Buffer; driverData: Buffer | Uint8Array | string }>({
@@ -81,9 +81,15 @@ export const members = pgTable('members', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-// One token per user for saving from the share menu; only its SHA-256 is stored.
-export const shareTokens = pgTable('share_tokens', {
-  userId: text('user_id').primaryKey(),
-  tokenHash: text('token_hash').notNull().unique(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+// One token per user per kind ('shortcut' for the share-menu shortcut, 'extension' for the Safari extension),
+// so replacing one does not break the other. Only the SHA-256 is stored.
+export const shareTokens = pgTable(
+  'share_tokens',
+  {
+    userId: text('user_id').notNull(),
+    kind: text('kind').notNull().default('shortcut'),
+    tokenHash: text('token_hash').notNull().unique(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.kind] })],
+);

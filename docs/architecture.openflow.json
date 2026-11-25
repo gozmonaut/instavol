@@ -1,0 +1,3182 @@
+{
+  "format": "openflowkit.scene",
+  "schemaVersion": 1,
+  "id": "doc-mww36qhw-1",
+  "name": "Instavol",
+  "createdAt": "2026-11-25T12:15:15.634Z",
+  "updatedAt": "2026-11-25T12:15:15.634Z",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Overview: Instavol",
+      "diagramKind": "architecture",
+      "layers": [
+        {
+          "id": "default",
+          "name": "Default",
+          "visible": true,
+          "locked": false
+        }
+      ],
+      "nodes": [
+        {
+          "id": "dsl-1jar36c-view-context-instavol",
+          "kind": "frame",
+          "parentId": null,
+          "layerId": "default",
+          "zIndex": 0,
+          "transform": {
+            "translation": {
+              "x": 160,
+              "y": 80
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 2013,
+            "height": 625
+          },
+          "content": {
+            "label": "Overview: Instavol",
+            "subLabel": "Solid: direct relationship · Dashed: goes through other parts"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "dsl": {
+              "viewTitle": "Overview: Instavol",
+              "viewKey": "Solid: direct relationship · Dashed: goes through other parts",
+              "arch": {
+                "model": {
+                  "elements": [
+                    {
+                      "id": "gebruiker",
+                      "kind": "person",
+                      "name": "Gebruiker",
+                      "parent": null,
+                      "tags": [],
+                      "desc": "Bewaart en leest links, afbeeldingen en notities",
+                      "links": [],
+                      "line": 6
+                    },
+                    {
+                      "id": "snelkoppeling",
+                      "kind": "external",
+                      "name": "Snelkoppeling",
+                      "parent": null,
+                      "tags": [],
+                      "tech": "Shortcuts",
+                      "desc": "iOS/iPadOS/macOS-snelkoppeling Bewaar in Instavol",
+                      "links": [],
+                      "line": 7
+                    },
+                    {
+                      "id": "instavol",
+                      "kind": "system",
+                      "name": "Instavol",
+                      "parent": null,
+                      "tags": [],
+                      "desc": "Persoonlijke bewaarplek voor links, afbeeldingen en notities",
+                      "links": [],
+                      "line": 8
+                    },
+                    {
+                      "id": "instavol.website",
+                      "kind": "container",
+                      "name": "Website",
+                      "parent": "instavol",
+                      "tags": [],
+                      "tech": "Next.js + React",
+                      "desc": "Pagina's: login, registreren, lijst, reader",
+                      "links": [],
+                      "line": 9
+                    },
+                    {
+                      "id": "instavol.proxy",
+                      "kind": "container",
+                      "name": "Proxy",
+                      "parent": "instavol",
+                      "tags": [],
+                      "tech": "Next.js proxy",
+                      "desc": "Sessiecontrole op pagina's en API (niet op /api/share)",
+                      "links": [],
+                      "line": 10
+                    },
+                    {
+                      "id": "instavol.api",
+                      "kind": "container",
+                      "name": "API",
+                      "parent": "instavol",
+                      "tags": [],
+                      "tech": "Next.js route handlers",
+                      "desc": "Route handlers: links, share, share-token, categories, tags, highlights, notes, auth",
+                      "links": [],
+                      "line": 11
+                    },
+                    {
+                      "id": "instavol.verwerking",
+                      "kind": "container",
+                      "name": "Verwerking",
+                      "parent": "instavol",
+                      "tags": [],
+                      "tech": "TypeScript",
+                      "desc": "Pagina ophalen, artikel-extractie, samenvatten en categoriseren",
+                      "links": [],
+                      "line": 12
+                    },
+                    {
+                      "id": "instavol.database",
+                      "kind": "store",
+                      "name": "Database",
+                      "parent": "instavol",
+                      "tags": [],
+                      "tech": "Neon Postgres + Drizzle ORM",
+                      "desc": "Neon Postgres, benaderd via de serverless HTTP-driver (@neondatabase/serverless, DATABASE_URL). 6 tabellen: links, link_contents, link_images, members, share_tokens, site_password (legacy). Index links_user_id_idx. Schema in lib/schema.ts, 8 migraties in /drizzle (drizzle-kit). Tests draaien op PGlite",
+                      "links": [],
+                      "attrs": [
+                        {
+                          "value": "cylinder"
+                        }
+                      ],
+                      "line": 13
+                    },
+                    {
+                      "id": "neonauth",
+                      "kind": "external",
+                      "name": "NeonAuth",
+                      "parent": null,
+                      "tags": [],
+                      "tech": "Neon Auth",
+                      "desc": "Accounts, sessies, wachtwoord herstellen",
+                      "links": [],
+                      "line": 15
+                    },
+                    {
+                      "id": "gemini",
+                      "kind": "external",
+                      "name": "Gemini",
+                      "parent": null,
+                      "tags": [],
+                      "tech": "Gemini API",
+                      "desc": "Samenvatting en categorie. Model: gemini-3.8-flash (standaard in lib/gemini.ts, te overschrijven met GEMINI_MODEL; REST v1beta generateContent)",
+                      "links": [],
+                      "line": 16
+                    },
+                    {
+                      "id": "websites",
+                      "kind": "external",
+                      "name": "Websites",
+                      "parent": null,
+                      "tags": [],
+                      "desc": "Opgeslagen webpagina's",
+                      "links": [],
+                      "line": 17
+                    },
+                    {
+                      "id": "vercel",
+                      "kind": "external",
+                      "name": "Vercel",
+                      "parent": null,
+                      "tags": [],
+                      "tech": "Vercel",
+                      "desc": "Hosting van de app; Neon Postgres via de Vercel-integratie",
+                      "links": [],
+                      "line": 18
+                    }
+                  ],
+                  "relations": [
+                    {
+                      "id": "rel:gebruiker->instavol.website",
+                      "from": "gebruiker",
+                      "to": "instavol.website",
+                      "tags": [],
+                      "label": "leest en beheert",
+                      "line": 20
+                    },
+                    {
+                      "id": "rel:gebruiker->snelkoppeling",
+                      "from": "gebruiker",
+                      "to": "snelkoppeling",
+                      "tags": [],
+                      "label": "deelt link, foto of notitie",
+                      "line": 21
+                    },
+                    {
+                      "id": "rel:snelkoppeling->instavol.api",
+                      "from": "snelkoppeling",
+                      "to": "instavol.api",
+                      "tags": [],
+                      "label": "POST /api/share",
+                      "tech": "HTTPS + share-token",
+                      "line": 22
+                    },
+                    {
+                      "id": "rel:instavol.website->instavol.proxy",
+                      "from": "instavol.website",
+                      "to": "instavol.proxy",
+                      "tags": [],
+                      "label": "elk verzoek",
+                      "line": 23
+                    },
+                    {
+                      "id": "rel:instavol.proxy->neonauth",
+                      "from": "instavol.proxy",
+                      "to": "neonauth",
+                      "tags": [],
+                      "label": "valideert sessie",
+                      "line": 24
+                    },
+                    {
+                      "id": "rel:instavol.website->instavol.api",
+                      "from": "instavol.website",
+                      "to": "instavol.api",
+                      "tags": [],
+                      "label": "inloggen, registreren",
+                      "line": 25
+                    },
+                    {
+                      "id": "rel:instavol.proxy->instavol.api",
+                      "from": "instavol.proxy",
+                      "to": "instavol.api",
+                      "tags": [],
+                      "label": "doorgelaten verzoek",
+                      "line": 26
+                    },
+                    {
+                      "id": "rel:instavol.api->neonauth",
+                      "from": "instavol.api",
+                      "to": "neonauth",
+                      "tags": [],
+                      "label": "auth-calls doorgegeven, sessie opvragen",
+                      "line": 27
+                    },
+                    {
+                      "id": "rel:instavol.api->instavol.database",
+                      "from": "instavol.api",
+                      "to": "instavol.database",
+                      "tags": [],
+                      "label": "leest en schrijft, controleert share-token (hash) en lidmaatschap",
+                      "line": 28
+                    },
+                    {
+                      "id": "rel:instavol.api->instavol.verwerking",
+                      "from": "instavol.api",
+                      "to": "instavol.verwerking",
+                      "tags": [],
+                      "label": "start na het antwoord (after())",
+                      "line": 29
+                    },
+                    {
+                      "id": "rel:instavol.verwerking->websites",
+                      "from": "instavol.verwerking",
+                      "to": "websites",
+                      "tags": [],
+                      "label": "haalt pagina op",
+                      "tech": "HTTPS",
+                      "line": 30
+                    },
+                    {
+                      "id": "rel:instavol.verwerking->gemini",
+                      "from": "instavol.verwerking",
+                      "to": "gemini",
+                      "tags": [],
+                      "label": "samenvatten en categoriseren",
+                      "tech": "HTTPS",
+                      "line": 31
+                    },
+                    {
+                      "id": "rel:instavol.verwerking->instavol.database",
+                      "from": "instavol.verwerking",
+                      "to": "instavol.database",
+                      "tags": [],
+                      "label": "slaat resultaat op",
+                      "line": 32
+                    },
+                    {
+                      "id": "rel:vercel->instavol.website",
+                      "from": "vercel",
+                      "to": "instavol.website",
+                      "tags": [],
+                      "label": "host",
+                      "line": 33
+                    }
+                  ],
+                  "views": [
+                    {
+                      "id": "view:context:instavol",
+                      "kind": "context",
+                      "name": "Overview: Instavol",
+                      "rules": [],
+                      "of": "instavol",
+                      "line": 36
+                    },
+                    {
+                      "id": "view:container:instavol",
+                      "kind": "container",
+                      "name": "Services: Instavol",
+                      "rules": [],
+                      "of": "instavol",
+                      "line": 37
+                    }
+                  ],
+                  "flows": []
+                },
+                "view": "view:context:instavol"
+              },
+              "family": "architecture",
+              "version": 1,
+              "source": "%% ofk 1\narchitecture\ntitle: Instavol\n\nmodel {\n  person Gebruiker [desc: \"Bewaart en leest links, afbeeldingen en notities\"]\n  external Snelkoppeling [desc: \"iOS/iPadOS/macOS-snelkoppeling Bewaar in Instavol\", tech: Shortcuts]\n  system Instavol [desc: \"Persoonlijke bewaarplek voor links, afbeeldingen en notities\"] {\n    container Website [desc: \"Pagina's: login, registreren, lijst, reader\", tech: Next.js + React]\n    container Proxy [desc: \"Sessiecontrole op pagina's en API (niet op /api/share)\", tech: Next.js proxy]\n    container API [desc: \"Route handlers: links, share, share-token, categories, tags, highlights, notes, auth\", tech: Next.js route handlers]\n    container Verwerking [desc: \"Pagina ophalen, artikel-extractie, samenvatten en categoriseren\", tech: TypeScript]\n    store Database [cylinder, desc: \"Neon Postgres, benaderd via de serverless HTTP-driver (@neondatabase/serverless, DATABASE_URL). 6 tabellen: links, link_contents, link_images, members, share_tokens, site_password (legacy). Index links_user_id_idx. Schema in lib/schema.ts, 8 migraties in /drizzle (drizzle-kit). Tests draaien op PGlite\", tech: Neon Postgres + Drizzle ORM]\n  }\n  external NeonAuth [desc: \"Accounts, sessies, wachtwoord herstellen\", tech: Neon Auth]\n  external Gemini [desc: \"Samenvatting en categorie. Model: gemini-3.8-flash (standaard in lib/gemini.ts, te overschrijven met GEMINI_MODEL; REST v1beta generateContent)\", tech: Gemini API]\n  external Websites [desc: \"Opgeslagen webpagina's\"]\n  external Vercel [desc: \"Hosting van de app; Neon Postgres via de Vercel-integratie\", tech: Vercel]\n\n  Gebruiker -> Website : leest en beheert\n  Gebruiker -> Snelkoppeling : deelt link, foto of notitie\n  Snelkoppeling -> API : POST /api/share [tech: HTTPS + share-token]\n  Website -> Proxy : elk verzoek\n  Proxy -> NeonAuth : valideert sessie\n  Website -> API : inloggen, registreren\n  Proxy -> API : doorgelaten verzoek\n  API -> NeonAuth : auth-calls doorgegeven, sessie opvragen\n  API -> Database : leest en schrijft, controleert share-token (hash) en lidmaatschap\n  API -> Verwerking : start na het antwoord (after())\n  Verwerking -> Websites : haalt pagina op [tech: HTTPS]\n  Verwerking -> Gemini : samenvatten en categoriseren [tech: HTTPS]\n  Verwerking -> Database : slaat resultaat op\n  Vercel -> Website : host\n}\nviews {\n  view context of Instavol\n  view container of Instavol\n}\n",
+              "hash": "eq3paz",
+              "title": "Instavol",
+              "autoIcons": true
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "gebruiker",
+          "kind": "architecture",
+          "parentId": "dsl-1jar36c-view-context-instavol",
+          "layerId": "default",
+          "zIndex": 1,
+          "transform": {
+            "translation": {
+              "x": 28,
+              "y": 91
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 240,
+            "height": 152
+          },
+          "content": {
+            "label": "Gebruiker",
+            "subLabel": "[Person]\nBewaart en leest links, afbeeldingen en notities",
+            "color": "violet",
+            "archKindColor": "violet",
+            "icon": "tabler/user",
+            "archProvider": "tabler",
+            "archProviderLabel": "Person",
+            "archResourceType": "",
+            "archEnvironment": "Bewaart en leest links, afbeeldingen en notities",
+            "archIconPackId": "tabler-outline-v3",
+            "archIconShapeId": "user",
+            "assetPresentation": "card"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "gebruiker",
+              "desc": "Bewaart en leest links, afbeeldingen en notities"
+            },
+            "dsl": {
+              "autoIcon": "tabler/user"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "snelkoppeling",
+          "kind": "process",
+          "parentId": "dsl-1jar36c-view-context-instavol",
+          "layerId": "default",
+          "zIndex": 2,
+          "transform": {
+            "translation": {
+              "x": 533,
+              "y": 152
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 304,
+            "height": 80
+          },
+          "content": {
+            "label": "Snelkoppeling",
+            "shape": "rectangle",
+            "subLabel": "[External system · Shortcuts]\niOS/iPadOS/macOS-snelkoppeling Bewaar in Instavol",
+            "sizingPolicy": {
+              "version": 1,
+              "mode": "fixed",
+              "minSize": {
+                "width": 24,
+                "height": 24
+              },
+              "maxSize": {
+                "width": 1600,
+                "height": 1200
+              },
+              "overflow": "wrap",
+              "clipContent": false,
+              "maxLines": 4
+            }
+          },
+          "appearance": {
+            "fill": "#f8fafc",
+            "stroke": "#94a3b8",
+            "textColor": "#1e293b"
+          },
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "snelkoppeling",
+              "desc": "iOS/iPadOS/macOS-snelkoppeling Bewaar in Instavol"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "instavol",
+          "kind": "process",
+          "parentId": "dsl-1jar36c-view-context-instavol",
+          "layerId": "default",
+          "zIndex": 3,
+          "transform": {
+            "translation": {
+              "x": 1131,
+              "y": 286
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 320,
+            "height": 93
+          },
+          "content": {
+            "label": "Instavol",
+            "shape": "rectangle",
+            "subLabel": "[Software system]\nPersoonlijke bewaarplek voor links, afbeeldingen en notities",
+            "sizingPolicy": {
+              "version": 1,
+              "mode": "fixed",
+              "minSize": {
+                "width": 24,
+                "height": 24
+              },
+              "maxSize": {
+                "width": 1600,
+                "height": 1200
+              },
+              "overflow": "wrap",
+              "clipContent": false,
+              "maxLines": 4
+            }
+          },
+          "appearance": {
+            "fill": "#eff6ff",
+            "stroke": "#60a5fa",
+            "textColor": "#1e293b"
+          },
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "instavol",
+              "desc": "Persoonlijke bewaarplek voor links, afbeeldingen en notities"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "neonauth",
+          "kind": "architecture",
+          "parentId": "dsl-1jar36c-view-context-instavol",
+          "layerId": "default",
+          "zIndex": 4,
+          "transform": {
+            "translation": {
+              "x": 1745,
+              "y": 93
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 240,
+            "height": 152
+          },
+          "content": {
+            "label": "NeonAuth",
+            "subLabel": "[External system · Neon Auth]\nAccounts, sessies, wachtwoord herstellen",
+            "color": "slate",
+            "archKindColor": "slate",
+            "icon": "tabler/lock",
+            "archProvider": "tabler",
+            "archProviderLabel": "External system",
+            "archResourceType": "Neon Auth",
+            "archEnvironment": "Accounts, sessies, wachtwoord herstellen",
+            "archIconPackId": "tabler-outline-v3",
+            "archIconShapeId": "lock",
+            "assetPresentation": "card"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "neonauth",
+              "desc": "Accounts, sessies, wachtwoord herstellen"
+            },
+            "dsl": {
+              "autoIcon": "tabler/lock"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "gemini",
+          "kind": "architecture",
+          "parentId": "dsl-1jar36c-view-context-instavol",
+          "layerId": "default",
+          "zIndex": 5,
+          "transform": {
+            "translation": {
+              "x": 1745,
+              "y": 421
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 240,
+            "height": 152
+          },
+          "content": {
+            "label": "Gemini",
+            "subLabel": "[External system · Gemini API]\nSamenvatting en categorie. Model: gemini-3.8-flash (standaard in lib/gemini.ts, te overschrijven met GEMINI_MODEL; REST v1beta generateContent)",
+            "color": "slate",
+            "archKindColor": "slate",
+            "icon": "developer/gcp-gemini",
+            "archProvider": "developer",
+            "archProviderLabel": "External system",
+            "archResourceType": "Gemini API",
+            "archEnvironment": "Samenvatting en categorie. Model: gemini-3.8-flash (standaard in lib/gemini.ts, te overschrijven met GEMINI_MODEL; REST v1beta generateContent)",
+            "archIconPackId": "developer-icons-v1",
+            "archIconShapeId": "gcp-gemini",
+            "assetPresentation": "card"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "gemini",
+              "desc": "Samenvatting en categorie. Model: gemini-3.8-flash (standaard in lib/gemini.ts, te overschrijven met GEMINI_MODEL; REST v1beta generateContent)"
+            },
+            "dsl": {
+              "autoIcon": "developer/gcp-gemini"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "websites",
+          "kind": "process",
+          "parentId": "dsl-1jar36c-view-context-instavol",
+          "layerId": "default",
+          "zIndex": 6,
+          "transform": {
+            "translation": {
+              "x": 1745,
+              "y": 293
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 157,
+            "height": 80
+          },
+          "content": {
+            "label": "Websites",
+            "shape": "rectangle",
+            "subLabel": "[External system]\nOpgeslagen webpagina's",
+            "sizingPolicy": {
+              "version": 1,
+              "mode": "fixed",
+              "minSize": {
+                "width": 24,
+                "height": 24
+              },
+              "maxSize": {
+                "width": 1600,
+                "height": 1200
+              },
+              "overflow": "wrap",
+              "clipContent": false,
+              "maxLines": 4
+            }
+          },
+          "appearance": {
+            "fill": "#f8fafc",
+            "stroke": "#94a3b8",
+            "textColor": "#1e293b"
+          },
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "websites",
+              "desc": "Opgeslagen webpagina's"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "vercel",
+          "kind": "architecture",
+          "parentId": "dsl-1jar36c-view-context-instavol",
+          "layerId": "default",
+          "zIndex": 7,
+          "transform": {
+            "translation": {
+              "x": 597,
+              "y": 280
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 240,
+            "height": 152
+          },
+          "content": {
+            "label": "Vercel",
+            "subLabel": "[External system · Vercel]\nHosting van de app; Neon Postgres via de Vercel-integratie",
+            "color": "slate",
+            "archKindColor": "slate",
+            "icon": "developer/devops-ai-ml-vercel-dark",
+            "archProvider": "developer",
+            "archProviderLabel": "External system",
+            "archResourceType": "Vercel",
+            "archEnvironment": "Hosting van de app; Neon Postgres via de Vercel-integratie",
+            "archIconPackId": "developer-icons-v1",
+            "archIconShapeId": "devops-ai-ml-vercel-dark",
+            "assetPresentation": "card"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "vercel",
+              "desc": "Hosting van de app; Neon Postgres via de Vercel-integratie"
+            },
+            "dsl": {
+              "autoIcon": "developer/devops-ai-ml-vercel-dark"
+            }
+          },
+          "extensions": {}
+        }
+      ],
+      "connectors": [
+        {
+          "id": "rel:gebruiker->instavol.website@gebruiker->instavol",
+          "source": {
+            "nodeId": "gebruiker",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "instavol",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:gebruiker->instavol.website@gebruiker->instavol:label",
+              "text": "leest en beheert",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow",
+            "dashPattern": "dashed"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:gebruiker->instavol.website",
+              "implied": true
+            },
+            "dsl": {
+              "line": 20
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:gebruiker->snelkoppeling",
+          "source": {
+            "nodeId": "gebruiker",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "snelkoppeling",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:gebruiker->snelkoppeling:label",
+              "text": "deelt link, foto of notitie",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:gebruiker->snelkoppeling"
+            },
+            "dsl": {
+              "line": 21
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:snelkoppeling->instavol.api@snelkoppeling->instavol",
+          "source": {
+            "nodeId": "snelkoppeling",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "instavol",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:snelkoppeling->instavol.api@snelkoppeling->instavol:label",
+              "text": "POST /api/share\n[HTTPS + share-token]",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow",
+            "dashPattern": "dashed"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:snelkoppeling->instavol.api",
+              "implied": true
+            },
+            "dsl": {
+              "line": 22
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:instavol.proxy->neonauth@instavol->neonauth",
+          "source": {
+            "nodeId": "instavol",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "neonauth",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:instavol.proxy->neonauth@instavol->neonauth:label",
+              "text": "2 relationships",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow",
+            "dashPattern": "dashed"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:instavol.proxy->neonauth",
+              "implied": true
+            },
+            "dsl": {
+              "line": 24
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:instavol.verwerking->websites@instavol->websites",
+          "source": {
+            "nodeId": "instavol",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "websites",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:instavol.verwerking->websites@instavol->websites:label",
+              "text": "haalt pagina op [HTTPS]",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow",
+            "dashPattern": "dashed"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:instavol.verwerking->websites",
+              "implied": true
+            },
+            "dsl": {
+              "line": 30
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:instavol.verwerking->gemini@instavol->gemini",
+          "source": {
+            "nodeId": "instavol",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "gemini",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:instavol.verwerking->gemini@instavol->gemini:label",
+              "text": "samenvatten en categoriseren [HTTPS]",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow",
+            "dashPattern": "dashed"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:instavol.verwerking->gemini",
+              "implied": true
+            },
+            "dsl": {
+              "line": 31
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:vercel->instavol.website@vercel->instavol",
+          "source": {
+            "nodeId": "vercel",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "instavol",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:vercel->instavol.website@vercel->instavol:label",
+              "text": "host",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow",
+            "dashPattern": "dashed"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:vercel->instavol.website",
+              "implied": true
+            },
+            "dsl": {
+              "line": 33
+            }
+          },
+          "extensions": {}
+        }
+      ],
+      "metadata": {
+        "view": {
+          "id": "view:context:instavol"
+        }
+      },
+      "extensions": {}
+    },
+    {
+      "id": "page-mww36qkm-2",
+      "name": "Services: Instavol",
+      "diagramKind": "erd",
+      "layers": [
+        {
+          "id": "default",
+          "name": "Default",
+          "visible": true,
+          "locked": false
+        }
+      ],
+      "nodes": [
+        {
+          "id": "dsl-1jar36c-view-container-instavol",
+          "kind": "frame",
+          "parentId": null,
+          "layerId": "default",
+          "zIndex": 0,
+          "transform": {
+            "translation": {
+              "x": 160,
+              "y": 80
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 3668,
+            "height": 611
+          },
+          "content": {
+            "label": "Services: Instavol",
+            "subLabel": "Solid: direct relationship"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "dsl": {
+              "viewTitle": "Services: Instavol",
+              "viewKey": "Solid: direct relationship",
+              "arch": {
+                "model": {
+                  "elements": [
+                    {
+                      "id": "gebruiker",
+                      "kind": "person",
+                      "name": "Gebruiker",
+                      "parent": null,
+                      "tags": [],
+                      "desc": "Bewaart en leest links, afbeeldingen en notities",
+                      "links": [],
+                      "line": 6
+                    },
+                    {
+                      "id": "snelkoppeling",
+                      "kind": "external",
+                      "name": "Snelkoppeling",
+                      "parent": null,
+                      "tags": [],
+                      "tech": "Shortcuts",
+                      "desc": "iOS/iPadOS/macOS-snelkoppeling Bewaar in Instavol",
+                      "links": [],
+                      "line": 7
+                    },
+                    {
+                      "id": "instavol",
+                      "kind": "system",
+                      "name": "Instavol",
+                      "parent": null,
+                      "tags": [],
+                      "desc": "Persoonlijke bewaarplek voor links, afbeeldingen en notities",
+                      "links": [],
+                      "line": 8
+                    },
+                    {
+                      "id": "instavol.website",
+                      "kind": "container",
+                      "name": "Website",
+                      "parent": "instavol",
+                      "tags": [],
+                      "tech": "Next.js + React",
+                      "desc": "Pagina's: login, registreren, lijst, reader",
+                      "links": [],
+                      "line": 9
+                    },
+                    {
+                      "id": "instavol.proxy",
+                      "kind": "container",
+                      "name": "Proxy",
+                      "parent": "instavol",
+                      "tags": [],
+                      "tech": "Next.js proxy",
+                      "desc": "Sessiecontrole op pagina's en API (niet op /api/share)",
+                      "links": [],
+                      "line": 10
+                    },
+                    {
+                      "id": "instavol.api",
+                      "kind": "container",
+                      "name": "API",
+                      "parent": "instavol",
+                      "tags": [],
+                      "tech": "Next.js route handlers",
+                      "desc": "Route handlers: links, share, share-token, categories, tags, highlights, notes, auth",
+                      "links": [],
+                      "line": 11
+                    },
+                    {
+                      "id": "instavol.verwerking",
+                      "kind": "container",
+                      "name": "Verwerking",
+                      "parent": "instavol",
+                      "tags": [],
+                      "tech": "TypeScript",
+                      "desc": "Pagina ophalen, artikel-extractie, samenvatten en categoriseren",
+                      "links": [],
+                      "line": 12
+                    },
+                    {
+                      "id": "instavol.database",
+                      "kind": "store",
+                      "name": "Database",
+                      "parent": "instavol",
+                      "tags": [],
+                      "tech": "Neon Postgres + Drizzle ORM",
+                      "desc": "Neon Postgres, benaderd via de serverless HTTP-driver (@neondatabase/serverless, DATABASE_URL). 6 tabellen: links, link_contents, link_images, members, share_tokens, site_password (legacy). Index links_user_id_idx. Schema in lib/schema.ts, 8 migraties in /drizzle (drizzle-kit). Tests draaien op PGlite",
+                      "links": [],
+                      "attrs": [
+                        {
+                          "value": "cylinder"
+                        }
+                      ],
+                      "line": 13
+                    },
+                    {
+                      "id": "neonauth",
+                      "kind": "external",
+                      "name": "NeonAuth",
+                      "parent": null,
+                      "tags": [],
+                      "tech": "Neon Auth",
+                      "desc": "Accounts, sessies, wachtwoord herstellen",
+                      "links": [],
+                      "line": 15
+                    },
+                    {
+                      "id": "gemini",
+                      "kind": "external",
+                      "name": "Gemini",
+                      "parent": null,
+                      "tags": [],
+                      "tech": "Gemini API",
+                      "desc": "Samenvatting en categorie. Model: gemini-3.8-flash (standaard in lib/gemini.ts, te overschrijven met GEMINI_MODEL; REST v1beta generateContent)",
+                      "links": [],
+                      "line": 16
+                    },
+                    {
+                      "id": "websites",
+                      "kind": "external",
+                      "name": "Websites",
+                      "parent": null,
+                      "tags": [],
+                      "desc": "Opgeslagen webpagina's",
+                      "links": [],
+                      "line": 17
+                    },
+                    {
+                      "id": "vercel",
+                      "kind": "external",
+                      "name": "Vercel",
+                      "parent": null,
+                      "tags": [],
+                      "tech": "Vercel",
+                      "desc": "Hosting van de app; Neon Postgres via de Vercel-integratie",
+                      "links": [],
+                      "line": 18
+                    }
+                  ],
+                  "relations": [
+                    {
+                      "id": "rel:gebruiker->instavol.website",
+                      "from": "gebruiker",
+                      "to": "instavol.website",
+                      "tags": [],
+                      "label": "leest en beheert",
+                      "line": 20
+                    },
+                    {
+                      "id": "rel:gebruiker->snelkoppeling",
+                      "from": "gebruiker",
+                      "to": "snelkoppeling",
+                      "tags": [],
+                      "label": "deelt link, foto of notitie",
+                      "line": 21
+                    },
+                    {
+                      "id": "rel:snelkoppeling->instavol.api",
+                      "from": "snelkoppeling",
+                      "to": "instavol.api",
+                      "tags": [],
+                      "label": "POST /api/share",
+                      "tech": "HTTPS + share-token",
+                      "line": 22
+                    },
+                    {
+                      "id": "rel:instavol.website->instavol.proxy",
+                      "from": "instavol.website",
+                      "to": "instavol.proxy",
+                      "tags": [],
+                      "label": "elk verzoek",
+                      "line": 23
+                    },
+                    {
+                      "id": "rel:instavol.proxy->neonauth",
+                      "from": "instavol.proxy",
+                      "to": "neonauth",
+                      "tags": [],
+                      "label": "valideert sessie",
+                      "line": 24
+                    },
+                    {
+                      "id": "rel:instavol.website->instavol.api",
+                      "from": "instavol.website",
+                      "to": "instavol.api",
+                      "tags": [],
+                      "label": "inloggen, registreren",
+                      "line": 25
+                    },
+                    {
+                      "id": "rel:instavol.proxy->instavol.api",
+                      "from": "instavol.proxy",
+                      "to": "instavol.api",
+                      "tags": [],
+                      "label": "doorgelaten verzoek",
+                      "line": 26
+                    },
+                    {
+                      "id": "rel:instavol.api->neonauth",
+                      "from": "instavol.api",
+                      "to": "neonauth",
+                      "tags": [],
+                      "label": "auth-calls doorgegeven, sessie opvragen",
+                      "line": 27
+                    },
+                    {
+                      "id": "rel:instavol.api->instavol.database",
+                      "from": "instavol.api",
+                      "to": "instavol.database",
+                      "tags": [],
+                      "label": "leest en schrijft, controleert share-token (hash) en lidmaatschap",
+                      "line": 28
+                    },
+                    {
+                      "id": "rel:instavol.api->instavol.verwerking",
+                      "from": "instavol.api",
+                      "to": "instavol.verwerking",
+                      "tags": [],
+                      "label": "start na het antwoord (after())",
+                      "line": 29
+                    },
+                    {
+                      "id": "rel:instavol.verwerking->websites",
+                      "from": "instavol.verwerking",
+                      "to": "websites",
+                      "tags": [],
+                      "label": "haalt pagina op",
+                      "tech": "HTTPS",
+                      "line": 30
+                    },
+                    {
+                      "id": "rel:instavol.verwerking->gemini",
+                      "from": "instavol.verwerking",
+                      "to": "gemini",
+                      "tags": [],
+                      "label": "samenvatten en categoriseren",
+                      "tech": "HTTPS",
+                      "line": 31
+                    },
+                    {
+                      "id": "rel:instavol.verwerking->instavol.database",
+                      "from": "instavol.verwerking",
+                      "to": "instavol.database",
+                      "tags": [],
+                      "label": "slaat resultaat op",
+                      "line": 32
+                    },
+                    {
+                      "id": "rel:vercel->instavol.website",
+                      "from": "vercel",
+                      "to": "instavol.website",
+                      "tags": [],
+                      "label": "host",
+                      "line": 33
+                    }
+                  ],
+                  "views": [
+                    {
+                      "id": "view:context:instavol",
+                      "kind": "context",
+                      "name": "Overview: Instavol",
+                      "rules": [],
+                      "of": "instavol",
+                      "line": 36
+                    },
+                    {
+                      "id": "view:container:instavol",
+                      "kind": "container",
+                      "name": "Services: Instavol",
+                      "rules": [],
+                      "of": "instavol",
+                      "line": 37
+                    }
+                  ],
+                  "flows": []
+                },
+                "view": "view:container:instavol"
+              },
+              "family": "architecture",
+              "version": 1,
+              "source": "%% ofk 1\narchitecture\ntitle: Instavol\n\nmodel {\n  person Gebruiker [desc: \"Bewaart en leest links, afbeeldingen en notities\"]\n  external Snelkoppeling [desc: \"iOS/iPadOS/macOS-snelkoppeling Bewaar in Instavol\", tech: Shortcuts]\n  system Instavol [desc: \"Persoonlijke bewaarplek voor links, afbeeldingen en notities\"] {\n    container Website [desc: \"Pagina's: login, registreren, lijst, reader\", tech: Next.js + React]\n    container Proxy [desc: \"Sessiecontrole op pagina's en API (niet op /api/share)\", tech: Next.js proxy]\n    container API [desc: \"Route handlers: links, share, share-token, categories, tags, highlights, notes, auth\", tech: Next.js route handlers]\n    container Verwerking [desc: \"Pagina ophalen, artikel-extractie, samenvatten en categoriseren\", tech: TypeScript]\n    store Database [cylinder, desc: \"Neon Postgres, benaderd via de serverless HTTP-driver (@neondatabase/serverless, DATABASE_URL). 6 tabellen: links, link_contents, link_images, members, share_tokens, site_password (legacy). Index links_user_id_idx. Schema in lib/schema.ts, 8 migraties in /drizzle (drizzle-kit). Tests draaien op PGlite\", tech: Neon Postgres + Drizzle ORM]\n  }\n  external NeonAuth [desc: \"Accounts, sessies, wachtwoord herstellen\", tech: Neon Auth]\n  external Gemini [desc: \"Samenvatting en categorie. Model: gemini-3.8-flash (standaard in lib/gemini.ts, te overschrijven met GEMINI_MODEL; REST v1beta generateContent)\", tech: Gemini API]\n  external Websites [desc: \"Opgeslagen webpagina's\"]\n  external Vercel [desc: \"Hosting van de app; Neon Postgres via de Vercel-integratie\", tech: Vercel]\n\n  Gebruiker -> Website : leest en beheert\n  Gebruiker -> Snelkoppeling : deelt link, foto of notitie\n  Snelkoppeling -> API : POST /api/share [tech: HTTPS + share-token]\n  Website -> Proxy : elk verzoek\n  Proxy -> NeonAuth : valideert sessie\n  Website -> API : inloggen, registreren\n  Proxy -> API : doorgelaten verzoek\n  API -> NeonAuth : auth-calls doorgegeven, sessie opvragen\n  API -> Database : leest en schrijft, controleert share-token (hash) en lidmaatschap\n  API -> Verwerking : start na het antwoord (after())\n  Verwerking -> Websites : haalt pagina op [tech: HTTPS]\n  Verwerking -> Gemini : samenvatten en categoriseren [tech: HTTPS]\n  Verwerking -> Database : slaat resultaat op\n  Vercel -> Website : host\n}\nviews {\n  view context of Instavol\n  view container of Instavol\n}\n",
+              "hash": "1j48l4m",
+              "title": "Instavol",
+              "autoIcons": true
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "instavol",
+          "kind": "frame",
+          "parentId": "dsl-1jar36c-view-container-instavol",
+          "layerId": "default",
+          "zIndex": 3,
+          "transform": {
+            "translation": {
+              "x": 1136,
+              "y": 151
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 1965,
+            "height": 408
+          },
+          "content": {
+            "label": "Instavol",
+            "subLabel": "[Software system]",
+            "color": "blue"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "instavol",
+              "desc": "Persoonlijke bewaarplek voor links, afbeeldingen en notities"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "gebruiker",
+          "kind": "architecture",
+          "parentId": "dsl-1jar36c-view-container-instavol",
+          "layerId": "default",
+          "zIndex": 1,
+          "transform": {
+            "translation": {
+              "x": 28,
+              "y": 367
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 240,
+            "height": 152
+          },
+          "content": {
+            "label": "Gebruiker",
+            "subLabel": "[Person]\nBewaart en leest links, afbeeldingen en notities",
+            "color": "violet",
+            "archKindColor": "violet",
+            "icon": "tabler/user",
+            "archProvider": "tabler",
+            "archProviderLabel": "Person",
+            "archResourceType": "",
+            "archEnvironment": "Bewaart en leest links, afbeeldingen en notities",
+            "archIconPackId": "tabler-outline-v3",
+            "archIconShapeId": "user",
+            "assetPresentation": "card"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "gebruiker",
+              "desc": "Bewaart en leest links, afbeeldingen en notities"
+            },
+            "dsl": {
+              "autoIcon": "tabler/user"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "snelkoppeling",
+          "kind": "process",
+          "parentId": "dsl-1jar36c-view-container-instavol",
+          "layerId": "default",
+          "zIndex": 2,
+          "transform": {
+            "translation": {
+              "x": 533,
+              "y": 429
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 304,
+            "height": 80
+          },
+          "content": {
+            "label": "Snelkoppeling",
+            "shape": "rectangle",
+            "subLabel": "[External system · Shortcuts]\niOS/iPadOS/macOS-snelkoppeling Bewaar in Instavol",
+            "sizingPolicy": {
+              "version": 1,
+              "mode": "fixed",
+              "minSize": {
+                "width": 24,
+                "height": 24
+              },
+              "maxSize": {
+                "width": 1600,
+                "height": 1200
+              },
+              "overflow": "wrap",
+              "clipContent": false,
+              "maxLines": 4
+            }
+          },
+          "appearance": {
+            "fill": "#f8fafc",
+            "stroke": "#94a3b8",
+            "textColor": "#1e293b"
+          },
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "snelkoppeling",
+              "desc": "iOS/iPadOS/macOS-snelkoppeling Bewaar in Instavol"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "instavol.website",
+          "kind": "architecture",
+          "parentId": "instavol",
+          "layerId": "default",
+          "zIndex": 4,
+          "transform": {
+            "translation": {
+              "x": 22,
+              "y": 156
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 240,
+            "height": 152
+          },
+          "content": {
+            "label": "Website",
+            "subLabel": "[Service · Next.js + React]\nPagina's: login, registreren, lijst, reader",
+            "icon": "developer/frontend-nextjs",
+            "archProvider": "developer",
+            "archProviderLabel": "Service",
+            "archResourceType": "Next.js + React",
+            "archEnvironment": "Pagina's: login, registreren, lijst, reader",
+            "archIconPackId": "developer-icons-v1",
+            "archIconShapeId": "frontend-nextjs",
+            "assetPresentation": "card"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "instavol.website",
+              "desc": "Pagina's: login, registreren, lijst, reader"
+            },
+            "dsl": {
+              "autoIcon": "developer/frontend-nextjs"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "instavol.proxy",
+          "kind": "architecture",
+          "parentId": "instavol",
+          "layerId": "default",
+          "zIndex": 5,
+          "transform": {
+            "translation": {
+              "x": 399,
+              "y": 54
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 240,
+            "height": 152
+          },
+          "content": {
+            "label": "Proxy",
+            "subLabel": "[Service · Next.js proxy]\nSessiecontrole op pagina's en API (niet op /api/share)",
+            "icon": "developer/frontend-nextjs",
+            "archProvider": "developer",
+            "archProviderLabel": "Service",
+            "archResourceType": "Next.js proxy",
+            "archEnvironment": "Sessiecontrole op pagina's en API (niet op /api/share)",
+            "archIconPackId": "developer-icons-v1",
+            "archIconShapeId": "frontend-nextjs",
+            "assetPresentation": "card"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "instavol.proxy",
+              "desc": "Sessiecontrole op pagina's en API (niet op /api/share)"
+            },
+            "dsl": {
+              "autoIcon": "developer/frontend-nextjs"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "instavol.api",
+          "kind": "architecture",
+          "parentId": "instavol",
+          "layerId": "default",
+          "zIndex": 6,
+          "transform": {
+            "translation": {
+              "x": 831,
+              "y": 181
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 240,
+            "height": 152
+          },
+          "content": {
+            "label": "API",
+            "subLabel": "[Service · Next.js route handlers]\nRoute handlers: links, share, share-token, categories, tags, highlights, notes, auth",
+            "icon": "developer/frontend-nextjs",
+            "archProvider": "developer",
+            "archProviderLabel": "Service",
+            "archResourceType": "Next.js route handlers",
+            "archEnvironment": "Route handlers: links, share, share-token, categories, tags, highlights, notes, auth",
+            "archIconPackId": "developer-icons-v1",
+            "archIconShapeId": "frontend-nextjs",
+            "assetPresentation": "card"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "instavol.api",
+              "desc": "Route handlers: links, share, share-token, categories, tags, highlights, notes, auth"
+            },
+            "dsl": {
+              "autoIcon": "developer/frontend-nextjs"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "instavol.verwerking",
+          "kind": "architecture",
+          "parentId": "instavol",
+          "layerId": "default",
+          "zIndex": 7,
+          "transform": {
+            "translation": {
+              "x": 1284,
+              "y": 123
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 240,
+            "height": 152
+          },
+          "content": {
+            "label": "Verwerking",
+            "subLabel": "[Service · TypeScript]\nPagina ophalen, artikel-extractie, samenvatten en categoriseren",
+            "icon": "developer/languages-typescript",
+            "archProvider": "developer",
+            "archProviderLabel": "Service",
+            "archResourceType": "TypeScript",
+            "archEnvironment": "Pagina ophalen, artikel-extractie, samenvatten en categoriseren",
+            "archIconPackId": "developer-icons-v1",
+            "archIconShapeId": "languages-typescript",
+            "assetPresentation": "card"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "instavol.verwerking",
+              "desc": "Pagina ophalen, artikel-extractie, samenvatten en categoriseren"
+            },
+            "dsl": {
+              "autoIcon": "developer/languages-typescript"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "instavol.database",
+          "kind": "architecture",
+          "parentId": "instavol",
+          "layerId": "default",
+          "zIndex": 8,
+          "transform": {
+            "translation": {
+              "x": 1703,
+              "y": 194
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 240,
+            "height": 152
+          },
+          "content": {
+            "label": "Database",
+            "subLabel": "[Data store · Neon Postgres + Drizzle ORM]\nNeon Postgres, benaderd via de serverless HTTP-driver (@neondatabase/serverless, DATABASE_URL). 6 tabellen: links, link_contents, link_images, members, share_tokens, site_password (legacy). Index links_user_id_idx. Schema in lib/schema.ts, 8 migraties in /drizzle (drizzle-kit). Tests draaien op PGlite",
+            "icon": "developer/database-postgresql",
+            "archProvider": "developer",
+            "archProviderLabel": "Data store",
+            "archResourceType": "Neon Postgres + Drizzle ORM",
+            "archEnvironment": "Neon Postgres, benaderd via de serverless HTTP-driver (@neondatabase/serverless, DATABASE_URL). 6 tabellen: links, link_contents, link_images, members, share_tokens, site_password (legacy). Index links_user_id_idx. Schema in lib/schema.ts, 8 migraties in /drizzle (drizzle-kit). Tests draaien op PGlite",
+            "archIconPackId": "developer-icons-v1",
+            "archIconShapeId": "database-postgresql",
+            "assetPresentation": "card"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "instavol.database",
+              "desc": "Neon Postgres, benaderd via de serverless HTTP-driver (@neondatabase/serverless, DATABASE_URL). 6 tabellen: links, link_contents, link_images, members, share_tokens, site_password (legacy). Index links_user_id_idx. Schema in lib/schema.ts, 8 migraties in /drizzle (drizzle-kit). Tests draaien op PGlite"
+            },
+            "dsl": {
+              "attrs": [
+                {
+                  "value": "cylinder"
+                }
+              ],
+              "autoIcon": "developer/database-postgresql"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "neonauth",
+          "kind": "architecture",
+          "parentId": "dsl-1jar36c-view-container-instavol",
+          "layerId": "default",
+          "zIndex": 9,
+          "transform": {
+            "translation": {
+              "x": 3400,
+              "y": 72
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 240,
+            "height": 152
+          },
+          "content": {
+            "label": "NeonAuth",
+            "subLabel": "[External system · Neon Auth]\nAccounts, sessies, wachtwoord herstellen",
+            "color": "slate",
+            "archKindColor": "slate",
+            "icon": "tabler/lock",
+            "archProvider": "tabler",
+            "archProviderLabel": "External system",
+            "archResourceType": "Neon Auth",
+            "archEnvironment": "Accounts, sessies, wachtwoord herstellen",
+            "archIconPackId": "tabler-outline-v3",
+            "archIconShapeId": "lock",
+            "assetPresentation": "card"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "neonauth",
+              "desc": "Accounts, sessies, wachtwoord herstellen"
+            },
+            "dsl": {
+              "autoIcon": "tabler/lock"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "gemini",
+          "kind": "architecture",
+          "parentId": "dsl-1jar36c-view-container-instavol",
+          "layerId": "default",
+          "zIndex": 10,
+          "transform": {
+            "translation": {
+              "x": 3400,
+              "y": 400
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 240,
+            "height": 152
+          },
+          "content": {
+            "label": "Gemini",
+            "subLabel": "[External system · Gemini API]\nSamenvatting en categorie. Model: gemini-3.8-flash (standaard in lib/gemini.ts, te overschrijven met GEMINI_MODEL; REST v1beta generateContent)",
+            "color": "slate",
+            "archKindColor": "slate",
+            "icon": "developer/gcp-gemini",
+            "archProvider": "developer",
+            "archProviderLabel": "External system",
+            "archResourceType": "Gemini API",
+            "archEnvironment": "Samenvatting en categorie. Model: gemini-3.8-flash (standaard in lib/gemini.ts, te overschrijven met GEMINI_MODEL; REST v1beta generateContent)",
+            "archIconPackId": "developer-icons-v1",
+            "archIconShapeId": "gcp-gemini",
+            "assetPresentation": "card"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "gemini",
+              "desc": "Samenvatting en categorie. Model: gemini-3.8-flash (standaard in lib/gemini.ts, te overschrijven met GEMINI_MODEL; REST v1beta generateContent)"
+            },
+            "dsl": {
+              "autoIcon": "developer/gcp-gemini"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "websites",
+          "kind": "process",
+          "parentId": "dsl-1jar36c-view-container-instavol",
+          "layerId": "default",
+          "zIndex": 11,
+          "transform": {
+            "translation": {
+              "x": 3400,
+              "y": 272
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 157,
+            "height": 80
+          },
+          "content": {
+            "label": "Websites",
+            "shape": "rectangle",
+            "subLabel": "[External system]\nOpgeslagen webpagina's",
+            "sizingPolicy": {
+              "version": 1,
+              "mode": "fixed",
+              "minSize": {
+                "width": 24,
+                "height": 24
+              },
+              "maxSize": {
+                "width": 1600,
+                "height": 1200
+              },
+              "overflow": "wrap",
+              "clipContent": false,
+              "maxLines": 4
+            }
+          },
+          "appearance": {
+            "fill": "#f8fafc",
+            "stroke": "#94a3b8",
+            "textColor": "#1e293b"
+          },
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "websites",
+              "desc": "Opgeslagen webpagina's"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "vercel",
+          "kind": "architecture",
+          "parentId": "dsl-1jar36c-view-container-instavol",
+          "layerId": "default",
+          "zIndex": 12,
+          "transform": {
+            "translation": {
+              "x": 597,
+              "y": 229
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 240,
+            "height": 152
+          },
+          "content": {
+            "label": "Vercel",
+            "subLabel": "[External system · Vercel]\nHosting van de app; Neon Postgres via de Vercel-integratie",
+            "color": "slate",
+            "archKindColor": "slate",
+            "icon": "developer/devops-ai-ml-vercel-dark",
+            "archProvider": "developer",
+            "archProviderLabel": "External system",
+            "archResourceType": "Vercel",
+            "archEnvironment": "Hosting van de app; Neon Postgres via de Vercel-integratie",
+            "archIconPackId": "developer-icons-v1",
+            "archIconShapeId": "devops-ai-ml-vercel-dark",
+            "assetPresentation": "card"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "model": {
+              "elementId": "vercel",
+              "desc": "Hosting van de app; Neon Postgres via de Vercel-integratie"
+            },
+            "dsl": {
+              "autoIcon": "developer/devops-ai-ml-vercel-dark"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "dsl-i6vu04",
+          "kind": "frame",
+          "parentId": null,
+          "layerId": "default",
+          "zIndex": 0,
+          "transform": {
+            "translation": {
+              "x": 3988,
+              "y": 80
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 1454,
+            "height": 654
+          },
+          "content": {
+            "label": "Neon Postgres : tabellen"
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "dsl": {
+              "family": "erd",
+              "version": 1,
+              "source": "%% ofk 1\nerd right\ntitle: Neon Postgres: tabellen\n\nlinks [blue] {\n  id uuid pk\n  user_id text null\n  kind text not-null\n  url text null\n  title text null\n  status text not-null\n  summary text null\n  category text null\n  tags \"text[]\" not-null\n  notes jsonb not-null\n  highlights jsonb not-null\n  error_message text null\n  image_url text null\n  byline text null\n  published_at timestamp null\n  reading_minutes integer null\n  created_at timestamp not-null\n  updated_at timestamp not-null\n}\nlink_contents [green] {\n  link_id uuid pk fk\n  html text not-null\n  updated_at timestamp not-null\n}\nlink_images [green] {\n  link_id uuid pk fk\n  mime text not-null\n  data bytea not-null\n  updated_at timestamp not-null\n}\nmembers [orange] {\n  user_id text pk\n  created_at timestamp not-null\n}\nshare_tokens [orange] {\n  user_id text pk\n  token_hash text unique not-null\n  created_at timestamp not-null\n}\nsite_password [gray] {\n  id integer pk\n  password_hash text not-null\n  updated_at timestamp not-null\n}\n\nlinks ||--o| link_contents : \"artikeltekst (cascade)\"\nlinks ||--o| link_images : \"afbeelding (cascade)\"\nmembers ||..o{ links : \"user_id (geen FK)\"\nmembers ||..o| share_tokens : \"user_id (geen FK)\"\n",
+              "hash": "nuu74b",
+              "direction": "right",
+              "title": "Neon Postgres : tabellen",
+              "autoIcons": true
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "links",
+          "kind": "er_entity",
+          "parentId": "dsl-i6vu04",
+          "layerId": "default",
+          "zIndex": 1,
+          "transform": {
+            "translation": {
+              "x": 571,
+              "y": 72
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 291,
+            "height": 388
+          },
+          "content": {
+            "label": "links",
+            "color": "blue",
+            "erFields": [
+              {
+                "name": "id",
+                "dataType": "uuid",
+                "isPrimaryKey": true
+              },
+              {
+                "name": "user_id",
+                "dataType": "text",
+                "isNullable": true
+              },
+              {
+                "name": "kind",
+                "dataType": "text",
+                "isNotNull": true
+              },
+              {
+                "name": "url",
+                "dataType": "text",
+                "isNullable": true
+              },
+              {
+                "name": "title",
+                "dataType": "text",
+                "isNullable": true
+              },
+              {
+                "name": "status",
+                "dataType": "text",
+                "isNotNull": true
+              },
+              {
+                "name": "summary",
+                "dataType": "text",
+                "isNullable": true
+              },
+              {
+                "name": "category",
+                "dataType": "text",
+                "isNullable": true
+              },
+              {
+                "name": "tags",
+                "dataType": "text[]",
+                "isNotNull": true
+              },
+              {
+                "name": "notes",
+                "dataType": "jsonb",
+                "isNotNull": true
+              },
+              {
+                "name": "highlights",
+                "dataType": "jsonb",
+                "isNotNull": true
+              },
+              {
+                "name": "error_message",
+                "dataType": "text",
+                "isNullable": true
+              },
+              {
+                "name": "image_url",
+                "dataType": "text",
+                "isNullable": true
+              },
+              {
+                "name": "byline",
+                "dataType": "text",
+                "isNullable": true
+              },
+              {
+                "name": "published_at",
+                "dataType": "timestamp",
+                "isNullable": true
+              },
+              {
+                "name": "reading_minutes",
+                "dataType": "integer",
+                "isNullable": true
+              },
+              {
+                "name": "created_at",
+                "dataType": "timestamp",
+                "isNotNull": true
+              },
+              {
+                "name": "updated_at",
+                "dataType": "timestamp",
+                "isNotNull": true
+              }
+            ]
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "dsl": {
+              "id": "links",
+              "line": 5
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "link-contents",
+          "kind": "er_entity",
+          "parentId": "dsl-i6vu04",
+          "layerId": "default",
+          "zIndex": 1,
+          "transform": {
+            "translation": {
+              "x": 1146,
+              "y": 142
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 280,
+            "height": 118
+          },
+          "content": {
+            "label": "link_contents",
+            "color": "emerald",
+            "erFields": [
+              {
+                "name": "link_id",
+                "dataType": "uuid",
+                "isPrimaryKey": true,
+                "isForeignKey": true
+              },
+              {
+                "name": "html",
+                "dataType": "text",
+                "isNotNull": true
+              },
+              {
+                "name": "updated_at",
+                "dataType": "timestamp",
+                "isNotNull": true
+              }
+            ]
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "dsl": {
+              "id": "link-contents",
+              "line": 25
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "link-images",
+          "kind": "er_entity",
+          "parentId": "dsl-i6vu04",
+          "layerId": "default",
+          "zIndex": 1,
+          "transform": {
+            "translation": {
+              "x": 1146,
+              "y": 308
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 280,
+            "height": 136
+          },
+          "content": {
+            "label": "link_images",
+            "color": "emerald",
+            "erFields": [
+              {
+                "name": "link_id",
+                "dataType": "uuid",
+                "isPrimaryKey": true,
+                "isForeignKey": true
+              },
+              {
+                "name": "mime",
+                "dataType": "text",
+                "isNotNull": true
+              },
+              {
+                "name": "data",
+                "dataType": "bytea",
+                "isNotNull": true
+              },
+              {
+                "name": "updated_at",
+                "dataType": "timestamp",
+                "isNotNull": true
+              }
+            ]
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "dsl": {
+              "id": "link-images",
+              "line": 30
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "members",
+          "kind": "er_entity",
+          "parentId": "dsl-i6vu04",
+          "layerId": "default",
+          "zIndex": 1,
+          "transform": {
+            "translation": {
+              "x": 28,
+              "y": 233
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 280,
+            "height": 100
+          },
+          "content": {
+            "label": "members",
+            "color": "amber",
+            "erFields": [
+              {
+                "name": "user_id",
+                "dataType": "text",
+                "isPrimaryKey": true
+              },
+              {
+                "name": "created_at",
+                "dataType": "timestamp",
+                "isNotNull": true
+              }
+            ]
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "dsl": {
+              "id": "members",
+              "line": 36
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "share-tokens",
+          "kind": "er_entity",
+          "parentId": "dsl-i6vu04",
+          "layerId": "default",
+          "zIndex": 1,
+          "transform": {
+            "translation": {
+              "x": 571,
+              "y": 508
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 290,
+            "height": 118
+          },
+          "content": {
+            "label": "share_tokens",
+            "color": "amber",
+            "erFields": [
+              {
+                "name": "user_id",
+                "dataType": "text",
+                "isPrimaryKey": true
+              },
+              {
+                "name": "token_hash",
+                "dataType": "text",
+                "isUnique": true,
+                "isNotNull": true
+              },
+              {
+                "name": "created_at",
+                "dataType": "timestamp",
+                "isNotNull": true
+              }
+            ]
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "dsl": {
+              "id": "share-tokens",
+              "line": 40
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "site-password",
+          "kind": "er_entity",
+          "parentId": "dsl-i6vu04",
+          "layerId": "default",
+          "zIndex": 1,
+          "transform": {
+            "translation": {
+              "x": 28,
+              "y": 381
+            },
+            "rotationRadians": 0,
+            "scale": {
+              "x": 1,
+              "y": 1
+            }
+          },
+          "size": {
+            "width": 280,
+            "height": 118
+          },
+          "content": {
+            "label": "site_password",
+            "color": "slate",
+            "erFields": [
+              {
+                "name": "id",
+                "dataType": "integer",
+                "isPrimaryKey": true
+              },
+              {
+                "name": "password_hash",
+                "dataType": "text",
+                "isNotNull": true
+              },
+              {
+                "name": "updated_at",
+                "dataType": "timestamp",
+                "isNotNull": true
+              }
+            ]
+          },
+          "appearance": {},
+          "ports": [],
+          "metadata": {
+            "dsl": {
+              "id": "site-password",
+              "line": 45
+            }
+          },
+          "extensions": {}
+        }
+      ],
+      "connectors": [
+        {
+          "id": "rel:gebruiker->instavol.website",
+          "source": {
+            "nodeId": "gebruiker",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "instavol.website",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:gebruiker->instavol.website:label",
+              "text": "leest en beheert",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:gebruiker->instavol.website"
+            },
+            "dsl": {
+              "line": 20
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:gebruiker->snelkoppeling",
+          "source": {
+            "nodeId": "gebruiker",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "snelkoppeling",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:gebruiker->snelkoppeling:label",
+              "text": "deelt link, foto of notitie",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:gebruiker->snelkoppeling"
+            },
+            "dsl": {
+              "line": 21
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:snelkoppeling->instavol.api",
+          "source": {
+            "nodeId": "snelkoppeling",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "instavol.api",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:snelkoppeling->instavol.api:label",
+              "text": "POST /api/share\n[HTTPS + share-token]",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:snelkoppeling->instavol.api"
+            },
+            "dsl": {
+              "line": 22
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:instavol.website->instavol.proxy",
+          "source": {
+            "nodeId": "instavol.website",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "instavol.proxy",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:instavol.website->instavol.proxy:label",
+              "text": "elk verzoek",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:instavol.website->instavol.proxy"
+            },
+            "dsl": {
+              "line": 23
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:instavol.proxy->neonauth",
+          "source": {
+            "nodeId": "instavol.proxy",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "neonauth",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:instavol.proxy->neonauth:label",
+              "text": "valideert sessie",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:instavol.proxy->neonauth"
+            },
+            "dsl": {
+              "line": 24
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:instavol.website->instavol.api",
+          "source": {
+            "nodeId": "instavol.website",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "instavol.api",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:instavol.website->instavol.api:label",
+              "text": "inloggen, registreren",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:instavol.website->instavol.api"
+            },
+            "dsl": {
+              "line": 25
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:instavol.proxy->instavol.api",
+          "source": {
+            "nodeId": "instavol.proxy",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "instavol.api",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:instavol.proxy->instavol.api:label",
+              "text": "doorgelaten verzoek",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:instavol.proxy->instavol.api"
+            },
+            "dsl": {
+              "line": 26
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:instavol.api->neonauth",
+          "source": {
+            "nodeId": "instavol.api",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "neonauth",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:instavol.api->neonauth:label",
+              "text": "auth-calls doorgegeven, sessie opvragen",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:instavol.api->neonauth"
+            },
+            "dsl": {
+              "line": 27
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:instavol.api->instavol.database",
+          "source": {
+            "nodeId": "instavol.api",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "instavol.database",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:instavol.api->instavol.database:label",
+              "text": "leest en schrijft, controleert share-token (hash) en lidmaatschap",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:instavol.api->instavol.database"
+            },
+            "dsl": {
+              "line": 28
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:instavol.api->instavol.verwerking",
+          "source": {
+            "nodeId": "instavol.api",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "instavol.verwerking",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:instavol.api->instavol.verwerking:label",
+              "text": "start na het antwoord (after())",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:instavol.api->instavol.verwerking"
+            },
+            "dsl": {
+              "line": 29
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:instavol.verwerking->websites",
+          "source": {
+            "nodeId": "instavol.verwerking",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "websites",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:instavol.verwerking->websites:label",
+              "text": "haalt pagina op [HTTPS]",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:instavol.verwerking->websites"
+            },
+            "dsl": {
+              "line": 30
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:instavol.verwerking->gemini",
+          "source": {
+            "nodeId": "instavol.verwerking",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "gemini",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:instavol.verwerking->gemini:label",
+              "text": "samenvatten en categoriseren [HTTPS]",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:instavol.verwerking->gemini"
+            },
+            "dsl": {
+              "line": 31
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:instavol.verwerking->instavol.database",
+          "source": {
+            "nodeId": "instavol.verwerking",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "instavol.database",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:instavol.verwerking->instavol.database:label",
+              "text": "slaat resultaat op",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:instavol.verwerking->instavol.database"
+            },
+            "dsl": {
+              "line": 32
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:vercel->instavol.website",
+          "source": {
+            "nodeId": "vercel",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "instavol.website",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel:vercel->instavol.website:label",
+              "text": "host",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {
+            "markerEnd": "arrow"
+          },
+          "semantics": {},
+          "metadata": {
+            "model": {
+              "relationId": "rel:vercel->instavol.website"
+            },
+            "dsl": {
+              "line": 33
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:links->link-contents:1",
+          "source": {
+            "nodeId": "links",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "link-contents",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel-label-1",
+              "text": "artikeltekst (cascade)",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {},
+          "semantics": {
+            "erRelation": "||--o|"
+          },
+          "metadata": {
+            "dsl": {
+              "line": 51,
+              "structuredRelation": "||--o|"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:links->link-images:2",
+          "source": {
+            "nodeId": "links",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "link-images",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel-label-2",
+              "text": "afbeelding (cascade)",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {},
+          "semantics": {
+            "erRelation": "||--o|"
+          },
+          "metadata": {
+            "dsl": {
+              "line": 52,
+              "structuredRelation": "||--o|"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:members->links:3",
+          "source": {
+            "nodeId": "members",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "links",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel-label-3",
+              "text": "user_id (geen FK)",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {},
+          "semantics": {
+            "erRelation": "||..o{"
+          },
+          "metadata": {
+            "dsl": {
+              "line": 53,
+              "structuredRelation": "||..o{"
+            }
+          },
+          "extensions": {}
+        },
+        {
+          "id": "rel:members->share-tokens:4",
+          "source": {
+            "nodeId": "members",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "target": {
+            "nodeId": "share-tokens",
+            "portId": null,
+            "anchor": null,
+            "point": null
+          },
+          "route": {
+            "kind": "orthogonal",
+            "ownership": "automatic"
+          },
+          "waypoints": [],
+          "labels": [
+            {
+              "id": "rel-label-4",
+              "text": "user_id (geen FK)",
+              "pathRatio": 0.5,
+              "offset": {
+                "x": 0,
+                "y": 0
+              },
+              "metadata": {}
+            }
+          ],
+          "appearance": {},
+          "semantics": {
+            "erRelation": "||..o|"
+          },
+          "metadata": {
+            "dsl": {
+              "line": 54,
+              "structuredRelation": "||..o|"
+            }
+          },
+          "extensions": {}
+        }
+      ],
+      "metadata": {
+        "view": {
+          "id": "view:container:instavol"
+        }
+      },
+      "extensions": {}
+    }
+  ],
+  "metadata": {},
+  "extensions": {}
+}

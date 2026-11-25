@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { NextResponse, after } from 'next/server';
+import { MAX_NOTE_LENGTH } from '@/lib/createItem';
 import { db } from '@/lib/db';
 import { links } from '@/lib/schema';
 import { imageResponse, isMultipart, noteResponse } from '@/lib/itemResponses';
@@ -53,9 +55,17 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: 'Invalid url' }, { status: 400 });
   }
 
+  // Text sent along with a url (a Safari page with selected text) becomes the link's first note.
+  const rawText = (body as { text?: unknown }).text;
+  const text = typeof rawText === 'string' ? rawText.trim() : '';
+  if (text.length > MAX_NOTE_LENGTH) {
+    return NextResponse.json({ error: 'text is too long' }, { status: 400 });
+  }
+  const notes = text ? [{ id: randomUUID(), text, createdAt: new Date().toISOString() }] : [];
+
   const [row] = await db
     .insert(links)
-    .values({ url, userId, title: typeof title === 'string' ? title : null })
+    .values({ url, userId, title: typeof title === 'string' ? title : null, notes })
     .returning();
 
   after(() => processLink(row.id).catch(console.error));

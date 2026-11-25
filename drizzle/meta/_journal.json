@@ -57,6 +57,13 @@
       "when": 1794822388767,
       "tag": "0007_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795614747346,
+      "tag": "0008_share_token_kinds",
+      "breakpoints": true
     }
   ]
 }

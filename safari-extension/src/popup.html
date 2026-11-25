@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <title>Bewaar in Instavol</title>
+  <style>
+    body { font: 13px -apple-system, system-ui, sans-serif; width: 300px; margin: 0; padding: 12px; }
+    button { width: 100%; padding: 8px; font-size: 14px; }
+    label { display: block; margin-top: 8px; }
+    input { width: 100%; box-sizing: border-box; padding: 4px; }
+    #status { margin-top: 8px; min-height: 1.2em; }
+    .error { color: #c62828; }
+    details { margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <button id="save">Bewaar deze pagina</button>
+  <div id="status" role="status"></div>
+  <details id="settings">
+    <summary>Instellingen</summary>
+    <label>Adres van Instavol<input id="baseUrl" placeholder="https://..." autocomplete="off"></label>
+    <label>Token<input id="token" type="password" autocomplete="off"></label>
+    <button id="store" style="margin-top:8px">Opslaan</button>
+    <button id="pair" style="margin-top:8px">Koppel met inloggen</button>
+  </details>
+  <script src="save.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

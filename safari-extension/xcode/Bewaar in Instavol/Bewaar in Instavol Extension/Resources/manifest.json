@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Bewaar in Instavol",
+  "description": "Bewaar pagina's, geselecteerde tekst en afbeeldingen in Instavol.",
+  "version": "0.1.0",
+  "background": {
+    "scripts": ["save.js", "background.js"]
+  },
+  "action": {
+    "default_title": "Bewaar in Instavol",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*/extensie-koppelen*"],
+      "js": ["pair.js"]
+    }
+  ],
+  "permissions": ["contextMenus", "storage", "tabs", "scripting", "activeTab"],
+  "host_permissions": ["https://*/*", "http://*/*"]
+}

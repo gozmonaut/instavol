@@ -165,3 +165,25 @@ test('an empty or too long note returns 400', async () => {
   expect((await POST(req({ text: '   ' }))).status).toBe(400);
   expect((await POST(req({ text: 'x'.repeat(2001) }))).status).toBe(400);
 });
+
+test('url with text (a Safari page with selected text) saves the link with the text as its first note', async () => {
+  const res = await POST(req({ url: 'https://example.com/sel', text: '  Een mooie zin  ' }));
+  expect(res.status).toBe(201);
+  const [row] = await db.select().from(links).where(eq(links.id, (await res.json()).id));
+  expect(row.kind).toBe('link');
+  expect(row.notes).toHaveLength(1);
+  expect(row.notes[0].text).toBe('Een mooie zin');
+});
+
+test.each([['empty', ''], ['whitespace only', '   \n'], ['not a string', 42]])('url with %s text saves the link without notes', async (_name, text) => {
+  const res = await POST(req({ url: 'https://example.com/empty-sel', text }));
+  expect(res.status).toBe(201);
+  const [row] = await db.select().from(links).where(eq(links.id, (await res.json()).id));
+  expect(row.notes).toEqual([]);
+});
+
+test('url with text over 2000 characters returns 400 and inserts nothing', async () => {
+  const res = await POST(req({ url: 'https://example.com/long', text: 'a'.repeat(2001) }));
+  expect(res.status).toBe(400);
+  expect(await db.select().from(links)).toHaveLength(0);
+});

@@ -338,3 +338,11 @@ test('scrolling down hides the top bar, scrolling up brings it back', async () =
   scrollTo(20);
   await vi.waitFor(() => expect(bar).not.toHaveAttribute('data-hidden'));
 });
+
+test('a link in a note under an article can be clicked', () => {
+  const note = { id: 'n1', text: 'Bron: https://b.example/x', createdAt: '2026-11-01T12:00:00.000Z' };
+  render(<Reader link={{ ...link, notes: [note] }} domain="a.example" actions={null} onClose={vi.fn()} />);
+  const anchor = screen.getByRole('region', { name: 'Notitie' }).querySelector('a');
+  expect(anchor).toHaveAttribute('href', 'https://b.example/x');
+  expect(anchor).toHaveAttribute('target', '_blank');
+});

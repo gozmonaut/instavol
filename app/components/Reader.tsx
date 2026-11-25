@@ -4,7 +4,9 @@ import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type ReactNode, type TouchEvent } from 'react';
 import { splitIngredient } from '@/lib/recipe';
 import { applyHighlights, highlightAt, planHighlight, selectionOffsets } from '@/lib/highlights';
+import { splitNoteLinks } from '@/lib/noteLinks';
 import type { LinkNote, LinkRow } from '@/lib/schema';
+import NoteLinkText from './NoteLinkText';
 import styles from './Reader.module.css';
 import { ReaderSettingsSheet, loadSettings, saveSettings, settingsAttributes, type ReaderSettings } from './ReaderSettings';
 
@@ -54,7 +56,16 @@ function ownItemHtml(text: string | undefined): string {
   if (!text) return '';
   return text
     .split(/\n{2,}/)
-    .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`)
+    .map(
+      (paragraph) =>
+        `<p>${splitNoteLinks(paragraph)
+          .map((piece) =>
+            piece.url
+              ? `<a href="${escapeHtml(piece.url)}" target="_blank" rel="noreferrer">${escapeHtml(piece.text)}</a>`
+              : escapeHtml(piece.text).replace(/\n/g, '<br>'),
+          )
+          .join('')}</p>`,
+    )
     .join('');
 }
 
@@ -749,7 +760,7 @@ function NoteText({ text }: { text: string }) {
   return (
     <>
       <p ref={paragraph} className={styles.noteText}>
-        {shown}
+        <NoteLinkText text={shown} />
         {long && !expanded && '…'}
       </p>
       {long && (

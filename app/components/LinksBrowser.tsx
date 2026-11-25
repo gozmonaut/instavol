@@ -8,6 +8,7 @@ import type { LinkRow } from '@/lib/schema';
 import { groupByDate, TIME_ZONE } from '@/lib/dateGroups';
 import { RESEARCH_FOCUSES, buildResearchPrompt, type ResearchFocus } from '@/lib/researchPrompt';
 import { parseShareUrl } from '@/lib/shareUrl';
+import NoteLinkText from './NoteLinkText';
 import Reader from './Reader';
 import ShareTokenSheet from './ShareTokenSheet';
 import styles from './LinksBrowser.module.css';
@@ -59,7 +60,9 @@ async function prepareImage(file: File): Promise<Blob> {
 function NoteBody({ text }: { text: string }) {
   return (
     <div className={`${styles.summary} ${styles.noteSticky}`}>
-      <p className={`${styles.noteBody} ${styles.noteClamped}`}>{text}</p>
+      <p className={`${styles.noteBody} ${styles.noteClamped}`}>
+        <NoteLinkText text={text} />
+      </p>
     </div>
   );
 }
